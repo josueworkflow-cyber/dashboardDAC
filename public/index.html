@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DAC Hospitalar — Gestão Financeira</title>
+
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#111116">
+  <link rel="icon" href="/iconeapp.png" type="image/png">
+  <link rel="apple-touch-icon" href="/iconeapp.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DAC">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <!-- Estilos da aplicação -->
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/graficos-estoque.css">
+  <link rel="stylesheet" href="/css/comercial.css">
+
+  <style>
+    /* Estilos específicos para o Relatório Estilo Excel */
+    .report-section { margin-bottom: 40px; }
+    .report-headline { 
+      font-size: 14px; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      margin-bottom: 20px; 
+      line-height: 1.6;
+      border-left: 4px solid var(--red);
+      padding-left: 15px;
+      color: var(--text);
+    }
+    .report-headline b { color: var(--red); }
+    .report-headline span.pos { color: var(--green); }
+    .report-headline span.neg { color: var(--red); }
+
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .report-box {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+    }
+    .report-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .report-row:last-child { border-bottom: none; }
+    .report-row.highlight { background: rgba(196,18,48,0.05); }
+    
+    .report-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .report-val-group { text-align: right; }
+    .report-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--text); display: block; }
+    .report-val.red { color: var(--red); font-weight: 700; font-size: 16px; }
+    .report-qty { font-size: 10px; color: var(--muted2); font-weight: 600; margin-top: 2px; display: block; }
+    .report-qty b { color: var(--red); }
+
+    .report-chart-box { padding: 20px; height: 100%; display: flex; flex-direction: column; }
+    .report-chart-container { flex: 1; min-height: 200px; position: relative; }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginOverlay"
+    style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;">
+    <div
+      style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(196,18,48,.06),transparent 70%);">
+    </div>
+    <div
+      style="background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:44px;width:420px;max-width:92vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative;z-index:1;">
+      <div style="margin-bottom:28px;">
+        <img src="/css/LOGOTIPO PRINCIPAL NEGATIVA.png" alt="DAC Hospitalar" style="height:60px; width:auto;">
+      </div>
+      <div style="font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:28px;">
+        Dashboard Administrativo</div>
+      <div id="loginError"
+        style="display:none;background:rgba(196,18,48,.1);border:1px solid rgba(196,18,48,.15);border-radius:8px;padding:9px;margin-bottom:14px;font-size:12px;color:var(--red);">
+        Usuário ou senha inválidos</div>
+      <input type="text" id="loginUser" placeholder="Usuário"
+        style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:13px 16px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:12px;"
+        onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border)'" autofocus>
+      <input type="password" id="loginPass" placeholder="Senha"
+        style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:13px 16px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:20px;"
+        onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border)'">
+      <button id="loginBtn" onclick="doLogin()"
+        style="width:100%;background:var(--red);border:none;color:#fff;padding:14px;border-radius:8px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;">Entrar</button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="slogo">
+      <img src="/css/LOGOTIPO PRINCIPAL NEGATIVA.png" alt="DAC Hospitalar" style="height:36px; width:auto; margin-bottom: 4px;">
+      <div style="font-size:8.5px;color:var(--muted2);letter-spacing:2.5px;text-transform:uppercase;font-weight:600;">
+        Dashboard Administrativo</div>
+    </div>
+    <div class="ng">Monitoramento</div>
+    <div class="nl" onclick="goPage('monitoramento',this)"><span class="ni">🖥️</span>Financeiro</div>
+    <div class="nl" onclick="goPage('graficos-estoque',this)"><span class="ni">📊</span>Estoque</div>
+    <div class="nl" onclick="goPage('main',this)"><span class="ni">📈</span>Gráficos Complementares</div>
+
+    <div class="ng">Financeiro</div>
+    <div class="nl" onclick="goPage('movimentacoes-financeiras',this)"><span class="ni">🔄</span>Movimentações Financeiras</div>
+    <div class="nl" onclick="goPage('gestao',this)"><span class="ni">⚙️</span>Gestão de Dados</div>
+
+    <div class="ng">Estoque</div>
+    <div class="nl" onclick="goPage('movimentacao-estoque',this)"><span class="ni">📋</span>Movimentação de Estoque</div>
+    <div class="nl" onclick="goPage('estoque',this)"><span class="ni">📦</span>Gestão de Estoque</div>
+
+    <div class="ng">Comercial</div>
+    <div class="nl" onclick="goPage('comercial',this)"><span class="ni">💼</span>Comercial</div>
+
+    <div class="ng">Comunicação</div>
+    <div class="nl" onclick="goPage('messenger',this)"><span class="ni">💬</span>Messenger</div>
+    <div class="sfoot">
+      <div id="gsft">⬤ <span style="color:var(--muted)">Conectando...</span></div>
+      <div>Sync: <span id="lsync">—</span></div>
+      <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:9px;opacity:0.6;">v4.0 © 2026</span>
+        <button onclick="toggleTvMode()" id="tvModeBtn" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s;" title="Otimizar para telas grandes (TV de 42 pol.)"><span class="tv-icon">📺</span><span class="tv-text"> Modo TV</span></button>
+        <button onclick="doLogout()" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;" title="Sair da conta">Sair</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="mob-overlay" id="mobOverlay" onclick="closeMob()"></div>
+  <main class="main">
+    <div class="topbar">
+      <button class="mob-toggle" onclick="toggleMob()"
+        style="background:none;border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:18px;cursor:pointer;line-height:1;">☰</button>
+      <div class="tp-title" id="pgTitle">MONITORAMENTO</div>
+      <div style="flex:1;"></div>
+      <div class="gs-bar">
+        <div class="gsdot" id="gsd"></div>
+        <span id="gslbl" style="font-size:11px;color:var(--muted)">Conectado</span>
+      </div>
+    </div>
+
+    <!-- PÁGINA PRINCIPAL (GRÁFICOS) -->
+    <div class="pg" id="p-main">
+
+      <!-- FILTRO DOS KPIS -->
+      <div style="display:flex; justify-content:flex-end; margin-bottom: 20px; padding: 0 4px;">
+        <div class="monitor-filter">
+          <button class="filter-btn kpi-filter-btn" onclick="setKpiFilter('mensal', this)">Mensal</button>
+          <button class="filter-btn kpi-filter-btn" onclick="setKpiFilter('anual', this)">Anual</button>
+          <button class="filter-btn kpi-filter-btn active" onclick="setKpiFilter('geral', this)">Geral</button>
+        </div>
+      </div>
+
+      <!-- KPIS PRINCIPAIS -->
+      <div class="krow" id="dashKpis"></div>
+
+      <!-- GRÁFICOS ROW 1: Fluxo de Caixa 100% -->
+      <div class="card fa" id="c-fluxo" style="overflow: visible; margin-top: -10px;">
+        <div class="ch">
+          <div class="ct" style="display:flex;align-items:center;gap:6px;">
+            FLUXO DE CAIXA
+            <div class="ind-card" style="display:inline-block;">
+              <span class="ind-info">i</span>
+              <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Evolução diária das entradas e saídas. Mostra visualmente a sobra (ou falta) de caixa ao longo do período selecionado.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <select class="fs" id="fluxoPeriodo" onchange="renderFluxoChart()">
+              <option value="7">7 dias</option>
+              <option value="15">15 dias</option>
+              <option value="30" selected>30 dias</option>
+              <option value="90">90 dias</option>
+              <option value="0">Tudo</option>
+            </select>
+            <select class="fs" id="fluxoTipo" onchange="renderFluxoChart()">
+              <option value="ambos">Ent. + Saí.</option>
+              <option value="entradas">Entradas</option>
+              <option value="saidas">Saídas</option>
+              <option value="saldo">Saldo Acum.</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:280px;min-height:280px;"><canvas id="fluxoCanvas"></canvas></div>
+      </div>
+
+      <!-- GRÁFICOS ROW 2: Receita Cliente 50% + Saídas Categoria 50% -->
+      <div class="g2">
+        <div class="card fa" id="c-rec-cli" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              RECEITA POR CLIENTE
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Mostra o ranking de faturamento por cliente. Ajuda a identificar dependência de receita sobre poucos clientes.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <select class="fs" id="recClienteMes" onchange="renderReceitaClienteChart()">
+                <option value="0">Todos</option>
+              </select>
+              <select class="fs" id="recClienteTop" onchange="renderReceitaClienteChart()">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+                <option value="15">Top 15</option>
+                <option value="0">Todos</option>
+              </select>
+              <select class="fs" id="recClienteOrder" onchange="renderReceitaClienteChart()">
+                <option value="desc">Maior → Menor</option>
+                <option value="asc">Menor → Maior</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="recClienteCanvas"></canvas></div>
+        </div>
+
+        <div class="card fa" id="c-sai-cat" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              SAÍDAS POR CATEGORIA
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Distribuição dos valores de saída por categoria. Identifica quais tipos de despesa consomem mais recursos.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <select class="fs" id="saiCatMes" onchange="renderSaidasCategoriaChart()">
+                <option value="0">Todos</option>
+              </select>
+              <select class="fs" id="saiCatPeriodo" onchange="renderSaidasCategoriaChart()">
+                <option value="7">7 dias</option>
+                <option value="15">15 dias</option>
+                <option value="30" selected>30 dias</option>
+                <option value="0">Todos</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="saiCatCanvas"></canvas></div>
+        </div>
+      </div>
+
+      <!-- GRÁFICOS ROW 3: Distribuição por Conta Bancária 50% + Receita por Forma 50% -->
+      <div class="g2">
+        <div class="card fa" id="c-dist" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              DISTRIBUIÇÃO POR CONTA BANCÁRIA
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Proporção do volume financeiro movimentado em cada conta bancária. Ajuda a identificar concentração de recursos e diversificar.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <select class="fs" id="contaDistTipo" onchange="renderContaDistribuicao()">
+                <option value="ambos">Entradas + Saídas</option>
+                <option value="entradas">Só Entradas</option>
+                <option value="saidas">Só Saídas</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0;padding:10px 20px 16px;">
+            <div class="chart-wrap" style="height:230px;flex:1;"><canvas id="contaDistCanvas"></canvas></div>
+            <div id="contaDistLegend" style="display:flex;flex-direction:column;gap:8px;min-width:130px;padding-left:10px;"></div>
+          </div>
+        </div>
+
+        <div class="card fa" id="c-rec-forma" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              RECEITA POR FORMA DE PAGAMENTO
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Distribuição da receita por cada forma de pagamento utilizada. Útil para entender preferências dos clientes e negociar taxas.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <select class="fs" id="recFormaMes" onchange="renderReceitaFormaPagamento()">
+                <option value="0">Todos</option>
+              </select>
+              <select class="fs" id="recFormaPeriodo" onchange="renderReceitaFormaPagamento()">
+                <option value="7">7 dias</option>
+                <option value="15">15 dias</option>
+                <option value="30" selected>30 dias</option>
+                <option value="0">Todos</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="recFormaCanvas"></canvas></div>
+        </div>
+      </div>
+
+      <!-- GRÁFICOS ROW 4: Crescimento de Receita 50% + Feed Inteligente 50% -->
+      <div class="g2">
+        <div class="card fa" id="c-cresc" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              CRESCIMENTO DE RECEITA
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Compara o desempenho atual com períodos anteriores, evidenciando nossa tendência de alta ou queda no faturamento.</div>
+              </div>
+            </div>
+            <select class="fs" id="crescPeriodo" onchange="renderCrescimento()">
+              <option value="semanal">Semanal</option>
+              <option value="mensal" selected>Mensal</option>
+            </select>
+          </div>
+          <div style="padding:20px 24px;" id="crescStats"></div>
+          <div class="chart-wrap" style="height:220px;min-height:220px;"><canvas id="crescCanvas"></canvas></div>
+        </div>
+
+        <!-- Smart News Feed -->
+        <div class="card fa" id="c-feed" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              FEED DE NOTÍCIAS
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Insights automáticos e alertas gerados em tempo real sobre seu fluxo de caixa e obrigações.</div>
+              </div>
+            </div>
+            <button onclick="renderSmartNewsFeed()" class="filter-btn" style="padding: 4px 8px; border-radius: 6px; font-size: 16px; background: transparent; border: none;" title="Atualizar Feed">🔄</button>
+          </div>
+          <div id="smartNewsFeed" style="padding: 20px 24px; max-height: 290px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+            <div style="text-align:center; color:var(--muted); font-size: 12px; padding: 30px 0;">Analisando dados...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAÚDE FINANCEIRA -->
+      <div class="card fa" id="c-saude" style="position: relative; z-index: 10; overflow: visible;">
+        <div class="ch">
+          <div class="ct" style="display:flex;align-items:center;gap:6px;">
+            SAÚDE FINANCEIRA
+            <div class="ind-card" style="display:inline-block;">
+              <span class="ind-info">i</span>
+              <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Painel com os principais indicadores de saúde financeira da empresa. Os valores são calculados a partir dos dados do sistema.</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 24px;">
+          <div class="ind-grid" id="indContainer">
+            <!-- Preenchido via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- EVOLUÇÃO DAS DESPESAS -->
+      <div class="card fa" id="c-evol" style="overflow: visible;">
+        <div class="ch">
+          <div class="ct" style="display:flex;align-items:center;gap:6px;">
+            EVOLUÇÃO DAS DESPESAS
+            <div class="ind-card" style="display:inline-block;">
+              <span class="ind-info">i</span>
+              <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Acompanhamento da evolução das despesas ao longo do tempo. Permite identificar tendências de alta ou redução nos gastos.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <select class="fs" id="despMes" onchange="renderEvolucaoDespesas()">
+              <option value="0">Geral</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="despCanvas"></canvas></div>
+      </div>
+
+      <!-- TENDÊNCIA POR CONTA BANCÁRIA -->
+      <div class="card fa" id="c-tend" style="overflow: visible;">
+        <div class="ch">
+          <div class="ct" style="display:flex;align-items:center;gap:6px;">
+            TENDÊNCIA POR CONTA BANCÁRIA
+            <div class="ind-card" style="display:inline-block;">
+              <span class="ind-info">i</span>
+              <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Exibe o saldo atual e a tendência de movimentação de cada conta bancária nos últimos 30 dias com mini-gráficos.</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 20px 24px;" id="contaSparkContainer">
+          <!-- Preenchido via JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ENTRADAS PAGE -->
+    <div class="pg" id="p-entradas">
+      <div class="card fa">
+        <div class="ch">
+          <div class="ct">TODAS AS ENTRADAS</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+            <select class="fs" id="eCliente" onchange="renderEntradas()">
+              <option value="">Todos Clientes</option>
+            </select>
+            <select class="fs" id="eForma" onchange="renderEntradas()">
+              <option value="">Todas Formas</option>
+            </select>
+            <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+            <input type="date" id="eDateFrom" onchange="renderEntradas()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <span style="font-size:11px;color:var(--muted);">até</span>
+            <input type="date" id="eDateTo" onchange="renderEntradas()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <button onclick="setEntPeriod('hoje',this)" class="filter-btn ent-period-btn">Hoje</button>
+            <button onclick="setEntPeriod('7d',this)" class="filter-btn ent-period-btn">7D</button>
+            <button onclick="setEntPeriod('15d',this)" class="filter-btn ent-period-btn">15D</button>
+            <button onclick="setEntPeriod('30d',this)" class="filter-btn ent-period-btn">30D</button>
+            <button onclick="setEntPeriod('tudo',this)" class="filter-btn ent-period-btn active">Tudo</button>
+          </div>
+        </div>
+        <div class="tw" style="max-height:550px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                <th>Observações</th>
+                <th>Valor</th>
+                <th>Cliente</th>
+                <th>Conta</th>
+                <th>Vencimento</th>
+                <th>Pagamento</th>
+                <th>Forma</th>
+                <th>Status</th>
+                <th>Parcelas</th>
+                <th>Modo de Emissão</th>
+              </tr>
+            </thead>
+            <tbody id="tbEntFull"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAÍDAS PAGE -->
+    <div class="pg" id="p-saidas">
+      <div class="card fa">
+        <div class="ch">
+          <div class="ct">TODAS AS SAÍDAS</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+            <select class="fs" id="sCat" onchange="renderSaidas()">
+              <option value="">Todas Categorias</option>
+            </select>
+            <select class="fs" id="sForn" onchange="renderSaidas()">
+              <option value="">Todos Fornecedores</option>
+            </select>
+            <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+            <input type="date" id="sDateFrom" onchange="renderSaidas()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <span style="font-size:11px;color:var(--muted);">até</span>
+            <input type="date" id="sDateTo" onchange="renderSaidas()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <button onclick="setSaiPeriod('hoje',this)" class="filter-btn sai-period-btn">Hoje</button>
+            <button onclick="setSaiPeriod('7d',this)" class="filter-btn sai-period-btn">7D</button>
+            <button onclick="setSaiPeriod('15d',this)" class="filter-btn sai-period-btn">15D</button>
+            <button onclick="setSaiPeriod('30d',this)" class="filter-btn sai-period-btn">30D</button>
+            <button onclick="setSaiPeriod('tudo',this)" class="filter-btn sai-period-btn active">Tudo</button>
+          </div>
+        </div>
+        <div class="tw" style="max-height:550px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                <th>Observações</th>
+                <th>Valor</th>
+                <th>Fornecedor</th>
+                <th>Conta</th>
+                <th>Vencimento</th>
+                <th>Pagamento</th>
+                <th>Forma</th>
+                <th>Status</th>
+                <th>Parcelas</th>
+              </tr>
+            </thead>
+            <tbody id="tbSaiFull"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- GESTÃO DE DADOS PAGE -->
+    <div class="pg" id="p-gestao">
+
+      <!-- Formulário Novo Lançamento -->
+      <div class="card fa">
+        <div class="gestao-form-wrap" style="border-top: none; background: transparent;">
+          <div class="gestao-form-title" id="gf-title">
+            <span style="color:var(--red);">＋</span> Novo Lançamento
+            <span
+              style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;letter-spacing:0;color:var(--muted);">Os
+              campos serão enviados ao Google Sheets</span>
+          </div>
+          <div class="gestao-form-grid">
+            <div class="gfield">
+              <label>Movimentação *</label>
+              <select id="gf-mov" onchange="updateGestaoCategorias()">
+                <option value="Entrada">Entrada</option>
+                <option value="Saída">Saída</option>
+              </select>
+            </div>
+            <div class="gfield">
+              <label>Categoria *</label>
+              <select id="gf-cat"></select>
+            </div>
+            <div class="gfield">
+              <label>Fornecedor / Cliente</label>
+              <input type="text" id="gf-forn" placeholder="Nome do cliente ou fornecedor">
+            </div>
+            <div class="gfield">
+              <label>Valor (R$) *</label>
+              <input type="text" inputmode="decimal" id="gf-val" placeholder="Ex: 1.250,50">
+            </div>
+            <div class="gfield">
+              <label>Conta Bancária</label>
+              <select id="gf-conta">
+                <option value="">Selecione...</option>
+                <option>Inter</option>
+                <option>Cora</option>
+                <option>Bradesco</option>
+                <option>Itaú</option>
+                <option>DAC</option>
+              </select>
+            </div>
+            <div class="gfield">
+              <label>Forma de Pagamento</label>
+              <select id="gf-forma">
+                <option value="">Selecione...</option>
+                <option>PIX</option>
+                <option>Transferência</option>
+                <option>Boleto</option>
+                <option>Cartão Crédito</option>
+                <option>Dinheiro</option>
+              </select>
+            </div>
+            <div class="gfield">
+              <label>Data Vencimento *</label>
+              <input type="date" id="gf-dvenc">
+            </div>
+            <div class="gfield">
+              <label>Data Pagamento</label>
+              <input type="date" id="gf-dpag">
+            </div>
+            <div class="gfield">
+              <label>Status</label>
+              <select id="gf-status" onchange="toggleParcelaFields()">
+                <option value="Pago">Pago</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Parcial">Parcial</option>
+              </select>
+            </div>
+            <div class="gf-parcela-field parcela-config-wrap" id="gf-parcelas-wrap" style="display:none;">
+              <!-- Header -->
+              <div class="parcela-config-header">
+                <div class="parcela-config-title">
+                  <span class="parcela-config-icon">📋</span>
+                  Configuração de Parcelas
+                </div>
+              </div>
+
+              <!-- Body -->
+              <div class="parcela-config-body">
+                <!-- Intervalo pills -->
+                <div class="parcela-section">
+                  <label class="parcela-section-label">Intervalo entre Vencimentos</label>
+                  <div class="parcela-pills">
+                    <label class="parcela-pill">
+                      <input type="radio" name="gf-intervalo" value="30" checked onchange="gerarParcelasCards()">
+                      <span>30 Dias</span>
+                    </label>
+                    <label class="parcela-pill">
+                      <input type="radio" name="gf-intervalo" value="15" onchange="gerarParcelasCards()">
+                      <span>15 Dias</span>
+                    </label>
+                    <label class="parcela-pill">
+                      <input type="radio" name="gf-intervalo" value="7" onchange="gerarParcelasCards()">
+                      <span>7 Dias</span>
+                    </label>
+                    <label class="parcela-pill">
+                      <input type="radio" name="gf-intervalo" value="custom" onchange="gerarParcelasCards()">
+                      <span>Manual</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Controls row -->
+                <div class="parcela-controls">
+                  <div class="gfield" style="max-width:140px;">
+                    <label>Nº de Parcelas</label>
+                    <input type="number" id="gf-parcelas" placeholder="Ex: 3" min="1" max="48" step="1" oninput="gerarParcelasCards()">
+                  </div>
+                  <button class="parcela-btn-dist" onclick="distribuirIgual()" type="button">
+                    <span>⚖️</span> Distribuir Igual
+                  </button>
+                </div>
+
+                <!-- Dynamic cards container -->
+                <div id="gf-parcelas-list" class="parcelas-grid-container">
+                  <!-- Cards de parcelas entram aqui via JS -->
+                </div>
+              </div>
+            </div>
+            <div class="gfield">
+              <label>Observações</label>
+              <input type="text" id="gf-obs" placeholder="Opcional">
+            </div>
+            <div class="gfield" id="gf-nf-wrap">
+              <label>Modo de Emissão</label>
+              <select id="gf-nf">
+                <option value="Emitida pela DAC">Emitida pela DAC</option>
+                <option value="Emitida pela PULSE">Emitida pela PULSE</option>
+                <option value="Por PD">Por PD</option>
+              </select>
+            </div>
+          </div>
+          <div class="gestao-form-actions">
+            <button class="gbtn gbtn-delete" id="gf-delete" style="display:none; margin-right:auto;" onclick="deleteGestaoLancamento()">🗑 Excluir Lançamento</button>
+            <button class="gbtn gbtn-cancel" onclick="resetGestaoForm()">Cancelar</button>
+            <button class="gbtn gbtn-submit" id="gf-submit" onclick="submitGestao()">Confirmar e Sincronizar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BADGES DE RESUMO -->
+      <div class="gestao-badges" id="gestaoBadges">
+        <div class="gbadge">
+          <span class="gbadge-label">Total Entradas</span>
+          <span class="gbadge-val tg" id="gb-ent">—</span>
+        </div>
+        <div class="gbadge">
+          <span class="gbadge-label">Total Saídas</span>
+          <span class="gbadge-val tr" id="gb-sai">—</span>
+        </div>
+        <div class="gbadge">
+          <span class="gbadge-label">Saldo Total</span>
+          <span class="gbadge-val" id="gb-total">—</span>
+        </div>
+      </div>
+
+      <!-- TABELA PRINCIPAL -->
+      <div class="card fa">
+        <!-- Abas -->
+        <div class="gestao-tabs">
+          <div class="gtab on" onclick="setGestaoTab('todos',this)">Todos</div>
+          <div class="gtab" onclick="setGestaoTab('entradas',this)">Entradas</div>
+          <div class="gtab" onclick="setGestaoTab('saidas',this)">Saídas</div>
+          <div class="gtab" onclick="setGestaoTab('pendentes',this)">Pendentes</div>
+        </div>
+
+        <!-- Toolbar: busca + filtros + exportar -->
+        <div class="gestao-toolbar">
+          <input class="gsearch" id="gestaoSearch" type="text"
+            placeholder="Buscar por categoria, fornecedor, observação..." oninput="renderGestaoTable()">
+          <select class="fs" id="gestaoCatFiltro" onchange="renderGestaoTable()" style="min-width:140px;">
+            <option value="">Todas categorias</option>
+          </select>
+          <select class="fs" id="gestaoMesFiltro" onchange="handleGestaoMesChange()">
+            <option value="all">Todos os meses</option>
+            <option value="0">Janeiro</option>
+            <option value="1">Fevereiro</option>
+            <option value="2">Março</option>
+            <option value="3">Abril</option>
+            <option value="4">Maio</option>
+            <option value="5">Junho</option>
+            <option value="6">Julho</option>
+            <option value="7">Agosto</option>
+            <option value="8">Setembro</option>
+            <option value="9">Outubro</option>
+            <option value="10">Novembro</option>
+            <option value="11">Dezembro</option>
+          </select>
+          <input class="fs" type="date" id="gestaoDataFiltro" onchange="handleGestaoDataChange()" title="Filtrar por data específica">
+        </div>
+
+        <!-- Tabela -->
+        <div class="tw" style="max-height:380px;">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Movimentação</th>
+                <th>Categoria</th>
+                <th>Observações</th>
+                <th>Valor</th>
+                <th>Fornecedor</th>
+                <th>Conta Bancária</th>
+                <th>Vencimento</th>
+                <th>Pagamento</th>
+                <th>Forma</th>
+                <th>Status</th>
+                <th>Parcelas</th>
+                <th>Modo de Emissão</th>
+              </tr>
+            </thead>
+            <tbody id="tbGestao"></tbody>
+          </table>
+        </div>
+        <div id="gestaoVazio" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+          Nenhum lançamento encontrado</div>
+
+      </div>
+    </div>
+    <!-- GESTÃO DE ESTOQUE PAGE -->
+    <div class="pg" id="p-estoque">
+      <div class="card fa">
+        <div class="gestao-form-wrap" style="border-top: none; background: transparent;">
+          <div class="gestao-form-title" id="ef-title">
+            <span style="color:var(--red);">＋</span> Novo Lançamento de Estoque
+          </div>
+          <div class="gestao-form-grid">
+            <div class="gfield">
+              <label>Movimentação *</label>
+              <select id="ef-mov">
+                <option value="Entrada">Entrada</option>
+                <option value="Saída">Saída</option>
+              </select>
+            </div>
+            <div class="gfield">
+              <label id="ef-forn-label">Fornecedor *</label>
+              <input type="text" id="ef-forn" placeholder="Nome do fornecedor">
+            </div>
+            <div class="gfield">
+              <label>Valor (R$) *</label>
+              <input type="text" inputmode="decimal" id="ef-val" placeholder="Ex: 1.250,50">
+            </div>
+            <div class="gfield">
+              <label>Data *</label>
+              <input type="date" id="ef-data">
+            </div>
+            <div class="gfield">
+              <label>Pagamento</label>
+              <select id="ef-pagamento">
+                <option value="">Selecione...</option>
+                <option>À vista</option>
+                <option>A prazo</option>
+                <option>Empréstimo</option>
+                <option>Consignado</option>
+                <option>Outros</option>
+              </select>
+            </div>
+            <div class="gfield">
+              <label>Nº Fiscal/PD</label>
+              <input type="text" id="ef-nf" placeholder="Ex: NF 001 ou PD 250">
+            </div>
+            <div class="gfield">
+              <label>Modo de Emissão *</label>
+              <select id="ef-modo-emissao">
+                <!-- Populado dinamicamente via JS em estoque.js -->
+              </select>
+            </div>
+            <div class="gfield">
+              <label>Parcelas</label>
+              <input type="text" id="ef-parcelas" placeholder="Ex: 3x ou -">
+            </div>
+            <div class="gfield">
+              <label>Empresa</label>
+              <select id="ef-empresa">
+                <option value="">Selecione...</option>
+                <option value="DAC">DAC</option>
+                <option value="PULSE">PULSE</option>
+                <option>Outros</option>
+              </select>
+            </div>
+            <div class="gfield">
+              <label>Forma de Pagamento</label>
+              <select id="ef-forma">
+                <option value="">Selecione...</option>
+                <option>PIX</option>
+                <option>Boleto</option>
+                <option>Crédito</option>
+                <option>Débito</option>
+                <option>Transferência</option>
+                <option>Dinheiro</option>
+                <option>Outros</option>
+              </select>
+            </div>
+          </div>
+          <div class="gestao-form-actions">
+            <button class="gbtn gbtn-delete" id="ef-delete" style="display:none; margin-right:auto;" onclick="deleteEstoqueLancamento()">🗑 Excluir Lançamento</button>
+            <button class="gbtn gbtn-cancel" onclick="resetEstoqueForm()">Cancelar</button>
+            <button class="gbtn gbtn-submit" id="ef-submit" onclick="submitEstoque()">Confirmar e Sincronizar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BADGES DE RESUMO ESTOQUE -->
+      <div class="gestao-badges" id="estoqueBadges">
+        <div class="gbadge">
+          <span class="gbadge-label">Total Entradas</span>
+          <span class="gbadge-val tr" id="eb-ent">—</span>
+        </div>
+        <div class="gbadge">
+          <span class="gbadge-label">Total Saídas</span>
+          <span class="gbadge-val tg" id="eb-sai">—</span>
+        </div>
+        <div class="gbadge">
+          <span class="gbadge-label">Saldo Estoque</span>
+          <span class="gbadge-val" id="eb-total">—</span>
+        </div>
+      </div>
+
+      <!-- TABELA ESTOQUE -->
+      <div class="card fa">
+        <div class="gestao-tabs">
+          <div class="gtab on" onclick="setEstoqueTab('todos',this)">Todos</div>
+          <div class="gtab" onclick="setEstoqueTab('entradas',this)">Entradas</div>
+          <div class="gtab" onclick="setEstoqueTab('saidas',this)">Saídas</div>
+          <div class="gtab" onclick="setEstoqueTab('pendentes',this)" style="color:#F59E0B;">⚠ Pendentes (Comercial)</div>
+        </div>
+
+        <div class="gestao-toolbar">
+          <input class="gsearch" id="estoqueSearch" type="text"
+            placeholder="Buscar por fornecedor, nota, status..." oninput="renderEstoqueTable()">
+          <select class="fs" id="estoqueMesFiltro" onchange="handleEstoqueMesChange()">
+            <option value="">Anual</option>
+            <option value="0">Janeiro</option>
+            <option value="1">Fevereiro</option>
+            <option value="2">Março</option>
+            <option value="3">Abril</option>
+            <option value="4">Maio</option>
+            <option value="5">Junho</option>
+            <option value="6">Julho</option>
+            <option value="7">Agosto</option>
+            <option value="8">Setembro</option>
+            <option value="9">Outubro</option>
+            <option value="10">Novembro</option>
+            <option value="11">Dezembro</option>
+          </select>
+          <input class="fs" type="date" id="estoqueDataFiltro" onchange="handleEstoqueDataChange()" title="Filtrar por data específica">
+        </div>
+
+        <div class="tw" style="max-height:380px;">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Movimentação</th>
+                <th>Fornecedor</th>
+                <th>Valor</th>
+                <th>Data</th>
+                <th>Pagamento</th>
+                <th>Nota Fiscal</th>
+                <th>Parcelas</th>
+                <th>Empresa</th>
+                <th>Forma Pgto</th>
+                <th>Modo Emissão</th>
+              </tr>
+            </thead>
+            <tbody id="tbEstoque"></tbody>
+          </table>
+        </div>
+        <div id="estoqueVazio" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+          Nenhum lançamento encontrado</div>
+      </div>
+    </div>
+
+    <!-- COMERCIAL (FUNIL DE VENDAS) -->
+    <div class="pg" id="p-comercial">
+
+      <!-- PIPELINE VISUAL -->
+      <div id="comercial-pipeline" class="pipeline-bar">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <!-- TOOLBAR -->
+      <div class="comercial-toolbar">
+        <button class="btn-novo-orcamento" onclick="openDrawer('novo')">
+          <span style="font-size:16px;">＋</span> Novo Orçamento
+        </button>
+        <input class="gsearch" id="comercialSearch" type="text"
+          placeholder="Buscar por cliente, nº orçamento, vendedor..." oninput="filterComercial()">
+        <select class="fs" id="comercialVendedor" onchange="filterComercial()" style="min-width:160px;">
+          <option value="">Todos Vendedores</option>
+        </select>
+      </div>
+
+      <!-- KANBAN BOARD -->
+      <div id="kanban-board" class="kanban-board">
+        <!-- Preenchido via JS -->
+      </div>
+    </div>
+
+    <!-- MOVIMENTAÇÃO DE ESTOQUE (RELATÓRIO) -->
+    <!-- MOVIMENTAÇÕES FINANCEIRAS (UNIFICADA) -->
+    <div class="pg" id="p-movimentacoes-financeiras">
+      <div class="card fa">
+        <div class="ch" style="flex-direction: column; align-items: center; gap: 20px; padding: 25px 24px 20px;">
+          <!-- KPIs UNIFICADOS (AGORA NO TOPO E CENTRALIZADOS) -->
+          <div class="gestao-badges" id="mfKpis" style="display:flex; gap:10px; justify-content: center; width: 100%; flex-wrap: wrap;">
+            <!-- Preenchido via JS -->
+          </div>
+
+          <!-- FILTROS (AGORA EM BAIXO) -->
+          <div style="display:flex; gap:7px; flex-wrap:wrap; align-items:center; justify-content: center; width: 100%;">
+            <select class="fs" id="mfTipo" onchange="renderMovimentacoesFinanceiras()">
+              <option value="">Entradas + Saídas</option>
+              <option value="entrada">Apenas Entradas</option>
+              <option value="saída">Apenas Saídas</option>
+            </select>
+            <span class="mob-hide" style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+            <input type="date" id="mfDateFrom" onchange="renderMovimentacoesFinanceiras()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <span style="font-size:11px;color:var(--muted);">até</span>
+            <input type="date" id="mfDateTo" onchange="renderMovimentacoesFinanceiras()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <button onclick="setMfPeriod('hoje',this)" class="filter-btn mf-period-btn">Hoje</button>
+            <button onclick="setMfPeriod('7d',this)" class="filter-btn mf-period-btn">7D</button>
+            <button onclick="setMfPeriod('15d',this)" class="filter-btn mf-period-btn">15D</button>
+            <button onclick="setMfPeriod('30d',this)" class="filter-btn mf-period-btn">30D</button>
+            <button onclick="setMfPeriod('tudo',this)" class="filter-btn mf-period-btn active">Tudo</button>
+          </div>
+        </div>
+        
+        <div class="gestao-toolbar" style="padding-top:0; border-top:none;">
+          <input class="gsearch" id="mfSearch" type="text"
+            placeholder="Buscar por cliente, fornecedor, observações..." oninput="renderMovimentacoesFinanceiras()">
+        </div>
+
+        <div class="tw" style="max-height:580px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Observações</th>
+                <th>Valor</th>
+                <th>Fornecedor/Cliente</th>
+                <th>Conta Bancária</th>
+                <th>Vencimento</th>
+                <th>Pagamento</th>
+                <th>Forma</th>
+                <th>Status</th>
+                <th>Modo de Emissão</th>
+                <th>Parcelas</th>
+                <th>Valor Pago</th>
+              </tr>
+            </thead>
+            <tbody id="tbMovFinanceiras"></tbody>
+          </table>
+        </div>
+        <div id="mfVazio" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+          Nenhuma movimentação financeira encontrada</div>
+      </div>
+    </div>
+    <div class="pg" id="p-movimentacao-estoque">
+      <div class="card fa">
+        <div class="ch">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+            <select class="fs" id="meEmpresa" onchange="renderMovimentacaoEstoque()">
+              <option value="">Todas Empresas</option>
+              <option value="DAC">DAC</option>
+              <option value="PULSE">PULSE</option>
+            </select>
+            <select class="fs" id="meTipo" onchange="renderMovimentacaoEstoque()">
+              <option value="">Todos os Tipos</option>
+              <option value="Entrada">Entradas</option>
+              <option value="Saída">Saídas</option>
+            </select>
+            <span class="mob-hide" style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+            <input type="date" id="meDateFrom" onchange="renderMovimentacaoEstoque()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <span style="font-size:11px;color:var(--muted);">até</span>
+            <input type="date" id="meDateTo" onchange="renderMovimentacaoEstoque()"
+              style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
+            <button onclick="setMePeriod('hoje',this)" class="filter-btn me-period-btn">Hoje</button>
+            <button onclick="setMePeriod('7d',this)" class="filter-btn me-period-btn">7D</button>
+            <button onclick="setMePeriod('15d',this)" class="filter-btn me-period-btn">15D</button>
+            <button onclick="setMePeriod('30d',this)" class="filter-btn me-period-btn">30D</button>
+            <button onclick="setMePeriod('tudo',this)" class="filter-btn me-period-btn active">Tudo</button>
+          </div>
+        </div>
+        
+        <div class="gestao-toolbar" style="padding-top:0; border-top:none;">
+          <input class="gsearch" id="meSearch" type="text"
+            placeholder="Buscar por NF, fornecedor, observações..." oninput="renderMovimentacaoEstoque()">
+        </div>
+
+        <div class="tw" style="max-height:580px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Movimentação</th>
+                <th>Fornecedor/Cliente</th>
+                <th>Valor</th>
+                <th>Data</th>
+                <th>Pagamento</th>
+                <th>Nota Fiscal</th>
+                <th>Parcelas</th>
+                <th>Empresa</th>
+                <th>Forma Pgto</th>
+                <th>Modo Emissão</th>
+              </tr>
+            </thead>
+            <tbody id="tbMovEstoque"></tbody>
+          </table>
+        </div>
+        <div id="meVazio" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+          Nenhuma movimentação encontrada</div>
+      </div>
+    </div>
+
+
+    <!-- GRÁFICOS ESTOQUE PAGE -->
+    <div class="pg" id="p-graficos-estoque">
+      <main>
+        <!-- BARRA DE FILTROS -->
+        <div class="card fa" style="margin-bottom: 30px;">
+          <div class="gestao-toolbar" style="padding: 15px; flex-wrap: wrap; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label style="font-size: 11px; font-weight: 600; color: var(--muted2);">PERÍODO:</label>
+              <select class="fs" id="ge-periodo" onchange="handleGePeriodoChange()">
+                <option value="semana">Semana Atual</option>
+                <option value="mes" selected>Mês Atual</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </div>
+            
+            <div id="ge-custom-dates" style="display: none; align-items: center; gap: 8px;">
+              <input class="fs" type="date" id="ge-inicio" onchange="renderGraficosEstoque()">
+              <span style="color: var(--muted2);">até</span>
+              <input class="fs" type="date" id="ge-fim" onchange="renderGraficosEstoque()">
+            </div>
+
+
+            
+            <button class="gbtn" style="margin-left: auto; padding: 6px 12px; font-size: 10px;" onclick="loadData()">Sincronizar Agora</button>
+          </div>
+        </div>
+
+
+
+        <!-- SAÍDAS -->
+        <div class="section-header">
+          <div class="section-accent green"></div>
+          <span class="section-title">Saídas</span>
+        </div>
+
+        <div class="grid-4">
+          <!-- Saídas DAC -->
+          <div class="card">
+            <div class="card-header">Saídas — DAC</div>
+            <div class="card-body">
+              <div class="metric-row">
+                <div class="metric-label">Com Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-sai-dac-nf">R$ 0,00</span>
+                  <span class="badge green" id="ge-q-sai-dac-nf">0 notas</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill green" id="ge-bar-sai-dac-nf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Sem Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-sai-dac-snf">R$ 0,00</span>
+                  <span class="badge yellow" id="ge-q-sai-dac-snf">0 lançamentos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill yellow" id="ge-bar-sai-dac-snf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Por Empréstimo</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-sai-dac-pd">R$ 0,00</span>
+                  <span class="badge blue" id="ge-q-sai-dac-pd">0 pedidos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill blue" id="ge-bar-sai-dac-pd" style="width:0%"></div></div>
+              </div>
+              <div class="total-row">
+                <span class="total-label">Total DAC</span>
+                <div class="total-right">
+                  <span class="metric-value green" id="ge-v-sai-dac-tot" style="font-size:17px">R$ 0,00</span>
+                  <span class="badge gray" id="ge-q-sai-dac-tot">0 total</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Saídas PULSE -->
+          <div class="card">
+            <div class="card-header">Saídas — PULSE</div>
+            <div class="card-body">
+              <div class="metric-row">
+                <div class="metric-label">Com Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-sai-pul-nf">R$ 0,00</span>
+                  <span class="badge green" id="ge-q-sai-pul-nf">0 notas</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill green" id="ge-bar-sai-pul-nf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Sem Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-sai-pul-snf">R$ 0,00</span>
+                  <span class="badge yellow" id="ge-q-sai-pul-snf">0 lançamentos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill yellow" id="ge-bar-sai-pul-snf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Por Empréstimo</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-sai-pul-pd">R$ 0,00</span>
+                  <span class="badge blue" id="ge-q-sai-pul-pd">0 pedidos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill blue" id="ge-bar-sai-pul-pd" style="width:0%"></div></div>
+              </div>
+              <div class="total-row">
+                <span class="total-label">Total PULSE</span>
+                <div class="total-right">
+                  <span class="metric-value green" id="ge-v-sai-pul-tot" style="font-size:17px">R$ 0,00</span>
+                  <span class="badge gray" id="ge-q-sai-pul-tot">0 total</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Formas de Recebimento -->
+          <div class="card">
+            <div class="card-header">Formas de Recebimento</div>
+            <div class="card-body" id="ge-payment-container-sai">
+              <div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 11px;">Carregando formas...</div>
+            </div>
+          </div>
+
+          <!-- Composição Fiscal Saídas -->
+          <div class="card">
+            <div class="card-header" style="display:flex; align-items:center;">
+              Composição Fiscal
+              <div class="card-header-filters">
+                <button class="filter-btn" onclick="setGeFilterSai('TODOS', this)">Ambos</button>
+                <button class="filter-btn active" onclick="setGeFilterSai('DAC', this)">DAC</button>
+                <button class="filter-btn" onclick="setGeFilterSai('PULSE', this)">PULSE</button>
+              </div>
+            </div>
+            <div class="chart-container">
+              <div class="donut-wrap">
+                <canvas id="donutSaidas"></canvas>
+                <div class="donut-center">
+                  <div class="donut-center-value" id="ge-nf-pct-sai">0%</div>
+                  <div class="donut-center-label">com NF</div>
+                </div>
+              </div>
+              <div class="donut-legend" id="ge-nf-legend-sai">
+                <!-- Preenchido via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ENTRADAS -->
+        <div class="section-header">
+          <div class="section-accent red"></div>
+          <span class="section-title">Entradas</span>
+        </div>
+
+        <div class="grid-4">
+          <!-- Card Entradas DAC -->
+          <div class="card">
+            <div class="card-header">Lançamentos de Entrada — DAC</div>
+            <div class="card-body">
+              <div class="metric-row">
+                <div class="metric-label">Com Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-ent-dac-nf">R$ 0,00</span>
+                  <span class="badge red" id="ge-q-ent-dac-nf">0 notas</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill red" id="ge-bar-ent-dac-nf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Sem Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-ent-dac-snf">R$ 0,00</span>
+                  <span class="badge yellow" id="ge-q-ent-dac-snf">0 lançamentos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill yellow" id="ge-bar-ent-dac-snf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Por Empréstimo</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-ent-dac-emp">R$ 0,00</span>
+                  <span class="badge blue" id="ge-q-ent-dac-emp">0 lançamentos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill blue" id="ge-bar-ent-dac-emp" style="width:0%"></div></div>
+              </div>
+              <div class="total-row">
+                <span class="total-label">Total DAC</span>
+                <div class="total-right">
+                  <span class="metric-value red" id="ge-v-ent-dac-tot" style="font-size:17px">R$ 0,00</span>
+                  <span class="badge gray" id="ge-q-ent-dac-tot">0 total</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Entradas Pulse -->
+          <div class="card">
+            <div class="card-header">Lançamentos de Entrada — PULSE</div>
+            <div class="card-body">
+              <div class="metric-row">
+                <div class="metric-label">Com Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-ent-pul-nf">R$ 0,00</span>
+                  <span class="badge red" id="ge-q-ent-pul-nf">0 notas</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill red" id="ge-bar-ent-pul-nf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Sem Nota Fiscal</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-ent-pul-snf">R$ 0,00</span>
+                  <span class="badge yellow" id="ge-q-ent-pul-snf">0 lançamentos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill yellow" id="ge-bar-ent-pul-snf" style="width:0%"></div></div>
+              </div>
+              <div class="metric-row">
+                <div class="metric-label">Por Empréstimo</div>
+                <div class="metric-main">
+                  <span class="metric-value" id="ge-v-ent-pul-emp">R$ 0,00</span>
+                  <span class="badge blue" id="ge-q-ent-pul-emp">0 lançamentos</span>
+                </div>
+                <div class="mini-bar"><div class="mini-bar-fill blue" id="ge-bar-ent-pul-emp" style="width:0%"></div></div>
+              </div>
+              <div class="total-row">
+                <span class="total-label">Total PULSE</span>
+                <div class="total-right">
+                  <span class="metric-value red" id="ge-v-ent-pul-tot" style="font-size:17px">R$ 0,00</span>
+                  <span class="badge gray" id="ge-q-ent-pul-tot">0 total</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Formas de Pagamento -->
+          <div class="card">
+            <div class="card-header">Formas de Pagamento</div>
+            <div class="card-body" id="ge-payment-container">
+              <!-- Preenchido via JS -->
+              <div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 11px;">Carregando formas...</div>
+            </div>
+          </div>
+
+          <!-- Composição Fiscal -->
+          <div class="card">
+            <div class="card-header" style="display:flex; align-items:center;">
+              Composição Fiscal
+              <div class="card-header-filters">
+                <button class="filter-btn" onclick="setGeFilterEnt('TODOS', this)">Ambos</button>
+                <button class="filter-btn active" onclick="setGeFilterEnt('DAC', this)">DAC</button>
+                <button class="filter-btn" onclick="setGeFilterEnt('PULSE', this)">PULSE</button>
+              </div>
+            </div>
+            <div class="chart-container">
+              <div class="donut-wrap">
+                <canvas id="donutEntradas"></canvas>
+                <div class="donut-center">
+                  <div class="donut-center-value" id="ge-nf-pct">0%</div>
+                  <div class="donut-center-label">com NF</div>
+                </div>
+              </div>
+              <div class="donut-legend" id="ge-nf-legend">
+                <!-- Preenchido via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- MONITORAMENTO PAGE -->
+    <div class="pg on pg-monitoramento" id="p-monitoramento">
+
+
+
+      <!-- PRIMEIRA LINHA: 3 BLOCOS -->
+      <div class="g3" style="align-items: start;">
+        <!-- BLOCO 1: ENTRADAS COM NOTA FISCAL -->
+        <div class="card fa" style="overflow: hidden; min-width: 0; display: flex; flex-direction: column;">
+          <div class="ch" style="padding:10px 16px 8px; gap:6px;">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+            ENTRADAS COM NF
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Tabela de todas as entradas com nota fiscal, organizadas por semana do mês. Respeita o filtro DAC/Pulse.</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:4px; align-items:center;">
+              <div class="monitor-filter" style="gap:3px;">
+                <button class="filter-btn mon-filter-btn active" style="padding:4px 10px; font-size:10px;" onclick="setMonitorFilter('DAC', this)">DAC</button>
+                <button class="filter-btn mon-filter-btn" style="padding:4px 10px; font-size:10px;" onclick="setMonitorFilter('Pulse', this)">PULSE</button>
+              </div>
+              <select class="fs" id="monMesFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;">
+                <option value="0">Jan</option>
+                <option value="1">Fev</option>
+                <option value="2">Mar</option>
+                <option value="3">Abr</option>
+                <option value="4">Mai</option>
+                <option value="5">Jun</option>
+                <option value="6">Jul</option>
+                <option value="7">Ago</option>
+                <option value="8">Set</option>
+                <option value="9">Out</option>
+                <option value="10">Nov</option>
+                <option value="11">Dez</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding: 0 14px 6px; flex: 1; overflow-y: auto; min-height: 0;" id="monTabelaNF">Carregando...</div>
+          <div style="display: flex; gap: 4px; align-items: center; padding: 0 8px 10px; overflow: hidden; flex-shrink: 0; border-top: 1px solid var(--card-border);">
+            <div class="chart-wrap" style="height:180px; flex: 1; padding: 4px;"><canvas id="monEntradasNFChart"></canvas></div>
+            <div style="height:160px; width: 160px; padding: 0; position: relative; flex-shrink: 0;"><canvas id="monEntradasPieChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- BLOCO 2: DESPESAS VARIÁVEIS -->
+        <div class="card fa" style="overflow: hidden; min-width: 0; display: flex; flex-direction: column;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              DESPESAS VARIÁVEIS
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Distribuição das saídas por categoria, filtrado por DAC ou Pulse.</div>
+              </div>
+            </div>
+            <select class="fs" id="monMesFilterDespVar" onchange="renderDespesasVariaveis()">
+              <option value="">Todos</option>
+              <option value="0">Janeiro</option>
+              <option value="1">Fevereiro</option>
+              <option value="2">Março</option>
+              <option value="3">Abril</option>
+              <option value="4">Maio</option>
+              <option value="5">Junho</option>
+              <option value="6">Julho</option>
+              <option value="7">Agosto</option>
+              <option value="8">Setembro</option>
+              <option value="9">Outubro</option>
+              <option value="10">Novembro</option>
+              <option value="11">Dezembro</option>
+            </select>
+          </div>
+          <div class="chart-wrap" style="flex: 1;"><canvas id="monDespVarCanvas"></canvas></div>
+        </div>
+
+        <!-- BLOCO 3: TRANSPORTE TERCEIRIZADO -->
+        <div class="card fa" style="overflow: hidden; min-width: 0; display: flex; flex-direction: column;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              TRANSPORTE TERCEIRIZADO
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Valor total e detalhamento por fornecedor das saídas com categoria Logística.</div>
+              </div>
+            </div>
+            <select class="fs" id="monMesFilterTransporte" onchange="renderMonitoramento()">
+              <option value="0">Janeiro</option>
+              <option value="1">Fevereiro</option>
+              <option value="2">Março</option>
+              <option value="3">Abril</option>
+              <option value="4">Maio</option>
+              <option value="5">Junho</option>
+              <option value="6">Julho</option>
+              <option value="7">Agosto</option>
+              <option value="8">Setembro</option>
+              <option value="9">Outubro</option>
+              <option value="10">Novembro</option>
+              <option value="11">Dezembro</option>
+            </select>
+          </div>
+          <div style="padding: 10px 24px 5px; flex: 1; overflow-y: auto; min-height: 0;" id="monTransporte">Carregando...</div>
+          <div class="chart-wrap" style="height: 160px; min-height: 0; flex-shrink: 0;"><canvas id="monTransporteChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- SEGUNDA LINHA: GRÁFICOS ROW -->
+      <div class="g2">
+        <!-- DESEMPENHO DE VENDAS -->
+        <div class="card fa" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              DESEMPENHO FINANCEIRO
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Comparação consolidada de Entradas vs Saídas do grupo. Use os filtros ao lado para detalhar por empresa ou período.</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <select class="fs" id="monEmpresaFilterDesempenho" onchange="renderDesempenhoVendas()">
+                <option value="ambos">Ambas Empresas</option>
+                <option value="DAC">Apenas DAC</option>
+                <option value="PULSE">Apenas PULSE</option>
+              </select>
+              <select class="fs" id="monMesFilterDesempenho" onchange="renderDesempenhoVendas()">
+                <option value="">Anual</option>
+                <option value="0">Janeiro</option>
+                <option value="1">Fevereiro</option>
+                <option value="2">Março</option>
+                <option value="3">Abril</option>
+                <option value="4">Maio</option>
+                <option value="5">Junho</option>
+                <option value="6">Julho</option>
+                <option value="7">Agosto</option>
+                <option value="8">Setembro</option>
+                <option value="9">Outubro</option>
+                <option value="10">Novembro</option>
+                <option value="11">Dezembro</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrap" style="flex: 1; min-height: 0;"><canvas id="monDesempenhoCanvas"></canvas></div>
+        </div>
+
+        <!-- ACOMPANHAMENTO ANUAL -->
+        <div class="card fa" style="overflow: visible;">
+          <div class="ch">
+            <div class="ct" style="display:flex;align-items:center;gap:6px;">
+              ACOMPANHAMENTO ANUAL
+              <div class="ind-card" style="display:inline-block;">
+                <span class="ind-info">i</span>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Acompanhamento mensal do faturamento com barra de progresso em relação ao teto anual (DAC: R$ 2.500.000 / Pulse: R$ 750.000).</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding: 0 24px 24px; flex: 1; overflow-y: auto; min-height: 0;" id="monAnual">Carregando...</div>
+        </div>
+      </div>
+
+    </div>
+    <!-- /MONITORAMENTO -->
+
+    <!-- MESSENGER -->
+    <div class="pg" id="p-messenger">
+      <div id="messenger-content">Carregando...</div>
+    </div>
+
+  </main>
+
+  <!-- MODAL PAGAMENTO RÁPIDO PARCELA -->
+  <div id="modalPagarParcela" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">Pagar Parcela</div>
+        <button class="modal-close" onclick="fecharModalPagar()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:15px; background:rgba(255,255,255,0.03); padding:12px; border-radius:8px;">
+          <div id="mpp-info-desc" style="font-size:13px; font-weight:600; margin-bottom:4px;">Serviço X</div>
+          <div id="mpp-info-ref" style="font-size:11px; color:var(--muted);">Parcela 1/3</div>
+        </div>
+        <div class="gestao-form-grid" style="grid-template-columns: 1fr 1fr; gap:15px;">
+          <div class="gfield">
+            <label>Valor da Parcela</label>
+            <input type="text" id="mpp-valor-orig" readonly style="opacity:0.6;">
+          </div>
+          <div class="gfield">
+            <label>Valor Efetivo Pago *</label>
+            <input type="text" id="mpp-valor-pago" placeholder="R$ 0,00">
+          </div>
+          <div class="gfield">
+            <label>Data Pagamento</label>
+            <input type="date" id="mpp-data-pag">
+          </div>
+          <div class="gfield" style="display:flex; align-items:center; padding-top:20px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:11px; color:var(--accent2);">
+              <input type="checkbox" id="mpp-recalcular" checked> Recalcular restantes
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="gbtn gbtn-cancel" onclick="fecharModalPagar()">Cancelar</button>
+        <button class="gbtn gbtn-submit" id="mpp-submit" onclick="confirmarPagamentoParcela()">Confirmar Pagamento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GRUPO DE PARCELAS -->
+  <div id="modalGrupoParcelas" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:600px;">
+      <div class="modal-header">
+        <div class="modal-title">Detalhes do Parcelamento</div>
+        <button class="modal-close" onclick="fecharModalGrupo()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="mgp-header" style="margin-bottom:20px;">
+          <!-- Preenchido via JS -->
+        </div>
+        <div class="tw" style="max-height:300px;">
+          <table style="font-size:12px;">
+            <thead>
+              <tr>
+                <th>Parcela</th>
+                <th>Vencimento</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Pagamento</th>
+              </tr>
+            </thead>
+            <tbody id="mgp-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between; align-items: center;">
+        <div id="mgp-progress-wrap" style="flex:1; margin-right:20px;">
+          <!-- Progress bar via JS -->
+        </div>
+        <button class="gbtn gbtn-cancel" onclick="fecharModalGrupo()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DRAWER LATERAL — COMERCIAL -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+  <div class="drawer-panel" id="drawer-panel">
+    <div class="drawer-header">
+      <span class="drawer-title" id="drawer-title">NOVO ORÇAMENTO</span>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+      <input type="hidden" id="df-id" value="">
+      <div class="gfield">
+        <label>Cliente *</label>
+        <input type="text" id="df-cliente" placeholder="Nome do cliente">
+      </div>
+      <div class="gfield">
+        <label>Valor (R$) *</label>
+        <input type="text" inputmode="decimal" id="df-valor" placeholder="Ex: 15.000,00">
+      </div>
+      <div class="gfield">
+        <label>Data</label>
+        <input type="date" id="df-data">
+      </div>
+      <div class="gfield">
+        <label>Pagamento</label>
+        <select id="df-pagamento">
+          <option value="">Selecione...</option>
+          <option>À vista</option>
+          <option>A prazo</option>
+          <option>Consignado</option>
+          <option>Outros</option>
+        </select>
+      </div>
+      <div class="gfield">
+        <label>Forma de Pagamento</label>
+        <select id="df-forma">
+          <option value="">Selecione...</option>
+          <option>PIX</option>
+          <option>Boleto</option>
+          <option>Crédito</option>
+          <option>Débito</option>
+          <option>Transferência</option>
+          <option>Dinheiro</option>
+        </select>
+      </div>
+      <div class="gfield">
+        <label>Parcela</label>
+        <input type="text" id="df-parcela" placeholder="Ex: 3x ou —">
+      </div>
+      <div class="gfield">
+        <label>Modo de Emissão</label>
+        <select id="df-modo">
+          <option value="Com Nota Fiscal">Com Nota Fiscal</option>
+          <option value="Por PD">Por PD</option>
+          <option value="Por Empréstimo">Por Empréstimo</option>
+        </select>
+      </div>
+      <div class="gfield">
+        <label>Vendedor</label>
+        <input type="text" id="df-vendedor" placeholder="Nome do vendedor">
+      </div>
+      <div class="gfield" id="df-status-wrap" style="display:none;">
+        <label>Status</label>
+        <select id="df-status">
+          <option value="Orçamento">Orçamento</option>
+          <option value="Negociação">Negociação</option>
+          <option value="Aprovado">Aprovado</option>
+          <option value="Enviado ao Estoque">Enviado ao Estoque</option>
+          <option value="Finalizado">Finalizado</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="gbtn gbtn-delete" id="drawer-delete" style="display:none;" onclick="deleteOrcamento()">🗑 Excluir</button>
+      <button class="gbtn gbtn-cancel" onclick="closeDrawer()">Cancelar</button>
+      <button class="gbtn gbtn-submit" id="drawer-submit" onclick="submitOrcamento()">Criar Orçamento</button>
+    </div>
+  </div>
+
+  <!-- Scripts da aplicação (ordem importa: dependências primeiro) -->
+  <script src="/js/config.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/transacoes.js"></script>
+  <script src="/js/dashboard.js"></script>
+  <script src="/js/gestao.js"></script>
+  <script src="/js/monitoramento.js"></script>
+  <script src="/js/estoque.js"></script>
+  <script src="/js/graficos-estoque.js"></script>
+  <script src="/js/movimentacao-estoque.js"></script>
+  <script src="/js/movimentacoes-financeiras.js"></script>
+  <script src="/js/messenger.js"></script>
+  <script src="/js/comercial.js"></script>
+  <script src="/js/api.js"></script>
+
+  <!-- JS migrado para public/js/ (9 arquivos separados) -->
+</body>
+
+</html>

@@ -1,0 +1,1433 @@
+/* ═══════════════════════════════════════════════
+   components.css — Cards, tabelas, badges,
+   gráficos, indicadores, formulário de gestão
+   ═══════════════════════════════════════════════ */
+
+/* ─── KPI Cards ─── */
+.kc {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  transition: all .25s;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+
+.kc::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196, 18, 48, .4), transparent);
+  opacity: 0;
+  transition: opacity .3s;
+}
+
+.kc:hover::before { opacity: 1; }
+
+.kc:hover {
+  border-color: rgba(196, 18, 48, .2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .3);
+}
+
+.kc-l {
+  font-size: 9.5px;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.kc-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 6px 0 4px;
+}
+
+.kc-d {
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+/* ─── Cores utilitárias ─── */
+.tg { color: #4ADE80; }
+.tr { color: var(--red); }
+.ty { color: var(--accent2); }
+.tb2 { color: var(--accent2); }
+.tm { color: var(--muted); }
+
+/* ─── Card genérico ─── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  position: relative;
+}
+
+.card:hover { z-index: 50; }
+
+/* Card header */
+.ch {
+  padding: 16px 24px 14px;
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ct {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+}
+
+/* ─── Badges do card ─── */
+.cbadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.cbr { background: rgba(196, 18, 48, .1); color: var(--red); border: 1px solid rgba(196, 18, 48, .15); }
+.cbg { background: rgba(74, 222, 128, .08); color: #4ADE80; border: 1px solid rgba(74, 222, 128, .12); }
+.cby { background: rgba(138, 138, 150, .1); color: var(--accent2); border: 1px solid rgba(138, 138, 150, .15); }
+.cbb { background: rgba(138, 138, 150, .08); color: var(--accent2); border: 1px solid rgba(138, 138, 150, .12); }
+
+/* ─── Tabela ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+th {
+  background: var(--card2);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px 8px;
+  font-size: 12.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, .025);
+  vertical-align: middle;
+}
+
+tr:hover td {
+  background: rgba(255, 255, 255, .015);
+}
+
+/* ─── Status tags ─── */
+.stag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.sp { background: rgba(74, 222, 128, .08); color: #4ADE80; }
+.sn { background: rgba(138, 138, 150, .1); color: var(--accent2); }
+.so { background: rgba(196, 18, 48, .1); color: var(--red); }
+.sy { background: rgba(250, 204, 21, .08); color: #FACC15; }
+
+/* ─── Utilitários ─── */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+/* ─── Filtros (select/button) ─── */
+.fs {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.fs:hover, .fs:focus { border-color: var(--red); }
+
+.filter-btn {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all .2s;
+}
+
+.filter-btn:hover { border-color: var(--red); color: var(--text); }
+.filter-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* ─── Área dos gráficos ─── */
+.chart-wrap {
+  padding: 20px 24px 24px;
+  position: relative;
+  height: 280px;
+}
+
+.pg-monitoramento .chart-wrap {
+  height: 100%;
+  min-height: 0;
+  padding: 10px 16px 16px;
+}
+
+.three-wrap {
+  width: 100%;
+  height: 380px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 10px 10px;
+}
+
+/* ─── Sparklines Grid ─── */
+.spark-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+body.tv-mode .spark-grid {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+@media(max-width: 1200px) {
+  .spark-grid { grid-template-columns: repeat(2, 1fr); }
+  body.tv-mode .spark-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media(max-width: 600px) {
+  .spark-grid, body.tv-mode .spark-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Animação de entrada ─── */
+.fa {
+  animation: fuUp .45s ease both;
+}
+
+@keyframes fuUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fa:nth-child(1) { animation-delay: .04s; }
+.fa:nth-child(2) { animation-delay: .09s; }
+.fa:nth-child(3) { animation-delay: .14s; }
+.fa:nth-child(4) { animation-delay: .19s; }
+
+/* ─── Saúde Financeira — Indicadores ─── */
+.ind-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px 24px;
+  padding: 0 4px;
+}
+
+.ind-card {
+  position: relative;
+}
+
+.ind-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ind-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: help;
+  transition: all 0.2s;
+}
+
+.ind-info:hover { background: var(--muted); color: var(--bg); }
+
+.ind-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background: rgba(20, 20, 25, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  color: var(--text-bright);
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+  z-index: 9999;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+}
+
+.ind-tip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent rgba(255, 255, 255, 0.1) transparent;
+}
+
+.ind-card:hover .ind-tip { opacity: 1; visibility: visible; }
+.ind-card:hover { z-index: 50; }
+
+.ind-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+}
+
+.ind-sub { font-size: 11px; font-weight: 600; }
+.sub-g { color: #4ADE80; }
+.sub-y { color: #FACC15; }
+.sub-r { color: #F87171; }
+
+@media(max-width: 900px) {
+  .ind-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media(max-width: 500px) {
+  .ind-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Gestão de Dados ─── */
+.gestao-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(250, 204, 21, .06);
+  border: 1px solid rgba(250, 204, 21, .15);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #FACC15;
+}
+
+.gestao-alert.ok {
+  background: rgba(74, 222, 128, .06);
+  border-color: rgba(74, 222, 128, .15);
+  color: #4ADE80;
+}
+
+.gestao-badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gbadge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 9px;
+  min-width: 110px;
+}
+
+.gbadge-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gbadge-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.gbadge-val.tg { color: #4ADE80; }
+.gbadge-val.tr { color: var(--red); }
+.gbadge-val.ty { color: #FACC15; }
+
+.gbadge-sub {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ─── Abas de gestão ─── */
+.gestao-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+.gtab {
+  padding: 11px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all .2s;
+  white-space: nowrap;
+}
+
+.gtab:hover { color: var(--text); }
+.gtab.on { color: var(--text-bright); border-bottom-color: var(--red); }
+
+/* ─── Toolbar de gestão ─── */
+.gestao-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  flex-wrap: wrap;
+}
+
+.gsearch {
+  flex: 1;
+  min-width: 180px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.gsearch:focus { border-color: var(--red); }
+
+/* ─── Formulário de novo lançamento ─── */
+.gestao-form-wrap {
+  padding: 20px 24px;
+  border-top: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, .01);
+}
+
+.gestao-form-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--text-bright);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gestao-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.gfield {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gfield label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gfield input,
+.gfield select,
+.gfield textarea {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color .2s;
+  width: 100%;
+}
+
+.gfield input:focus,
+.gfield select:focus,
+.gfield textarea:focus {
+  border-color: var(--red);
+}
+
+.gfield textarea { resize: vertical; min-height: 60px; }
+.gfield.span2 { grid-column: span 2; }
+
+.gestao-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ─── Botões do formulário ─── */
+.gbtn {
+  padding: 9px 20px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all .2s;
+  border: none;
+}
+
+.gbtn-cancel {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.gbtn-cancel:hover { border-color: var(--muted); color: var(--text); }
+
+.gbtn-delete {
+  background: transparent;
+  border: 1px solid rgba(196, 18, 48, .4);
+  color: var(--red);
+}
+
+.gbtn-delete:hover {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+
+.gbtn-submit {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(196, 18, 48, .25);
+}
+
+.gbtn-submit:hover { background: var(--red2); }
+.gbtn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ─── Toast de feedback ─── */
+.gestao-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all .35s ease;
+  pointer-events: none;
+  max-width: 340px;
+}
+
+.gestao-toast.show { opacity: 1; transform: translateY(0); }
+.gestao-toast.ok { background: rgba(74, 222, 128, .12); border: 1px solid rgba(74, 222, 128, .25); color: #4ADE80; }
+.gestao-toast.err { background: rgba(196, 18, 48, .12); border: 1px solid rgba(196, 18, 48, .25); color: var(--red); }
+
+/* ─── Responsivo (componentes) ─── */
+@media(max-width: 700px) {
+  .gestao-form-grid { grid-template-columns: 1fr; }
+  .gfield.span2 { grid-column: span 1; }
+  .gestao-badges { 
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .gbadge { 
+    min-width: 0; 
+    padding: 10px; 
+  }
+  .gbadge:last-child {
+    grid-column: span 2;
+  }
+  .gestao-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 16px;
+    gap: 10px;
+  }
+  .gsearch {
+    width: 100%;
+    order: 1;
+  }
+  .gestao-toolbar .fs {
+    order: 2;
+  }
+  .gestao-tabs {
+    padding: 0 12px;
+    overflow-x: auto;
+  }
+  .gtab {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  .ch {
+    padding: 12px 16px;
+  }
+  .ct {
+    font-size: 11px;
+  }
+  .ch > div {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px !important;
+  }
+  .filter-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 10px;
+    min-width: 60px;
+  }
+  .fs {
+    flex: 1;
+    min-width: 100px;
+  }
+  
+  /* Esconder colunas não essenciais em tabelas no mobile */
+  th:nth-child(2), td:nth-child(2), /* # Pedido */
+  th:nth-child(7), td:nth-child(7), /* Pagamento */
+  th:nth-child(9), td:nth-child(9), /* Nota Fiscal */
+  th:nth-child(10), td:nth-child(10), /* Parcelas */
+  th:nth-child(11), td:nth-child(11), /* Empresa */
+  th:nth-child(12), td:nth-child(12)  /* Forma Pgto */ {
+    display: none !important;
+  }
+
+  /* Ajuste para a tabela unificada financeira */
+  #p-movimentacoes-financeiras th:nth-child(7), #p-movimentacoes-financeiras td:nth-child(7),
+  #p-movimentacoes-financeiras th:nth-child(8), #p-movimentacoes-financeiras td:nth-child(8),
+  #p-movimentacoes-financeiras th:nth-child(9), #p-movimentacoes-financeiras td:nth-child(9) {
+    display: none !important;
+  }
+  .mob-hide {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   Monitoramento — Filtro, Tabelas Semanais,
+   Acompanhamento Anual, Transporte
+   ═══════════════════════════════════════════════ */
+
+/* ─── Filtro Global DAC/Pulse ─── */
+.monitor-filter {
+  display: flex;
+  gap: 6px;
+}
+
+.mon-filter-btn {
+  min-width: 80px;
+  text-align: center;
+  font-size: 13px;
+  padding: 8px 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: all .25s;
+}
+
+.mon-filter-btn.active {
+  box-shadow: 0 4px 14px rgba(196, 18, 48, .25);
+}
+
+/* ─── Seções Semanais ─── */
+.week-section {
+  margin-bottom: 20px;
+}
+
+.week-section:last-child {
+  margin-bottom: 0;
+}
+
+.week-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0.3px;
+  transition: all .2s;
+}
+
+.week-toggle:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--red);
+}
+
+/* Maior destaque quando a semana está expandida */
+.week-section.is-open .week-header {
+  padding: 14px 20px;
+  font-size: 14px;
+}
+.week-section.is-open .week-total {
+  font-size: 15px;
+}
+.week-section.is-open td {
+  padding: 12px 16px;
+}
+.week-section.is-open th {
+  padding: 12px 16px;
+}
+
+.week-body {
+  margin-bottom: 12px;
+  animation: slideDown .3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.week-total {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4ADE80;
+}
+
+/* ─── Badge NF ─── */
+.nf-badge {
+  display: inline-block;
+  background: rgba(196, 18, 48, .1);
+  border: 1px solid rgba(196, 18, 48, .2);
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+/* ─── Status inline ─── */
+.st {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.sg {
+  background: rgba(74, 222, 128, .08);
+  color: #4ADE80;
+}
+
+.sp {
+  background: rgba(250, 204, 21, .08);
+  color: #FACC15;
+}
+
+/* ─── Empty state ─── */
+.mon-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 32px 0;
+}
+
+/* ─── Acompanhamento Anual ─── */
+.annual-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 16px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.annual-summary-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.annual-summary-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.annual-progress {
+  margin-bottom: 24px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar.small {
+  height: 5px;
+  margin-top: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C41230, #E8345A);
+  border-radius: 6px;
+  transition: width .6s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.progress-fill span {
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  padding-right: 6px;
+  white-space: nowrap;
+}
+
+.progress-fill.over {
+  background: linear-gradient(90deg, #16803C, #4ADE80);
+}
+
+.annual-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.annual-card {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  transition: all .25s;
+}
+
+.annual-card:hover {
+  border-color: rgba(196, 18, 48, .3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+}
+
+.annual-card.current {
+  border-color: rgba(196, 18, 48, .4);
+  background: rgba(196, 18, 48, .05);
+}
+
+.annual-card.empty {
+  opacity: .4;
+}
+
+.annual-card-month {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.annual-card-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.annual-card-value.tg {
+  color: #4ADE80;
+}
+
+/* ─── Transporte Terceirizado ─── */
+.transport-summary {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.transport-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.transport-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.transport-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.transport-count {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.transport-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.transport-month {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 180px;
+}
+
+.transport-month-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
+  flex: 1;
+}
+
+.transport-month-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.transport-month-count {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* ─── Responsivo (monitoramento) ─── */
+@media(max-width: 900px) {
+  .annual-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media(max-width: 600px) {
+  .annual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .annual-card { padding: 10px; }
+  .annual-card-month { font-size: 9px; margin-bottom: 4px; }
+  .annual-card-value { font-size: 13px; }
+  .annual-summary { flex-direction: column; gap: 8px; }
+  .annual-summary-value { font-size: 20px; }
+  .transport-value { font-size: 22px; }
+}
+
+@media(max-width: 380px) {
+  .annual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .annual-card { padding: 8px; }
+  .annual-card-value { font-size: 11px; }
+}
+
+/* ─── TV & Telas Grandes (>= 1920px) ─── */
+@media(min-width: 1920px) {
+  .ct {
+    font-size: 22px;
+  }
+
+  .ch {
+    padding: 24px 32px 20px;
+  }
+
+  .fs, .filter-btn {
+    font-size: 15px;
+    padding: 10px 16px;
+  }
+
+  .chart-wrap {
+    height: 480px;
+    padding: 24px 32px 32px;
+  }
+
+  .kc-l {
+    font-size: 12px;
+  }
+
+  .kc-v {
+    font-size: 34px;
+    margin: 10px 0 6px;
+  }
+
+  .kc-d {
+    font-size: 14px;
+  }
+
+  .ind-val {
+    font-size: 32px;
+  }
+
+  .ind-label {
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+
+  .ind-sub {
+    font-size: 14px;
+  }
+
+  .ind-grid {
+    gap: 32px 40px;
+    padding: 10px 20px 20px;
+  }
+
+  .gestao-form-title {
+    font-size: 18px;
+  }
+
+  .gfield label {
+    font-size: 12px;
+  }
+
+  .gfield input, .gfield select, .gfield textarea {
+    font-size: 16px;
+    padding: 12px 16px;
+  }
+}
+/* ─── TV Mode / Modo TV 📺 ─── */
+
+body.tv-mode #smartNewsFeed {
+  max-height: none;
+  flex: 1;
+  overflow: hidden;
+  padding: 12px;
+}
+
+body.tv-mode #smartNewsFeed > div {
+  padding: 10px;
+  gap: 10px;
+}
+
+body.tv-mode #smartNewsFeed > div > div:first-child { font-size: 18px; }
+body.tv-mode #smartNewsFeed > div > div > div:first-child { font-size: 11px; margin-bottom: 2px; }
+body.tv-mode #smartNewsFeed > div > div > div:nth-child(2) { font-size: 10px; line-height: 1.2; }
+
+body.tv-mode .ind-grid {
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+body.tv-mode #c-saude > div:last-child {
+  padding: 10px 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+body.tv-mode .ind-label { font-size: 9px; margin-bottom: 2px; }
+body.tv-mode .ind-val { font-size: 15px; margin-bottom: 2px; }
+body.tv-mode .ind-sub { font-size: 9px; line-height: 1; }
+
+body.tv-mode #contaSparkContainer {
+  padding: 10px 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+body.tv-mode .spark-grid {
+  grid-template-columns: repeat(6, 1fr) !important;
+  gap: 10px;
+}
+
+body.tv-mode .spark-grid > div {
+  padding: 10px;
+  gap: 8px;
+}
+
+body.tv-mode .spark-grid > div > div > div:first-child { font-size: 9.5px; }
+body.tv-mode .spark-grid > div > div > div:nth-child(2) { font-size: 14px; }
+body.tv-mode .spark-grid canvas { height: 36px !important; }
+
+/* ─── Gestão de Parcelas — Config Panel ─── */
+.parcela-config-wrap {
+  grid-column: 1 / -1;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 4px;
+  animation: fuUp 0.35s ease both;
+}
+
+.parcela-config-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--card-border);
+  background: rgba(196, 18, 48, 0.04);
+}
+
+.parcela-config-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parcela-config-icon {
+  font-size: 14px;
+}
+
+.parcela-config-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.parcela-section-label {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  color: var(--muted) !important;
+  margin-bottom: 8px !important;
+  display: block;
+}
+
+/* Pill-style radio toggles */
+.parcela-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.parcela-pill {
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+.parcela-pill input[type="radio"] {
+  display: none;
+}
+
+.parcela-pill span {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--muted);
+  background: var(--card2);
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.parcela-pill:hover span {
+  border-color: var(--red);
+  color: var(--text);
+}
+
+.parcela-pill input[type="radio"]:checked + span {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(196, 18, 48, 0.3);
+}
+
+/* Controls row */
+.parcela-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.parcela-btn-dist {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+  white-space: nowrap;
+  height: 36px;
+}
+
+.parcela-btn-dist:hover {
+  border-color: var(--red);
+  background: rgba(196, 18, 48, 0.08);
+  color: var(--text-bright);
+}
+
+/* Cards grid */
+.parcelas-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.parcelas-grid-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.parcelas-grid-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.parcela-card {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+  animation: fuUp 0.3s ease-out;
+  position: relative;
+}
+
+.parcela-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red), transparent);
+  border-radius: 8px 8px 0 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.parcela-card:hover {
+  border-color: rgba(196, 18, 48, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.parcela-card:hover::before {
+  opacity: 1;
+}
+
+.pc-head {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.pc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pc-val, .pc-date {
+  font-size: 12px !important;
+  padding: 7px 10px !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  color: var(--text) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  transition: border-color 0.2s !important;
+}
+
+.pc-val:focus, .pc-date:focus {
+  border-color: var(--red) !important;
+  outline: none !important;
+}
+
+/* ─── Botão de pagamento rápido ─── */
+.btn-quick-pay {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-quick-pay:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.1);
+}
+
+/* ─── Modais ─── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-card {
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

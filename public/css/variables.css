@@ -1,0 +1,50 @@
+/* ═══════════════════════════════════════════════
+   variables.css — Variáveis e reset global
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --red: #C41230;
+  --red2: #8B0C21;
+  --bg: #0B0B10;
+  --card: #141419;
+  --card2: #1A1A21;
+  --card-border: rgba(255, 255, 255, .05);
+  --border: #252530;
+  --border2: #35354A;
+  --text: #D4D4DA;
+  --text-bright: #EEEEF2;
+  --muted: #5A5A6A;
+  --muted2: #3E3E4E;
+  --accent: #C41230;
+  --accent2: #8A8A96;
+  --sidebar: 232px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}

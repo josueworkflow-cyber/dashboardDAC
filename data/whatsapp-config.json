@@ -1,0 +1,14 @@
+{
+  "schedule_hour": 7,
+  "morning_hour": 7,
+  "recipients": [
+    {
+      "id": 1,
+      "name": "Josue",
+      "number": "5553991833113",
+      "type": "completo",
+      "morning_alert": false,
+      "active": false
+    }
+  ]
+}

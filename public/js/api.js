@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════
+   api.js — Comunicação com o servidor
+   (estado global ENT/SAI, loadData, renderAll)
+   ═══════════════════════════════════════════════ */
+
+const API = window.location.origin + '/api';
+
+// Carrega todos os dados do servidor e atualiza a UI
+async function loadData() {
+  const dot = document.getElementById('gsd');
+  const lbl = document.getElementById('gslbl');
+
+  try {
+    dot.className = 'gsdot loading';
+    lbl.textContent = 'Sincronizando...';
+
+    const res = await authFetch(API + '/all');
+
+    if (res.status === 401) {
+      sessionStorage.removeItem('dac_token');
+      AUTH_TOKEN = '';
+      document.getElementById('loginOverlay').style.display = 'flex';
+      return;
+    }
+
+    const data = await res.json();
+    ENT = data.entradas || [];
+    SAI = data.saidas || [];
+    ESTQ = data.estoque || [];
+    COMERCIAL = data.comercial || [];
+
+    dot.className = 'gsdot';
+    lbl.textContent = 'Conectado';
+
+    document.getElementById('lsync').textContent = new Date().toLocaleString('pt-BR', {
+      hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+    });
+    document.getElementById('gsft').innerHTML =
+      '⬤ <span style="color:var(--muted)">BD conectado</span>';
+
+    renderAll();
+  } catch (e) {
+    dot.className = 'gsdot err';
+    lbl.textContent = 'Erro';
+  }
+}
+
+// Dispara todas as funções de renderização
+function renderAll() {
+  renderKpis();
+  populateFilters();
+  renderEntradas();
+  renderSaidas();
+  renderIndicadores();
+  renderSaidasCategoriaChart();
+  renderFluxoChart();
+  renderReceitaClienteChart();
+  renderCrescimento();
+  populateGeneralMonthFilters();
+  renderEvolucaoDespesas();
+  renderReceitaFormaPagamento();
+  renderContaDistribuicao();
+  renderContaSparklines();
+  renderSmartNewsFeed();
+  
+  if (typeof renderGestaoTable === 'function') {
+    populateGestaoCatFiltro();
+    renderGestaoTable();
+    renderGestaoBadges();
+  }
+
+  if (typeof initMonitoramento === 'function') {
+    initMonitoramento();
+  }
+
+  if (typeof renderEstoqueTable === 'function') {
+    renderEstoqueTable();
+  }
+
+  if (typeof renderGraficosEstoque === 'function') {
+    renderGraficosEstoque();
+  }
+
+  if (typeof renderMovimentacaoEstoque === 'function') {
+    renderMovimentacaoEstoque();
+  }
+
+  if (typeof renderMovimentacoesFinanceiras === 'function') {
+    renderMovimentacoesFinanceiras();
+  }
+
+  if (typeof renderPipeline === 'function') {
+    renderPipeline();
+    renderKanban();
+  }
+}
+
+// ─── Inicialização e auto-refresh ───
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .catch(err => console.error('Erro no SW:', err));
+  });
+}
+
+let refreshInterval = null;
+
+function startAutoRefresh() {
+  if (refreshInterval) return; // Já está rodando
+  loadData();
+  refreshInterval = setInterval(loadData, 30000);
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+}
+
+// A sincronização será iniciada pelo auth.js após confirmar a validade do token

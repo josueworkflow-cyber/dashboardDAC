@@ -1,0 +1,276 @@
+<style>
+  .msg-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card2);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+  .msg-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .msg-status-dot.online { background: #4ADE80; box-shadow: 0 0 8px rgba(74,222,128,.4); }
+  .msg-status-dot.offline { background: #C41230; box-shadow: 0 0 8px rgba(196,18,48,.4); }
+  .msg-status-dot.unknown { background: #B45309; box-shadow: 0 0 8px rgba(180,83,9,.4); }
+  .msg-status-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .msg-status-info { font-size: 11px; color: var(--muted2); }
+  .msg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .msg-grid { grid-template-columns: 1fr; } }
+  .msg-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .msg-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 16px 0;
+  }
+  .msg-input {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color .2s;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+  }
+  .msg-input:focus { border-color: var(--red); }
+  .msg-input.small { padding: 8px 10px; font-size: 11px; }
+  .msg-row { display: flex; gap: 8px; align-items: center; }
+  .msg-select {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .msg-btn {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .msg-btn:hover { border-color: var(--red); color: #fff; }
+  .msg-btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+  .msg-btn.primary:hover { opacity: .85; }
+  .msg-btn.small { padding: 6px 12px; font-size: 10px; }
+  .msg-btn.danger { border-color: var(--red); color: var(--red); }
+  .msg-btn.danger:hover { background: var(--red); color: #fff; }
+  .msg-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .msg-table th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .msg-table td {
+    padding: 8px 10px;
+    color: var(--text);
+    border-bottom: 1px solid rgba(255,255,255,.03);
+  }
+  .msg-table td.mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .msg-toggle {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+  .msg-toggle input { opacity: 0; width: 0; height: 0; }
+  .msg-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: .3s;
+  }
+  .msg-toggle-slider:before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: .3s;
+  }
+  .msg-toggle input:checked + .msg-toggle-slider { background: var(--red); border-color: var(--red); }
+  .msg-toggle input:checked + .msg-toggle-slider:before { background: #fff; transform: translateX(16px); }
+  .msg-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .msg-badge.completo { background: rgba(74,222,128,.15); color: #4ADE80; }
+  .msg-badge.atrasados { background: rgba(196,18,48,.15); color: var(--red); }
+  .msg-badge.resumo { background: rgba(124,58,237,.15); color: #7C3AED; }
+  .msg-preview-box {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    white-space: pre-wrap;
+    line-height: 1.7;
+  }
+  .msg-feedback {
+    display: none;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 12px;
+  }
+  .msg-feedback.success { display: block; background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.2); color: #4ADE80; }
+  .msg-feedback.error { display: block; background: rgba(196,18,48,.1); border: 1px solid rgba(196,18,48,.2); color: var(--red); }
+  .msg-feedback.info { display: block; background: rgba(42,92,138,.1); border: 1px solid rgba(42,92,138,.2); color: #2A5C8A; }
+</style>
+
+<div id="messenger-page">
+  <div class="msg-status-bar" id="msgStatusBar">
+    <div class="msg-status-dot unknown" id="msgStatusDot"></div>
+    <span class="msg-status-label" id="msgStatusLabel">Verificando...</span>
+    <span style="flex:1;"></span>
+    <span class="msg-status-info" id="msgLastSync">—</span>
+  </div>
+
+  <div class="msg-grid">
+    <div class="msg-card">
+      <h3>Destinatários</h3>
+      <table class="msg-table" style="margin-bottom: 16px;">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Número</th>
+            <th>Tipo</th>
+            <th>Alerta 08h</th>
+            <th>Ativo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="msgRecipientsTbody">
+          <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px;">Nenhum destinatário configurado</td></tr>
+        </tbody>
+      </table>
+
+      <div style="border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px;">Adicionar destinatário</div>
+        <div class="msg-row">
+          <input class="msg-input small" id="msgNewName" placeholder="Nome" style="flex:1;">
+          <input class="msg-input small" id="msgNewNumber" placeholder="55219..." style="flex:1;">
+        </div>
+        <div class="msg-row">
+          <select class="msg-select small" id="msgNewType" style="flex:1;">
+            <option value="completo">Completo</option>
+            <option value="atrasados">Atrasados</option>
+            <option value="resumo">Resumo</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);white-space:nowrap;margin-bottom:10px;">
+            <input type="checkbox" id="msgNewMorning" checked style="accent-color:var(--red);">
+            Alerta 08h
+          </label>
+          <button class="msg-btn primary small" onclick="addRecipient()" style="flex-shrink:0;">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg-card">
+      <h3>Ações</h3>
+
+      <div style="margin-bottom:20px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px;">Disparar para destinatário específico</div>
+        <div class="msg-row">
+          <input class="msg-input" id="msgTargetNumber" placeholder="Número (55219...)" style="flex:1;">
+          <select class="msg-select" id="msgTargetType" style="width:130px;">
+            <option value="completo">Completo</option>
+            <option value="atrasados">Atrasados</option>
+            <option value="resumo">Resumo</option>
+          </select>
+        </div>
+        <button class="msg-btn primary" onclick="sendToTarget()" style="width:100%;margin-top:6px;">📤 Disparar para este número</button>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:20px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px;">Disparar para todos os ativos</div>
+        <button class="msg-btn primary" onclick="sendToAll()" style="width:100%;">📢 Disparar para TODOS os ativos</button>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:18px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px;">Configuração de horários</div>
+        <div class="msg-row">
+          <label style="font-size:11px;color:var(--muted);width:80px;flex-shrink:0;">Relatório (h):</label>
+          <select class="msg-select small" id="msgScheduleHour" onchange="updateScheduleHours()" style="flex:1;">
+            <option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option>
+            <option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option>
+            <option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option>
+            <option value="15">15:00</option><option value="16">16:00</option><option value="17" selected>17:00</option>
+            <option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
+          </select>
+        </div>
+        <div class="msg-row" style="margin-top:6px;">
+          <label style="font-size:11px;color:var(--muted);width:80px;flex-shrink:0;">Cobrança (h):</label>
+          <select class="msg-select small" id="msgMorningHour" onchange="updateScheduleHours()" style="flex:1;">
+            <option value="6">06:00</option><option value="7">07:00</option><option value="8" selected>08:00</option>
+            <option value="9">09:00</option><option value="10">10:00</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="msgFeedback" class="msg-feedback"></div>
+    </div>
+  </div>
+
+  <div class="msg-card" style="margin-top:20px;">
+    <h3>Prévia do relatório</h3>
+    <div class="msg-row" style="margin-bottom:12px;">
+      <select class="msg-select" id="msgPreviewType" onchange="loadPreview()">
+        <option value="completo">Completo</option>
+        <option value="atrasados">Atrasados</option>
+        <option value="resumo">Resumo</option>
+      </select>
+      <button class="msg-btn small" onclick="loadPreview()">Atualizar</button>
+    </div>
+    <div class="msg-preview-box" id="msgPreview">Carregando...</div>
+  </div>
+</div>
