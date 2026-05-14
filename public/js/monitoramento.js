@@ -131,7 +131,7 @@ function renderMonitoramento() {
 // ─── Filtro Global ───
 
 function setMonitorFilter(tipo, btn) {
-  monitorFilter = tipo;
+  monitorFilter = String(tipo).toUpperCase();
   document.querySelectorAll('.mon-filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderMonitoramento();

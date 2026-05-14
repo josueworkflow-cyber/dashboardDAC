@@ -26,6 +26,7 @@
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/graficos-estoque.css">
   <link rel="stylesheet" href="/css/comercial.css">
+  <link rel="stylesheet" href="/css/mobile.css">
 
   <style>
     /* Estilos específicos para o Relatório Estilo Excel */
@@ -128,7 +129,8 @@
     <div class="nl" onclick="goPage('estoque',this)"><span class="ni">📦</span>Gestão de Estoque</div>
 
     <div class="ng">Comercial</div>
-    <div class="nl" onclick="goPage('comercial',this)"><span class="ni">💼</span>Comercial</div>
+    <div class="nl" onclick="goPage('comercial',this)"><span class="ni">💼</span>Funil</div>
+    <div class="nl" onclick="goPage('historico-pedidos',this)"><span class="ni">📋</span>Histórico de Pedidos</div>
 
     <div class="ng">Comunicação</div>
     <div class="nl" onclick="goPage('messenger',this)"><span class="ni">💬</span>Messenger</div>
@@ -788,6 +790,10 @@
                 <option>Outros</option>
               </select>
             </div>
+            <div class="gfield" style="grid-column: 1 / -1;">
+              <label>Observação</label>
+              <textarea id="ef-observacao" placeholder="Observações sobre o lançamento..." style="resize:vertical;min-height:60px;"></textarea>
+            </div>
           </div>
           <div class="gestao-form-actions">
             <button class="gbtn gbtn-delete" id="ef-delete" style="display:none; margin-right:auto;" onclick="deleteEstoqueLancamento()">🗑 Excluir Lançamento</button>
@@ -819,7 +825,6 @@
           <div class="gtab on" onclick="setEstoqueTab('todos',this)">Todos</div>
           <div class="gtab" onclick="setEstoqueTab('entradas',this)">Entradas</div>
           <div class="gtab" onclick="setEstoqueTab('saidas',this)">Saídas</div>
-          <div class="gtab" onclick="setEstoqueTab('pendentes',this)" style="color:#F59E0B;">⚠ Pendentes (Comercial)</div>
         </div>
 
         <div class="gestao-toolbar">
@@ -858,6 +863,8 @@
                 <th>Empresa</th>
                 <th>Forma Pgto</th>
                 <th>Modo Emissão</th>
+                <th>Observação</th>
+                <th>Ref. Orçamento</th>
               </tr>
             </thead>
             <tbody id="tbEstoque"></tbody>
@@ -868,29 +875,79 @@
       </div>
     </div>
 
-    <!-- COMERCIAL (FUNIL DE VENDAS) -->
+    <!-- COMERCIAL (FUNIL DE PEDIDOS) -->
     <div class="pg" id="p-comercial">
-
-      <!-- PIPELINE VISUAL -->
-      <div id="comercial-pipeline" class="pipeline-bar">
-        <!-- Preenchido via JS -->
-      </div>
 
       <!-- TOOLBAR -->
       <div class="comercial-toolbar">
         <button class="btn-novo-orcamento" onclick="openDrawer('novo')">
-          <span style="font-size:16px;">＋</span> Novo Orçamento
+          <span style="font-size:16px;">＋</span> Novo Pedido
         </button>
-        <input class="gsearch" id="comercialSearch" type="text"
-          placeholder="Buscar por cliente, nº orçamento, vendedor..." oninput="filterComercial()">
         <select class="fs" id="comercialVendedor" onchange="filterComercial()" style="min-width:160px;">
           <option value="">Todos Vendedores</option>
         </select>
+        <div class="comercial-date-filter">
+          <input type="date" id="comercialDateFrom" onchange="filterComercial()">
+          <span>até</span>
+          <input type="date" id="comercialDateTo" onchange="filterComercial()">
+        </div>
       </div>
 
       <!-- KANBAN BOARD -->
       <div id="kanban-board" class="kanban-board">
         <!-- Preenchido via JS -->
+      </div>
+
+      <!-- FOOTER KPIs -->
+      <div class="comercial-footer" id="comercial-footer-kpis">
+        <!-- Preenchido via JS -->
+      </div>
+    </div>
+
+    <!-- HISTÓRICO DE PEDIDOS -->
+    <div class="pg" id="p-historico-pedidos">
+      <div class="card fa">
+        <div class="ch" style="flex-direction:column;gap:16px;padding:20px 24px;">
+          <div class="gestao-badges" id="historico-kpis" style="display:flex;gap:10px;justify-content:center;width:100%;flex-wrap:wrap;">
+            <!-- Preenchido via JS -->
+          </div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;width:100%;">
+            <select class="fs" id="historicoVendedor" onchange="renderHistoricoTable()" style="min-width:160px;">
+              <option value="">Todos Vendedores</option>
+            </select>
+            <div class="comercial-date-filter">
+              <input type="date" id="historicoDateFrom" onchange="renderHistoricoTable()">
+              <span>até</span>
+              <input type="date" id="historicoDateTo" onchange="renderHistoricoTable()">
+            </div>
+          </div>
+        </div>
+        <div class="tw" style="max-height:580px;">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Ref. Orçamento</th>
+                <th>Cliente</th>
+                <th>Valor</th>
+                <th>Data</th>
+                <th>Pagamento</th>
+                <th>Forma Pgto</th>
+                <th>Parcela</th>
+                <th>Vendedor</th>
+                <th>Status</th>
+                <th>Dt. Vencimento</th>
+                <th>Nota Fiscal</th>
+                <th>Empresa</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody id="tbHistorico"></tbody>
+          </table>
+        </div>
+        <div id="historicoVazio" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+          Nenhum pedido encontrado
+        </div>
       </div>
     </div>
 
@@ -1156,6 +1213,14 @@
                 <!-- Preenchido via JS -->
               </div>
             </div>
+            <div class="card-body" style="padding-top: 0;">
+              <div class="total-row">
+                <span class="total-label">Total Faturado</span>
+                <div class="total-right">
+                  <span class="metric-value green" id="ge-total-compo-sai" style="font-size:17px">R$ 0,00</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1272,6 +1337,14 @@
               </div>
               <div class="donut-legend" id="ge-nf-legend">
                 <!-- Preenchido via JS -->
+              </div>
+            </div>
+            <div class="card-body" style="padding-top: 0;">
+              <div class="total-row">
+                <span class="total-label">Total Lançamentos</span>
+                <div class="total-right">
+                  <span class="metric-value red" id="ge-total-compo-ent" style="font-size:17px">R$ 0,00</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1543,6 +1616,10 @@
         <input type="date" id="df-data">
       </div>
       <div class="gfield">
+        <label>Data de Vencimento</label>
+        <input type="date" id="df-data-vencimento">
+      </div>
+      <div class="gfield">
         <label>Pagamento</label>
         <select id="df-pagamento">
           <option value="">Selecione...</option>
@@ -1580,15 +1657,32 @@
         <label>Vendedor</label>
         <input type="text" id="df-vendedor" placeholder="Nome do vendedor">
       </div>
+      <div class="gfield">
+        <label>Nota Fiscal</label>
+        <input type="text" id="df-nf" placeholder="Nº da nota fiscal">
+      </div>
+      <div class="gfield">
+        <label>Empresa</label>
+        <select id="df-empresa">
+          <option value="">Selecione...</option>
+          <option>DAC</option>
+          <option>Pulse</option>
+        </select>
+      </div>
+      <div class="gfield">
+        <label>Observação</label>
+        <textarea id="df-observacao" placeholder="Observações sobre o pedido..."></textarea>
+      </div>
       <div class="gfield" id="df-status-wrap" style="display:none;">
         <label>Status</label>
         <select id="df-status">
-          <option value="Orçamento">Orçamento</option>
-          <option value="Negociação">Negociação</option>
+          <option value="Cotação / Orçamento">Cotação / Orçamento</option>
+          <option value="Pedido">Pedido</option>
           <option value="Aprovado">Aprovado</option>
-          <option value="Enviado ao Estoque">Enviado ao Estoque</option>
+          <option value="Estoque / Separação">Estoque / Separação</option>
+          <option value="Expedição / Separado">Expedição / Separado</option>
+          <option value="Rota de Entrega">Rota de Entrega</option>
           <option value="Finalizado">Finalizado</option>
-          <option value="Cancelado">Cancelado</option>
         </select>
       </div>
     </div>

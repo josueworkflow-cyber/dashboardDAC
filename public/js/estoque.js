@@ -77,10 +77,10 @@ function renderEstoqueTable() {
   
   let rows = [...ESTQ];
 
-  // Filtro de Aba
+  // Filtro de Aba — só mostra itens Finalizados (ou sem status = legado)
+  rows = rows.filter(r => !r.status || r.status === 'Finalizado');
   if (estoqueTab === 'entradas') rows = rows.filter(r => normalizeString(r.movimentacao).includes('ENTRADA'));
   else if (estoqueTab === 'saidas') rows = rows.filter(r => normalizeString(r.movimentacao).includes('SAIDA'));
-  else if (estoqueTab === 'pendentes') rows = rows.filter(r => !r.nota_fiscal && !r.empresa);
 
   // Filtro de Busca
   if (search) rows = rows.filter(r =>
@@ -147,6 +147,8 @@ function renderEstoqueTable() {
       <td style="font-size:11px;color:var(--muted);">${r.empresa || '—'}</td>
       <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
       <td style="font-size:10px;opacity:0.8;">${r.modo_emissao || '—'}</td>
+      <td style="font-size:11px;max-width:160px;white-space:pre-wrap;">${r.observacao || '—'}</td>
+      <td style="font-size:10px;color:var(--accent2);font-weight:600;">${r.ref_orcamento || '—'}</td>
     </tr>`;
   }).join('');
 
@@ -203,6 +205,7 @@ function resetEstoqueForm() {
   document.getElementById('ef-parcelas').value = '';
   document.getElementById('ef-empresa').value = '';
   document.getElementById('ef-forma').value = '';
+  document.getElementById('ef-observacao').value = '';
 }
 
 // ─── Atualiza opções do Modo de Emissão conforme Movimentação ───
@@ -262,11 +265,13 @@ async function submitEstoque() {
     modo_emissao: document.getElementById('ef-modo-emissao').value,
     parcelas: document.getElementById('ef-parcelas').value,
     empresa: document.getElementById('ef-empresa').value,
-    forma_pagamento: document.getElementById('ef-forma').value
+    forma_pagamento: document.getElementById('ef-forma').value,
+    observacao: document.getElementById('ef-observacao').value
   };
 
   try {
     const isEdit = !!currentEstoqueEditId;
+
     const url = isEdit ? `${API}/lancamento/estoque/${currentEstoqueEditId}` : `${API}/lancamento`;
     const method = isEdit ? 'PUT' : 'POST';
 
@@ -348,6 +353,7 @@ function editEstoqueLancamento(id) {
   document.getElementById('ef-parcelas').value = r.parcelas || '';
   setSelectByText('ef-empresa', r.empresa);
   setSelectByText('ef-forma', r.forma_pagamento);
+  document.getElementById('ef-observacao').value = r.observacao || '';
 
   const wrap = document.querySelector('#p-estoque .gestao-form-wrap');
   if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });

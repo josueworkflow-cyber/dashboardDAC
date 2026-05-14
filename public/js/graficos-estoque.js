@@ -93,6 +93,8 @@ function getEstoqueDataRange(isComparison = false) {
 function filterEstoque(range) {
   if (!range || !range.start || !range.end) return [];
   return ESTQ.filter(r => {
+    // Só conta nos gráficos se Finalizado (ou sem status = dado legado)
+    if (r.status && r.status !== 'Finalizado') return false;
     const d = parseDate(r.data);
     if (!d) return false;
     return d >= range.start && d <= range.end;
@@ -171,6 +173,7 @@ function renderGraficosEstoque() {
   const vEntChart = sum(entChartData);
   const nfPct = vEntChart > 0 ? (sum(entNF) / vEntChart) * 100 : 0;
   setElText('ge-nf-pct', `${nfPct.toFixed(0)}%`);
+  setElVal('ge-total-compo-ent', vEntChart);
   
   renderDonutEntradas(sum(entNF), sum(entSNF), sum(entEmp));
 
@@ -223,6 +226,10 @@ function renderGraficosEstoque() {
   const saiNF = saiChartData.filter(r => isNF(r));
   const saiSNF = saiChartData.filter(r => isPorPD(r));
   const saiPD = saiChartData.filter(r => isPorEmp(r));
+  
+  const vSaiChart = sum(saiChartData);
+  setElVal('ge-total-compo-sai', vSaiChart);
+  
   renderDonutSaidas(sum(saiNF), sum(saiSNF), sum(saiPD));
   
   renderPaymentMethodsSaidas(saiCurr);

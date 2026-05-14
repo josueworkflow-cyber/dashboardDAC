@@ -41,7 +41,12 @@ function registerLancamentoRoutes(app) {
           parcelas: parcelas || '',
           empresa: empresa || '',
           forma_pagamento: forma_pagamento || '',
-          modo_emissao: modo_emissao || ''
+          modo_emissao: modo_emissao || '',
+          observacao: req.body.observacao || '',
+          ref_orcamento: req.body.ref_orcamento || '',
+          status: 'Finalizado',
+          data_vencimento: '',
+          vendedor: ''
         };
       } else {
         data = {
@@ -125,7 +130,8 @@ function registerLancamentoRoutes(app) {
         'movimentacao', 'categoria', 'observacoes', 'valor', 'fornecedor', 'cliente',
         'conta_bancaria', 'data_vencimento', 'data_pagamento',
         'forma_pagamento', 'status', 'num_parcelas', 'valor_pago',
-        'data', 'pagamento', 'parcelas', 'empresa', 'modo_emissao', 'parcela_ref', 'nota_fiscal'
+        'data', 'pagamento', 'parcelas', 'empresa', 'modo_emissao', 'parcela_ref', 'nota_fiscal',
+        'observacao', 'ref_orcamento', 'vendedor'
       ];
       const updates = {};
       for (const f of allowedFields) {

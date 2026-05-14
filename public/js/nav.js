@@ -22,7 +22,8 @@ function goPage(id, el) {
     'movimentacao-estoque': 'MOVIMENTAÇÃO DE ESTOQUE',
     estoque: 'GESTÃO DE ESTOQUE',
     messenger: 'MESSENGER',
-    comercial: 'COMERCIAL'
+    comercial: 'FUNIL DE PEDIDOS',
+    'historico-pedidos': 'HISTÓRICO DE PEDIDOS'
   };
   document.getElementById('pgTitle').textContent = titles[id] || id.toUpperCase();
 
@@ -34,6 +35,7 @@ function goPage(id, el) {
   if (id === 'movimentacoes-financeiras') initMovimentacoesFinanceiras();
   if (id === 'messenger') initMessengerPage();
   if (id === 'comercial') initComercial();
+  if (id === 'historico-pedidos') initHistoricoPedidos();
 }
 
 function toggleMob() {
@@ -123,29 +125,30 @@ function applyRoleRestrictions() {
     }
 
   } else if (role === 'estoque') {
-    // Perfil Estoque: Movimentação de Estoque e Gestão de Estoque
+    // Perfil Estoque: Funil + Movimentação de Estoque + Gestão de Estoque
     navLinks.forEach(link => {
       const text = link.textContent.trim();
-      if (text.includes('Movimentação de Estoque') || text.includes('Gestão de Estoque')) {
+      if (text.includes('Movimentação de Estoque') || text.includes('Gestão de Estoque') ||
+          text.includes('Funil')) {
         link.style.display = 'flex';
       }
     });
-    // Mostrar grupo Estoque
+    // Mostrar apenas grupo Estoque
     groups.forEach(g => {
       if (g.textContent.trim() === 'Estoque') g.style.display = 'block';
     });
 
     const activeLink = document.querySelector('.nl.on');
     if (!activeLink || activeLink.style.display === 'none') {
-      const target = [...navLinks].find(l => l.textContent.trim().includes('Movimentação de Estoque'));
-      goPage('movimentacao-estoque', target);
+      const target = [...navLinks].find(l => l.textContent.trim().includes('Funil'));
+      goPage('comercial', target);
     }
 
   } else if (role === 'comercial') {
-    // Perfil Comercial: apenas página Comercial
+    // Perfil Comercial: Funil + Histórico
     navLinks.forEach(link => {
       const text = link.textContent.trim();
-      if (text === 'Comercial') {
+      if (text.includes('Funil') || text.includes('Histórico de Pedidos')) {
         link.style.display = 'flex';
       }
     });
@@ -155,7 +158,7 @@ function applyRoleRestrictions() {
 
     const activeLink = document.querySelector('.nl.on');
     if (!activeLink || activeLink.style.display === 'none') {
-      const target = [...navLinks].find(l => l.textContent.trim() === 'Comercial');
+      const target = [...navLinks].find(l => l.textContent.trim().includes('Funil'));
       goPage('comercial', target);
     }
 

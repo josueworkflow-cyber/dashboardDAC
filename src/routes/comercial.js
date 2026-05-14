@@ -1,6 +1,6 @@
 /**
- * comercial.js — Rotas da API para o módulo Comercial (Funil de Vendas)
- * CRUD de orçamentos + envio para aba Estoque
+ * comercial.js — Rotas da API para o Funil Unificado (Comercial + Estoque)
+ * Tudo agora lê/escreve na aba "Estoque" do Google Sheets
  */
 
 const { auth } = require('../auth');
@@ -8,7 +8,7 @@ const { getSheetsModule } = require('../db');
 
 function registerComercialRoutes(app) {
 
-  // Lista todos os orçamentos (do cache)
+  // Lista todos os pedidos do funil (itens com ref_orcamento no cache estoque)
   app.get('/api/comercial', auth, async (req, res) => {
     try {
       const sheets = getSheetsModule();
@@ -19,10 +19,10 @@ function registerComercialRoutes(app) {
     }
   });
 
-  // Cria novo orçamento (gera nº automático)
+  // Cria novo pedido no funil (escreve na aba Estoque)
   app.post('/api/comercial', auth, async (req, res) => {
     try {
-      const { cliente, valor, data, pagamento, forma_pagamento, parcela, modo_emissao, vendedor } = req.body;
+      const { cliente, valor, data, pagamento, forma_pagamento, parcela, modo_emissao, vendedor, observacao } = req.body;
 
       if (!cliente || !valor) {
         return res.status(400).json({ error: 'Campos obrigatórios: cliente, valor.' });
@@ -32,40 +32,46 @@ function registerComercialRoutes(app) {
       const numero = sheets.getNextOrcamentoNumber();
 
       const rowData = {
-        _sheet: 'comercial',
-        numero_orcamento: numero,
-        cliente: cliente || '',
+        isEstoque: true,
+        fornecedor: cliente || '',
         valor: parseFloat(valor) || 0,
         data: data || '',
         pagamento: pagamento || '',
+        movimentacao: 'Saída',
+        nota_fiscal: '',
+        parcelas: parcela || '',
+        empresa: '',
         forma_pagamento: forma_pagamento || '',
-        status: 'Orçamento',
-        parcela: parcela || '',
         modo_emissao: modo_emissao || '',
+        observacao: observacao || '',
+        ref_orcamento: numero,
+        status: req.body.status || 'Cotação / Orçamento',
+        data_vencimento: req.body.data_vencimento || '',
         vendedor: vendedor || ''
       };
 
-      await sheets.appendComercialRow(rowData);
-      console.log(`✅ Orçamento ${numero} criado: ${cliente} - R$ ${valor}`);
+      await sheets.appendRow('Saída', rowData);
+      console.log(`✅ Pedido ${numero} criado no funil: ${cliente} - R$ ${valor}`);
 
       return res.json({
         success: true,
-        message: `Orçamento ${numero} criado com sucesso!`,
+        message: `Pedido ${numero} criado com sucesso!`,
         numero_orcamento: numero
       });
     } catch (err) {
-      console.error('❌ Erro ao criar orçamento:', err.message);
+      console.error('❌ Erro ao criar pedido:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Atualiza campos de um orçamento
+  // Atualiza campos de um pedido (na aba Estoque)
   app.put('/api/comercial/:id', auth, async (req, res) => {
     try {
       const { id } = req.params;
       const allowedFields = [
-        'cliente', 'valor', 'data', 'pagamento', 'forma_pagamento',
-        'status', 'parcela', 'modo_emissao', 'vendedor'
+        'fornecedor', 'valor', 'data', 'pagamento', 'movimentacao',
+        'nota_fiscal', 'parcelas', 'empresa', 'forma_pagamento', 'modo_emissao',
+        'observacao', 'ref_orcamento', 'status', 'data_vencimento', 'vendedor'
       ];
       const updates = {};
       for (const f of allowedFields) {
@@ -79,10 +85,11 @@ function registerComercialRoutes(app) {
       }
 
       const sheets = getSheetsModule();
-      await sheets.updateRow('Comercial', parseInt(id, 10), updates);
-      return res.json({ success: true, message: 'Orçamento atualizado com sucesso!' });
+      await sheets.updateRow('Estoque', parseInt(id, 10), updates);
+
+      return res.json({ success: true, message: 'Pedido atualizado com sucesso!' });
     } catch (err) {
-      console.error('❌ Erro ao atualizar orçamento:', err.message);
+      console.error('❌ Erro ao atualizar pedido:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -97,13 +104,17 @@ function registerComercialRoutes(app) {
         return res.status(400).json({ error: 'Status é obrigatório.' });
       }
 
-      const validStatuses = ['Orçamento', 'Negociação', 'Aprovado', 'Enviado ao Estoque', 'Finalizado', 'Cancelado'];
+      const validStatuses = [
+        'Cotação / Orçamento', 'Pedido', 'Aprovado',
+        'Estoque / Separação', 'Expedição / Separado',
+        'Rota de Entrega', 'Finalizado'
+      ];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: `Status inválido. Valores aceitos: ${validStatuses.join(', ')}` });
       }
 
       const sheets = getSheetsModule();
-      await sheets.updateRow('Comercial', parseInt(id, 10), { status });
+      await sheets.updateRow('Estoque', parseInt(id, 10), { status });
       return res.json({ success: true, message: `Status atualizado para "${status}".` });
     } catch (err) {
       console.error('❌ Erro ao atualizar status:', err.message);
@@ -111,64 +122,15 @@ function registerComercialRoutes(app) {
     }
   });
 
-  // Envia orçamento para a aba Estoque
-  app.post('/api/comercial/:id/enviar-estoque', auth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const sheets = getSheetsModule();
-      const cache = sheets.getCacheData();
-      const orcamento = (cache.comercial || []).find(o => String(o.id) === String(id));
-
-      if (!orcamento) {
-        return res.status(404).json({ error: 'Orçamento não encontrado.' });
-      }
-
-      if (orcamento.status === 'Enviado ao Estoque') {
-        return res.status(400).json({ error: 'Este orçamento já foi enviado ao estoque.' });
-      }
-
-      // Monta dados para a aba Estoque
-      const estoqueData = {
-        isEstoque: true,
-        fornecedor: orcamento.cliente || '',
-        valor: parseFloat(orcamento.valor) || 0,
-        data: orcamento.data || '',
-        pagamento: orcamento.pagamento || '',
-        movimentacao: 'Saída',
-        nota_fiscal: '',       // Estoque preenche
-        parcelas: orcamento.parcela || '',
-        empresa: '',           // Estoque preenche
-        forma_pagamento: orcamento.forma_pagamento || '',
-        modo_emissao: orcamento.modo_emissao || ''
-      };
-
-      // 1. Insere na aba Estoque
-      await sheets.appendRow('Saída', estoqueData);
-
-      // 2. Atualiza status do orçamento para "Enviado ao Estoque"
-      await sheets.updateRow('Comercial', parseInt(id, 10), { status: 'Enviado ao Estoque' });
-
-      console.log(`📦 Orçamento ${orcamento.numero_orcamento} enviado ao estoque: ${orcamento.cliente} - R$ ${orcamento.valor}`);
-
-      return res.json({
-        success: true,
-        message: `Orçamento ${orcamento.numero_orcamento} enviado ao estoque com sucesso!`
-      });
-    } catch (err) {
-      console.error('❌ Erro ao enviar para estoque:', err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Exclui um orçamento
+  // Exclui um pedido (da aba Estoque)
   app.delete('/api/comercial/:id', auth, async (req, res) => {
     try {
       const { id } = req.params;
       const sheets = getSheetsModule();
-      await sheets.deleteRow('Comercial', parseInt(id, 10));
-      return res.json({ success: true, message: 'Orçamento excluído com sucesso!' });
+      await sheets.deleteRow('Estoque', parseInt(id, 10));
+      return res.json({ success: true, message: 'Pedido excluído com sucesso!' });
     } catch (err) {
-      console.error('❌ Erro ao excluir orçamento:', err.message);
+      console.error('❌ Erro ao excluir pedido:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

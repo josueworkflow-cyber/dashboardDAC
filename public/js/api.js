@@ -27,7 +27,8 @@ async function loadData() {
     ENT = data.entradas || [];
     SAI = data.saidas || [];
     ESTQ = data.estoque || [];
-    COMERCIAL = data.comercial || [];
+    // Comercial = itens do estoque que vieram do funil (têm ref_orcamento)
+    COMERCIAL = ESTQ.filter(r => r.ref_orcamento);
 
     dot.className = 'gsdot';
     lbl.textContent = 'Conectado';
@@ -89,9 +90,14 @@ function renderAll() {
     renderMovimentacoesFinanceiras();
   }
 
-  if (typeof renderPipeline === 'function') {
-    renderPipeline();
+  if (typeof renderFooterKpis === 'function') {
     renderKanban();
+    renderFooterKpis();
+  }
+
+  if (typeof renderHistoricoTable === 'function') {
+    renderHistoricoTable();
+    renderHistoricoKpis();
   }
 }
 

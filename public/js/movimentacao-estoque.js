@@ -48,6 +48,9 @@ function renderMovimentacaoEstoque() {
 
     let rows = [...ESTQ];
 
+    // Só mostra itens finalizados (ou sem status = legado)
+    rows = rows.filter(r => !r.status || r.status === 'Finalizado');
+
     // Filtro de Empresa
     if (empFilter) {
       rows = rows.filter(r => normalizeString(r.empresa) === normalizeString(empFilter));

@@ -34,13 +34,14 @@ const COLS_SAIDAS = [
   'data_vencimento', 'data_pagamento', 'forma_pagamento', 'status', 
   'movimentacao', 'modo_emissao', 'num_parcelas', 'valor_pago', 'parcela_ref'
 ];
-const COLS_ESTOQUE = ['fornecedor', 'valor', 'data', 'pagamento', 'movimentacao', 'nota_fiscal', 'parcelas', 'empresa', 'forma_pagamento', 'modo_emissao'];
-
-const COLS_COMERCIAL = [
-  'numero_orcamento', 'cliente', 'valor', 'data',
-  'pagamento', 'forma_pagamento', 'status',
-  'parcela', 'modo_emissao', 'vendedor'
+const COLS_ESTOQUE = [
+  'fornecedor', 'valor', 'data', 'pagamento', 'movimentacao',
+  'nota_fiscal', 'parcelas', 'empresa', 'forma_pagamento', 'modo_emissao',
+  'observacao', 'ref_orcamento', 'status', 'data_vencimento', 'vendedor'
 ];
+
+// Comercial agora é derivado do Estoque (itens com ref_orcamento)
+const COLS_COMERCIAL = COLS_ESTOQUE; // mantido para compatibilidade
 
 // ─── Estado global ───
 
@@ -102,20 +103,20 @@ async function initSheets() {
 
 async function refreshCache() {
   try {
-    const [entradas, saidas, estoque, comercial] = await Promise.all([
+    const [entradas, saidas, estoque] = await Promise.all([
       readSheet(SHEET_ENTRADAS, COLS_ENTRADAS),
       readSheet(SHEET_SAIDAS, COLS_SAIDAS),
-      readSheet(SHEET_ESTOQUE, COLS_ESTOQUE),
-      readSheet(SHEET_COMERCIAL, COLS_COMERCIAL).catch(() => [])
+      readSheet(SHEET_ESTOQUE, COLS_ESTOQUE)
     ]);
 
     cache.entradas = entradas;
     cache.saidas = saidas;
     cache.estoque = estoque;
-    cache.comercial = comercial;
+    // Comercial agora é derivado: itens do estoque com ref_orcamento
+    cache.comercial = estoque.filter(r => r.ref_orcamento);
     cache.lastSync = new Date();
 
-    console.log(`🔄 Cache atualizado: ${entradas.length} entradas, ${saidas.length} saídas, ${estoque.length} estoque, ${comercial.length} comercial (${cache.lastSync.toLocaleTimeString('pt-BR')})`);
+    console.log(`🔄 Cache atualizado: ${entradas.length} entradas, ${saidas.length} saídas, ${estoque.length} estoque, ${cache.comercial.length} pedidos funil (${cache.lastSync.toLocaleTimeString('pt-BR')})`);
   } catch (err) {
     console.error('❌ Erro ao atualizar cache do Sheets:', err.message);
   }
@@ -381,13 +382,13 @@ function getCacheData() {
   };
 }
 
-// ─── Comercial: Nº automático ───
+// ─── Comercial/Funil: Nº automático (lê do cache.estoque) ───
 
 function getNextOrcamentoNumber() {
-  const existing = cache.comercial || [];
+  const existing = cache.estoque || [];
   let maxNum = 0;
   existing.forEach(row => {
-    const match = (row.numero_orcamento || '').match(/ORC-(\d+)/);
+    const match = (row.ref_orcamento || '').match(/ORC-(\d+)/);
     if (match) {
       const n = parseInt(match[1], 10);
       if (n > maxNum) maxNum = n;
@@ -396,26 +397,11 @@ function getNextOrcamentoNumber() {
   return `ORC-${String(maxNum + 1).padStart(3, '0')}`;
 }
 
-// ─── Comercial: Append ───
+// ─── Comercial: Buscar linha do Estoque por referência ORC ───
 
-async function appendComercialRow(data) {
-  const row = COLS_COMERCIAL.map(col => {
-    if (col === 'valor') return data.valor || 0;
-    return data[col] !== undefined ? data[col] : '';
-  });
-
-  await sheetsApi.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_COMERCIAL}!A${DATA_START_ROW}`,
-    valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: [row]
-    }
-  });
-
-  await refreshCache();
-  return { sheetName: SHEET_COMERCIAL, row };
+function findEstoqueRowByOrcamento(orcNumber) {
+  const estoque = cache.estoque || [];
+  return estoque.find(row => (row.ref_orcamento || '').includes(orcNumber));
 }
 
 function isConnected() {
@@ -433,5 +419,5 @@ module.exports = {
   refreshCache,
   isConnected,
   getNextOrcamentoNumber,
-  appendComercialRow
+  findEstoqueRowByOrcamento
 };
