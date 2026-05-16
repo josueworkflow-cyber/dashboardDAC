@@ -209,6 +209,7 @@ function renderFooterKpis() {
 
   const role = sessionStorage.getItem('dac_role') || 'gestor';
   const all = COMERCIAL;
+  const filtered = getFilteredComercial();
   const emSeparacao = all.filter(o => o.status === 'Estoque / Separação').length;
   const expedidos = all.filter(o => o.status === 'Expedição / Separado').length;
   const emRota = all.filter(o => o.status === 'Rota de Entrega').length;
@@ -221,7 +222,7 @@ function renderFooterKpis() {
       { icon: '🗺️', label: 'Em Rota', value: String(emRota) }
     ];
   } else {
-    const total = all.length;
+    const total = filtered.length;
     const cotacao = all.filter(o => o.status === 'Cotação / Orçamento');
     const valorCotacao = cotacao.reduce((s, o) => s + (parseFloat(o.valor) || 0), 0);
     kpis = [
