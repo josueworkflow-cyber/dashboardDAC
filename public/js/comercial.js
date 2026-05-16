@@ -55,9 +55,9 @@ function initComercial() {
 function getVisibleStatuses() {
   const role = sessionStorage.getItem('dac_role') || 'gestor';
   if (role === 'estoque') {
-    return COMERCIAL_STATUSES.filter(s => ['aprovado', 'separacao', 'expedido', 'rota', 'finalizado'].includes(s.key));
+    return COMERCIAL_STATUSES.filter(s => ['aprovado', 'separacao', 'expedido', 'rota'].includes(s.key));
   }
-  return COMERCIAL_STATUSES; // gestor e comercial veem todas
+  return COMERCIAL_STATUSES.filter(s => s.key !== 'finalizado'); // gestor e comercial nao veem a coluna Finalizado
 }
 
 function canDrop(role, statusKey) {
@@ -108,11 +108,16 @@ function renderCard(orc, status) {
   const badge = getModoBadge(orc.modo_emissao);
   const role = sessionStorage.getItem('dac_role') || 'gestor';
   const draggable = canDrop(role, status.key);
-  
-  // Aviso para estoque quando chega no status Aprovado/Separação
-  const needsEstoqueInfo = status.key === 'separacao' && (!orc.nota_fiscal || !orc.empresa);
-  const warningHtml = needsEstoqueInfo
-    ? '<div class="kcard-warning">⚠ Preencher NF e Empresa</div>'
+
+  // Número do card: Orçamento mostra ORC, demais mostram NF/Pedido
+  const isCotacao = orc.status === 'Cotação / Orçamento';
+  const cardNum = isCotacao
+    ? `#${orc.ref_orcamento || '—'}`
+    : (orc.nota_fiscal || orc.ref_orcamento || '—');
+
+  // Aviso para modo de emissão não preenchido (a partir de Pedido)
+  const warningHtml = (orc.status !== 'Cotação / Orçamento' && !orc.modo_emissao)
+    ? '<div class="kcard-warning">⚠ Preencher Modo de Emissão</div>'
     : '';
 
   // Botão mover status (mobile-friendly)
@@ -131,7 +136,7 @@ function renderCard(orc, status) {
          onclick="openDrawer('editar', ${orc.id})">
       <div class="kcard-top">
         <span class="kcard-badge ${badge.cls}">${badge.label}</span>
-        <span class="kcard-number">#${orc.ref_orcamento || '—'}</span>
+        <span class="kcard-number">${cardNum}</span>
         ${moveBtn}
       </div>
       <div class="kcard-client">${orc.fornecedor || 'Cliente não informado'}</div>
@@ -207,15 +212,13 @@ function renderFooterKpis() {
   const emSeparacao = all.filter(o => o.status === 'Estoque / Separação').length;
   const expedidos = all.filter(o => o.status === 'Expedição / Separado').length;
   const emRota = all.filter(o => o.status === 'Rota de Entrega').length;
-  const finalizados = all.filter(o => o.status === 'Finalizado').length;
 
   let kpis;
   if (role === 'estoque') {
     kpis = [
       { icon: '📦', label: 'Em Separação', value: String(emSeparacao) },
       { icon: '🚛', label: 'Em Expedição', value: String(expedidos) },
-      { icon: '🗺️', label: 'Em Rota', value: String(emRota) },
-      { icon: '✅', label: 'Finalizados', value: String(finalizados) }
+      { icon: '🗺️', label: 'Em Rota', value: String(emRota) }
     ];
   } else {
     const total = all.length;
@@ -225,8 +228,7 @@ function renderFooterKpis() {
       { icon: '🚚', label: 'Total de Pedidos', value: String(total) },
       { icon: '💰', label: 'Valor em Cotação', value: fmt(valorCotacao) },
       { icon: '📦', label: 'Em Separação', value: String(emSeparacao) },
-      { icon: '🚛', label: 'Em Expedição', value: String(expedidos) },
-      { icon: '✅', label: 'Finalizados', value: String(finalizados) }
+      { icon: '🚛', label: 'Em Expedição', value: String(expedidos) }
     ];
   }
 
@@ -328,6 +330,7 @@ function openDrawer(mode, id) {
   document.getElementById('df-empresa').value = '';
   document.getElementById('df-status').value = 'Cotação / Orçamento';
   document.getElementById('df-id').value = '';
+  document.getElementById('df-orcamento').value = '';
 
   // Reset required highlights
   document.querySelectorAll('.drawer-body .gfield').forEach(f => f.classList.remove('field-required'));
@@ -354,6 +357,7 @@ function openDrawer(mode, id) {
     document.getElementById('df-nf').value = orc.nota_fiscal || '';
     document.getElementById('df-empresa').value = orc.empresa || '';
     document.getElementById('df-status').value = orc.status || 'Cotação / Orçamento';
+    document.getElementById('df-orcamento').value = orc.ref_orcamento || '';
 
     const modoSelect = document.getElementById('df-modo');
     const modoVal = (orc.modo_emissao || '').trim();
@@ -363,6 +367,12 @@ function openDrawer(mode, id) {
     } else {
       modoSelect.selectedIndex = 0;
     }
+
+    // Apply status-based field visibility
+    applyStatusFields(orc.status);
+
+    // Apply modo_emissao field visibility
+    onModoEmissaoChange();
 
     // Highlight required fields for estoque stages
     const estoqueStages = ['Estoque / Separação', 'Expedição / Separado', 'Rota de Entrega', 'Finalizado'];
@@ -382,6 +392,9 @@ function openDrawer(mode, id) {
     deleteBtn.style.display = 'none';
     submitBtn.textContent = 'Criar Pedido';
     statusField.style.display = 'none';
+
+    // Novo: sempre em Cotação — esconder modo_emissao, NF, empresa; mostrar ref_orcamento
+    applyStatusFields('Cotação / Orçamento');
   }
 
   overlay.classList.add('open');
@@ -389,9 +402,58 @@ function openDrawer(mode, id) {
   setTimeout(() => document.getElementById('df-cliente').focus(), 300);
 }
 
+function applyStatusFields(status) {
+  const modoWrap = document.getElementById('df-modo-wrap');
+  const nfWrap = document.getElementById('df-nf-wrap');
+  const empWrap = document.getElementById('df-empresa-wrap');
+  const orcWrap = document.getElementById('df-orcamento-wrap');
+
+  // Nº Orçamento sempre visivel
+  if (orcWrap) orcWrap.style.display = 'block';
+
+  if (status === 'Cotação / Orçamento') {
+    if (modoWrap) modoWrap.style.display = 'none';
+    if (nfWrap) nfWrap.style.display = 'none';
+    if (empWrap) empWrap.style.display = 'none';
+  } else {
+    if (modoWrap) modoWrap.style.display = 'block';
+    onModoEmissaoChange();
+  }
+}
+
+function onModoEmissaoChange() {
+  const modo = document.getElementById('df-modo')?.value || '';
+  const nfWrap = document.getElementById('df-nf-wrap');
+  const nfLabel = document.getElementById('df-nf-label');
+  const nfInput = document.getElementById('df-nf');
+  const empWrap = document.getElementById('df-empresa-wrap');
+  const status = document.getElementById('df-status')?.value || '';
+
+  // Só aplica se status NÃO for Cotação / Orçamento
+  if (status === 'Cotação / Orçamento') return;
+
+  if (modo === 'Por PD') {
+    if (nfLabel) nfLabel.textContent = 'Número do Pedido';
+    if (nfInput) nfInput.placeholder = 'Nº do pedido';
+    if (nfWrap) nfWrap.style.display = 'block';
+    if (empWrap) empWrap.style.display = 'none';
+  } else {
+    if (nfLabel) nfLabel.textContent = 'Nota Fiscal';
+    if (nfInput) nfInput.placeholder = 'Nº da nota fiscal';
+    if (nfWrap) nfWrap.style.display = 'block';
+    if (empWrap) empWrap.style.display = 'block';
+  }
+}
+
 function openDrawerWithStatus(status) {
   openDrawer('novo');
   document.getElementById('df-status').value = status;
+  applyStatusFields(status);
+}
+
+function onStatusChange() {
+  const status = document.getElementById('df-status')?.value || '';
+  applyStatusFields(status);
 }
 
 function closeDrawer() {
@@ -416,6 +478,7 @@ async function submitOrcamento() {
   const nf = document.getElementById('df-nf').value.trim();
   const empresa = document.getElementById('df-empresa').value;
   const status = document.getElementById('df-status').value;
+  const orcamento = document.getElementById('df-orcamento').value.trim();
 
   if (!cliente || !valorRaw) {
     showComercialToast('Preencha os campos obrigatórios: Cliente e Valor.', 'err');
@@ -445,7 +508,8 @@ async function submitOrcamento() {
     nota_fiscal: nf,
     empresa: empresa,
     data_vencimento: isoToBr(dataVencIso),
-    movimentacao: 'Saída'
+    movimentacao: 'Saída',
+    ref_orcamento: orcamento
   };
 
   const btn = document.getElementById('drawer-submit');

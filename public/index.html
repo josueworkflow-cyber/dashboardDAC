@@ -1611,6 +1611,10 @@
         <label>Valor (R$) *</label>
         <input type="text" inputmode="decimal" id="df-valor" placeholder="Ex: 15.000,00">
       </div>
+      <div class="gfield" id="df-orcamento-wrap">
+        <label>Nº Orçamento</label>
+        <input type="text" id="df-orcamento" placeholder="Ex: ORC-020">
+      </div>
       <div class="gfield">
         <label>Data</label>
         <input type="date" id="df-data">
@@ -1645,9 +1649,10 @@
         <label>Parcela</label>
         <input type="text" id="df-parcela" placeholder="Ex: 3x ou —">
       </div>
-      <div class="gfield">
+      <div class="gfield" id="df-modo-wrap">
         <label>Modo de Emissão</label>
-        <select id="df-modo">
+        <select id="df-modo" onchange="onModoEmissaoChange()">
+          <option value="">Selecione...</option>
           <option value="Com Nota Fiscal">Com Nota Fiscal</option>
           <option value="Por PD">Por PD</option>
           <option value="Por Empréstimo">Por Empréstimo</option>
@@ -1657,11 +1662,11 @@
         <label>Vendedor</label>
         <input type="text" id="df-vendedor" placeholder="Nome do vendedor">
       </div>
-      <div class="gfield">
-        <label>Nota Fiscal</label>
+      <div class="gfield" id="df-nf-wrap">
+        <label id="df-nf-label">Nota Fiscal</label>
         <input type="text" id="df-nf" placeholder="Nº da nota fiscal">
       </div>
-      <div class="gfield">
+      <div class="gfield" id="df-empresa-wrap">
         <label>Empresa</label>
         <select id="df-empresa">
           <option value="">Selecione...</option>
@@ -1675,7 +1680,7 @@
       </div>
       <div class="gfield" id="df-status-wrap" style="display:none;">
         <label>Status</label>
-        <select id="df-status">
+        <select id="df-status" onchange="onStatusChange()">
           <option value="Cotação / Orçamento">Cotação / Orçamento</option>
           <option value="Pedido">Pedido</option>
           <option value="Aprovado">Aprovado</option>

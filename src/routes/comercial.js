@@ -29,7 +29,8 @@ function registerComercialRoutes(app) {
       }
 
       const sheets = getSheetsModule();
-      const numero = sheets.getNextOrcamentoNumber();
+      const refManual = req.body.ref_orcamento || '';
+      const numero = refManual || sheets.getNextOrcamentoNumber();
 
       const rowData = {
         isEstoque: true,
