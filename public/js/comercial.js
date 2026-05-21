@@ -9,11 +9,14 @@
 let COMERCIAL = [];
 let comercialFilter = { vendedor: '', dateFrom: '', dateTo: '' };
 let draggingCardId = null;
+const EXPANDED_CARDS = new Set();
 
 const COMERCIAL_STATUSES = [
   { key: 'cotacao',    label: 'Orçamento',      value: 'Cotação / Orçamento',   color: '#C41230' },
   { key: 'pedido',     label: 'Pedido',         value: 'Pedido',                color: '#E8533F' },
   { key: 'aprovado',   label: 'Aprovado',       value: 'Aprovado',              color: '#D4A017' },
+  { key: 'solicitar_compra', label: 'Solicitar Compra', value: 'Solicitar Compra', color: '#EC4899' },
+  { key: 'aguardando_mercadoria', label: 'Aguardando Mercadoria', value: 'Aguardando Mercadoria', color: '#06B6D4' },
   { key: 'separacao',  label: 'Separação',      value: 'Estoque / Separação',   color: '#3D8EF0' },
   { key: 'expedido',   label: 'Expedição',      value: 'Expedição / Separado',  color: '#8B5CF6' },
   { key: 'rota',       label: 'Rota',           value: 'Rota de Entrega',       color: '#F59E0B' },
@@ -55,14 +58,14 @@ function initComercial() {
 function getVisibleStatuses() {
   const role = sessionStorage.getItem('dac_role') || 'gestor';
   if (role === 'estoque') {
-    return COMERCIAL_STATUSES.filter(s => ['aprovado', 'separacao', 'expedido', 'rota'].includes(s.key));
+    return COMERCIAL_STATUSES.filter(s => ['aprovado', 'solicitar_compra', 'aguardando_mercadoria', 'separacao', 'expedido', 'rota'].includes(s.key));
   }
   return COMERCIAL_STATUSES.filter(s => s.key !== 'finalizado'); // gestor e comercial nao veem a coluna Finalizado
 }
 
 function canDrop(role, statusKey) {
   if (role === 'estoque') {
-    return ['aprovado', 'separacao', 'expedido', 'rota', 'finalizado'].includes(statusKey);
+    return ['aprovado', 'solicitar_compra', 'aguardando_mercadoria', 'separacao', 'expedido', 'rota', 'finalizado'].includes(statusKey);
   }
   return true; // gestor e comercial podem arrastar para qualquer lugar
 }
@@ -109,46 +112,80 @@ function renderCard(orc, status) {
   const role = sessionStorage.getItem('dac_role') || 'gestor';
   const draggable = canDrop(role, status.key);
 
-  // Número do card: Orçamento mostra ORC, demais mostram NF/Pedido
-  const isCotacao = orc.status === 'Cotação / Orçamento';
-  const cardNum = isCotacao
-    ? `#${orc.ref_orcamento || '—'}`
-    : (orc.nota_fiscal || orc.ref_orcamento || '—');
+  const docNum = orc.nota_fiscal || '—';
+  const orcNum = orc.ref_orcamento ? `#${orc.ref_orcamento}` : '—';
 
-  // Aviso para modo de emissão não preenchido (a partir de Pedido)
-  const warningHtml = (orc.status !== 'Cotação / Orçamento' && !orc.modo_emissao)
-    ? '<div class="kcard-warning">⚠ Preencher Modo de Emissão</div>'
+  // Aviso para modo de emissão não preenchido (a partir de Pedido) em formato de bolinha
+  const hasWarning = (orc.status !== 'Cotação / Orçamento' && !orc.modo_emissao);
+  const warningDot = hasWarning
+    ? `<span class="kcard-warning-dot" title="Preencher Modo de Emissão"></span>`
     : '';
 
-  // Botão mover status (mobile-friendly)
-  const visibleStatuses = getVisibleStatuses();
-  const otherStatuses = visibleStatuses.filter(s => s.value !== orc.status && canDrop(role, s.key));
-  const moveBtn = (otherStatuses.length > 0 && draggable)
-    ? `<button class="kcard-move-btn" onclick="event.stopPropagation(); showMoveMenu(event, '${orc.id}')" title="Mover pedido">▶</button>`
+  const isExpanded = EXPANDED_CARDS.has(String(orc.id));
+
+  // Botão para expandir/colapsar o card
+  const toggleBtn = `<button class="kcard-toggle-btn" onclick="event.stopPropagation(); toggleCardExpand(event, '${orc.id}')" title="${isExpanded ? 'Recolher card' : 'Expandir card'}">${isExpanded ? '▲' : '▼'}</button>`;
+
+  const warningHtml = hasWarning
+    ? `<div class="kcard-warning">⚠ Preencher Modo de Emissão</div>`
     : '';
 
   return `
-    <div class="kanban-card"
+    <div class="kanban-card ${isExpanded ? 'expanded' : ''}"
          ${draggable ? 'draggable="true"' : ''}
          data-id="${orc.id}"
          ${draggable ? `ondragstart="handleDragStart(event, '${orc.id}')"
          ondragend="handleDragEnd(event)"` : ''}
-         onclick="openDrawer('editar', ${orc.id})">
-      <div class="kcard-top">
-        <span class="kcard-badge ${badge.cls}">${badge.label}</span>
-        <span class="kcard-number">${cardNum}</span>
-        ${moveBtn}
+         onclick="openDrawer('editar', ${orc.id})"
+         style="padding: 8px 10px;">
+      <div class="kcard-top" style="margin-bottom: 4px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="kcard-badge ${badge.cls}">${badge.label}</span>
+          <span class="kcard-number" title="Nota Fiscal/PD">${docNum}</span>
+          <span class="kcard-orc" title="Orçamento">${orcNum}</span>
+        </div>
+        ${toggleBtn}
       </div>
-      <div class="kcard-client">${orc.fornecedor || 'Cliente não informado'}</div>
-      <div class="kcard-info">
-        <span class="kcard-value">${fmt(orc.valor)}</span>
+      <div class="kcard-client">
+        ${orc.fornecedor || 'Cliente não informado'}
       </div>
-      <div class="kcard-vendor">👤 ${orc.vendedor || '—'}</div>
-      ${warningHtml}
-      <div class="kcard-bottom">
-        <span class="kcard-date">📅 ${orc.data || '—'}</span>
+      <div class="kcard-details" style="${isExpanded ? 'display: block;' : 'display: none;'}">
+        <div class="kcard-info">
+          <span class="kcard-value">${fmt(orc.valor)}</span>
+        </div>
+        <div class="kcard-vendor">👤 ${orc.vendedor || '—'}</div>
+        ${warningHtml}
+        <div class="kcard-bottom">
+          <span class="kcard-date">📅 ${orc.data || '—'}</span>
+        </div>
       </div>
     </div>`;
+}
+
+function toggleCardExpand(event, id) {
+  event.stopPropagation();
+  const card = event.target.closest('.kanban-card');
+  if (!card) return;
+
+  const isExpanded = card.classList.toggle('expanded');
+  const details = card.querySelector('.kcard-details');
+  const btn = card.querySelector('.kcard-toggle-btn');
+
+  if (details) {
+    details.style.display = isExpanded ? 'block' : 'none';
+  }
+  if (btn) {
+    btn.textContent = isExpanded ? '▲' : '▼';
+    btn.title = isExpanded ? 'Recolher card' : 'Expandir card';
+  }
+
+  // Persistir estado globalmente
+  const stringId = String(id);
+  if (isExpanded) {
+    EXPANDED_CARDS.add(stringId);
+  } else {
+    EXPANDED_CARDS.delete(stringId);
+  }
 }
 
 // Menu popup para mover card (mobile touch)

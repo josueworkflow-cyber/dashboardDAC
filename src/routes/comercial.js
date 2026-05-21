@@ -107,6 +107,7 @@ function registerComercialRoutes(app) {
 
       const validStatuses = [
         'Cotação / Orçamento', 'Pedido', 'Aprovado',
+        'Solicitar Compra', 'Aguardando Mercadoria',
         'Estoque / Separação', 'Expedição / Separado',
         'Rota de Entrega', 'Finalizado'
       ];

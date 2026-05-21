@@ -495,6 +495,16 @@
 
 /* ─── Warning badge on cards ─── */
 
+.kcard-warning-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #F59E0B;
+  border-radius: 50%;
+  box-shadow: 0 0 5px #F59E0B;
+  flex-shrink: 0;
+}
+
 .kcard-warning {
   background: rgba(245, 158, 11, 0.12);
   color: #F59E0B;
@@ -502,8 +512,36 @@
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 5px;
-  margin: 4px 0;
+  margin: 6px 0;
   text-align: center;
+}
+
+.kcard-orc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.kcard-details {
+  display: none;
+  margin-top: 8px;
+  border-top: 1px dashed var(--border, #2a2a35);
+  padding-top: 8px;
+}
+
+.kanban-card.expanded .kcard-client {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #fff);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  margin-bottom: 4px;
 }
 
 /* ─── Required field highlight ─── */
@@ -524,13 +562,13 @@
   border-color: #EF4444;
 }
 
-/* ─── Botão avançar status (mobile) ─── */
+/* ─── Botão expandir/colapsar card ─── */
 
-.kcard-move-btn {
-  display: none; /* oculto no desktop */
-  background: var(--red, #C41230);
-  color: #fff;
-  border: none;
+.kcard-toggle-btn {
+  display: flex;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   width: 22px;
   height: 22px;
@@ -540,11 +578,13 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
 }
 
-.kcard-move-btn:hover {
-  background: #A00E28;
+.kcard-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
 }
 
 /* ─── Menu popup mover (mobile) ─── */
@@ -798,11 +838,10 @@
     font-size: 10px;
   }
 
-  .kcard-warning {
-    font-size: 9px;
-    padding: 3px 6px;
-    background: rgba(196, 18, 48, 0.1);
-    color: var(--red, #C41230);
+  .kcard-warning-dot {
+    width: 7px;
+    height: 7px;
+    box-shadow: 0 0 4px #F59E0B;
   }
 
   /* Mostrar botão avançar no mobile */
