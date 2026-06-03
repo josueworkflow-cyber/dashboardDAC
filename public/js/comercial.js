@@ -259,12 +259,37 @@ function renderFooterKpis() {
       { icon: '🗺️', label: 'Em Rota', value: String(emRota) }
     ];
   } else {
-    const total = filtered.length;
-    const cotacao = all.filter(o => o.status === 'Cotação / Orçamento');
-    const valorCotacao = cotacao.reduce((s, o) => s + (parseFloat(o.valor) || 0), 0);
+    // Total de Pedidos: apenas orçamentos/pedidos que ainda estão no funil (de Orçamento a Rota, ou seja, tudo exceto Finalizado) respeitando filtros
+    const activeStatuses = [
+      'Cotação / Orçamento', 'Pedido', 'Aprovado',
+      'Solicitar Compra', 'Aguardando Mercadoria',
+      'Estoque / Separação', 'Expedição / Separado',
+      'Rota de Entrega'
+    ];
+    const activeFiltered = filtered.filter(o => activeStatuses.includes(o.status));
+    const totalActiveCount = activeFiltered.length;
+
+    // Valor em Cotação: soma de Orçamento até Aguardando Mercadoria respeitando filtros
+    const cotacaoStatuses = [
+      'Cotação / Orçamento', 'Pedido', 'Aprovado',
+      'Solicitar Compra', 'Aguardando Mercadoria'
+    ];
+    const cotacaoFiltered = filtered.filter(o => cotacaoStatuses.includes(o.status));
+    const valorCotacao = cotacaoFiltered.reduce((s, o) => s + (parseFloat(o.valor) || 0), 0);
+
+    // Valor de Pedidos Aprovados: soma de Separação até Rota respeitando filtros
+    const aprovadoStatuses = [
+      'Estoque / Separação',
+      'Expedição / Separado',
+      'Rota de Entrega'
+    ];
+    const aprovadosFiltered = filtered.filter(o => aprovadoStatuses.includes(o.status));
+    const valorAprovados = aprovadosFiltered.reduce((s, o) => s + (parseFloat(o.valor) || 0), 0);
+
     kpis = [
-      { icon: '🚚', label: 'Total de Pedidos', value: String(total) },
+      { icon: '🚚', label: 'Total de Pedidos', value: String(totalActiveCount) },
       { icon: '💰', label: 'Valor em Cotação', value: fmt(valorCotacao) },
+      { icon: '💸', label: 'Valor Ped. Aprovados', value: fmt(valorAprovados) },
       { icon: '📦', label: 'Em Separação', value: String(emSeparacao) },
       { icon: '🚛', label: 'Em Expedição', value: String(expedidos) }
     ];
@@ -684,6 +709,8 @@ function renderHistoricoKpis() {
 
 function renderHistoricoTable() {
   const vendedorFiltro = document.getElementById('historicoVendedor')?.value || '';
+  const statusFiltro = document.getElementById('historicoStatus')?.value || '';
+  const searchFiltro = document.getElementById('historicoSearch')?.value.trim().toLowerCase() || '';
   const dateFrom = document.getElementById('historicoDateFrom')?.value || '';
   const dateTo = document.getElementById('historicoDateTo')?.value || '';
   const tbody = document.getElementById('tbHistorico');
@@ -704,6 +731,18 @@ function renderHistoricoTable() {
 
   if (vendedorFiltro) {
     rows = rows.filter(o => o.vendedor === vendedorFiltro);
+  }
+
+  if (statusFiltro) {
+    rows = rows.filter(o => o.status === statusFiltro);
+  }
+
+  if (searchFiltro) {
+    rows = rows.filter(o => {
+      const cliente = (o.fornecedor || '').toLowerCase();
+      const obs = (o.observacao || '').toLowerCase();
+      return cliente.includes(searchFiltro) || obs.includes(searchFiltro);
+    });
   }
 
   // Date filter

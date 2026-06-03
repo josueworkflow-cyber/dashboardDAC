@@ -912,8 +912,21 @@
             <!-- Preenchido via JS -->
           </div>
           <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;width:100%;">
+            <input class="gsearch" id="historicoSearch" type="text" placeholder="Buscar por cliente ou observação..." oninput="renderHistoricoTable()" style="min-width:220px; font-size:12px; padding:6px 10px; border-radius:7px; border:1px solid var(--border); background:var(--card); color:var(--text); outline:none;">
             <select class="fs" id="historicoVendedor" onchange="renderHistoricoTable()" style="min-width:160px;">
               <option value="">Todos Vendedores</option>
+            </select>
+            <select class="fs" id="historicoStatus" onchange="renderHistoricoTable()" style="min-width:150px;">
+              <option value="">Todos Status</option>
+              <option>Cotação / Orçamento</option>
+              <option>Pedido</option>
+              <option>Aprovado</option>
+              <option>Solicitar Compra</option>
+              <option>Aguardando Mercadoria</option>
+              <option>Estoque / Separação</option>
+              <option>Expedição / Separado</option>
+              <option>Rota de Entrega</option>
+              <option>Finalizado</option>
             </select>
             <div class="comercial-date-filter">
               <input type="date" id="historicoDateFrom" onchange="renderHistoricoTable()">
