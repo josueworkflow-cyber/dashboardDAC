@@ -245,15 +245,22 @@ function renderFooterKpis() {
   if (!container) return;
 
   const role = sessionStorage.getItem('dac_role') || 'gestor';
-  const all = COMERCIAL;
   const filtered = getFilteredComercial();
-  const emSeparacao = all.filter(o => o.status === 'Estoque / Separação').length;
-  const expedidos = all.filter(o => o.status === 'Expedição / Separado').length;
-  const emRota = all.filter(o => o.status === 'Rota de Entrega').length;
+  const emSeparacao = filtered.filter(o => o.status === 'Estoque / Separação').length;
+  const expedidos = filtered.filter(o => o.status === 'Expedição / Separado').length;
+  const emRota = filtered.filter(o => o.status === 'Rota de Entrega').length;
 
   let kpis;
   if (role === 'estoque') {
+    const activeStatuses = [
+      'Aprovado', 'Solicitar Compra', 'Aguardando Mercadoria',
+      'Estoque / Separação', 'Expedição / Separado', 'Rota de Entrega'
+    ];
+    const activeFiltered = filtered.filter(o => activeStatuses.includes(o.status));
+    const totalActiveCount = activeFiltered.length;
+
     kpis = [
+      { icon: '🚚', label: 'Total de Pedidos', value: String(totalActiveCount) },
       { icon: '📦', label: 'Em Separação', value: String(emSeparacao) },
       { icon: '🚛', label: 'Em Expedição', value: String(expedidos) },
       { icon: '🗺️', label: 'Em Rota', value: String(emRota) }
@@ -691,12 +698,48 @@ function renderHistoricoKpis() {
   const container = document.getElementById('historico-kpis');
   if (!container) return;
 
-  const all = COMERCIAL;
-  const total = all.length;
-  const cotacao = all.filter(o => o.status === 'Cotação / Orçamento').length;
-  const aprovados = all.filter(o => o.status === 'Aprovado').length;
-  const finalizados = all.filter(o => o.status === 'Finalizado').length;
-  const valorTotal = all.reduce((s, o) => s + (parseFloat(o.valor) || 0), 0);
+  const vendedorFiltro = document.getElementById('historicoVendedor')?.value || '';
+  const statusFiltro = document.getElementById('historicoStatus')?.value || '';
+  const searchFiltro = document.getElementById('historicoSearch')?.value.trim().toLowerCase() || '';
+  const dateFrom = document.getElementById('historicoDateFrom')?.value || '';
+  const dateTo = document.getElementById('historicoDateTo')?.value || '';
+
+  let rows = [...COMERCIAL];
+
+  if (vendedorFiltro) {
+    rows = rows.filter(o => o.vendedor === vendedorFiltro);
+  }
+  if (statusFiltro) {
+    rows = rows.filter(o => o.status === statusFiltro);
+  }
+  if (searchFiltro) {
+    rows = rows.filter(o => {
+      const cliente = (o.fornecedor || '').toLowerCase();
+      const obs = (o.observacao || '').toLowerCase();
+      return cliente.includes(searchFiltro) || obs.includes(searchFiltro);
+    });
+  }
+  if (dateFrom || dateTo) {
+    rows = rows.filter(o => {
+      const d = parseDate(o.data);
+      if (!d) return false;
+      if (dateFrom) {
+        const from = new Date(dateFrom + 'T00:00:00');
+        if (d < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo + 'T23:59:59');
+        if (d > to) return false;
+      }
+      return true;
+    });
+  }
+
+  const total = rows.length;
+  const cotacao = rows.filter(o => o.status === 'Cotação / Orçamento').length;
+  const aprovados = rows.filter(o => o.status === 'Aprovado').length;
+  const finalizados = rows.filter(o => o.status === 'Finalizado').length;
+  const valorTotal = rows.reduce((s, o) => s + (parseFloat(o.valor) || 0), 0);
 
   container.innerHTML = `
     <div class="gbadge"><span class="gbadge-label">Total de Pedidos</span><span class="gbadge-val">${total}</span></div>
@@ -773,6 +816,7 @@ function renderHistoricoTable() {
   if (rows.length === 0) {
     tbody.innerHTML = '';
     if (vazio) vazio.style.display = 'block';
+    renderHistoricoKpis();
     return;
   }
 
@@ -802,6 +846,8 @@ function renderHistoricoTable() {
       <td style="max-width:200px;white-space:pre-wrap;font-size:11px;">${o.observacao || '—'}</td>
     </tr>`;
   }).join('');
+
+  renderHistoricoKpis();
 }
 
 // ─── Helpers ───
