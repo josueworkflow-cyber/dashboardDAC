@@ -105,32 +105,20 @@ function renderParcelaBadge(r) {
   const status = r.status || '';
   const tipo = r._tipo || (r.movimentacao && normalizeString(r.movimentacao).includes('ENTRADA') ? 'entrada' : 'saida');
 
-  if (numParcelas <= 1 && !ref) {
+  const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/);
+  const grupoId = groupMatch ? groupMatch[1] : null;
+  const parcelaNum = ref ? ref.split(' ')[0] : (status === 'Pago' ? '1/1' : '0/1');
+
+  if (!grupoId && numParcelas <= 1) {
     return '<span style="color:var(--muted);font-size:11px;">—</span>';
   }
 
-  const isPago = status === 'Pago';
-  const stClass = isPago ? 'sp' : status === 'Cancelado' ? 'so' : 'sn';
-  
-  // Extrair ID do grupo se existir
-  const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/);
-  const grupoId = groupMatch ? groupMatch[1] : null;
-  const parcelaNum = ref ? ref.split(' ')[0] : (isPago ? '1/1' : '0/1');
-
-  let btnPagar = '';
-  if (status === 'Pendente' && r.id) {
-    btnPagar = `<button onclick="abrirModalPagar('${r.id}', '${tipo}', event)" class="btn-quick-pay" title="Pagar Parcela">💰</button>`;
-  }
-
   return `
-    <div style="display:flex; align-items:center; gap:8px;">
-      <span class="stag ${stClass}" style="font-size:10px; cursor:${grupoId ? 'pointer' : 'default'};" 
-            onclick="${grupoId ? `abrirModalGrupo('${grupoId}', '${tipo}', event)` : ''}" 
-            title="${grupoId ? 'Ver grupo completo' : ''}">
-        ${parcelaNum}
-      </span>
-      ${btnPagar}
-    </div>
+    <button onclick="${grupoId ? `abrirModalGrupo('${grupoId}', '${tipo}', event)` : ''}" 
+            class="filter-btn" style="font-size:11px; padding:4px 9px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;" 
+            title="Ver parcelas e vencimentos">
+      <span>📋</span> ${parcelaNum}
+    </button>
   `;
 }
 
@@ -207,7 +195,7 @@ async function abrirModalGrupo(grupoId, tipo, e) {
   const header = document.getElementById('mgp-header');
   const progressWrap = document.getElementById('mgp-progress-wrap');
 
-  body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Carregando...</td></tr>';
+  body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Carregando...</td></tr>';
   modal.style.display = 'flex';
 
   try {
@@ -230,16 +218,21 @@ async function abrirModalGrupo(grupoId, tipo, e) {
         const val = parseFloat(row.valor) || 0;
         const pago = parseFloat(row.valor_pago) || 0;
         totalGeral += val;
-        if (row.status === 'Pago') totalPago += val; // Usamos o valor da parcela se estiver pago
+        if (row.status === 'Pago') totalPago += val;
 
         const stClass = row.status === 'Pago' ? 'sp' : row.status === 'Cancelado' ? 'so' : 'sn';
+        const btnPagar = row.status !== 'Pago'
+          ? `<button onclick="abrirModalPagar('${row.id}', '${tipo}', event)" class="gbtn gbtn-submit" style="padding:3px 8px; font-size:10px; border-radius:5px; white-space:nowrap;">💰 Pagar</button>`
+          : `<span style="color:#4ADE80; font-size:11px; font-weight:600;">✓ Pago</span>`;
+
         return `
           <tr>
-            <td>${row.parcela_ref ? row.parcela_ref.split(' ')[0] : '1/1'}</td>
+            <td><strong>${row.parcela_ref ? row.parcela_ref.split(' ')[0] : '1/1'}</strong></td>
             <td>${row.data_vencimento || '—'}</td>
             <td class="mono">${fmt(val)}</td>
             <td><span class="stag ${stClass}">${row.status}</span></td>
             <td>${row.data_pagamento || '—'}</td>
+            <td>${btnPagar}</td>
           </tr>
         `;
       }).join('');
@@ -255,10 +248,10 @@ async function abrirModalGrupo(grupoId, tipo, e) {
         </div>
       `;
     } else {
-      body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Nenhuma parcela encontrada.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Nenhuma parcela encontrada.</td></tr>';
     }
   } catch (err) {
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--red);">Erro ao carregar dados.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--red);">Erro ao carregar dados.</td></tr>';
   }
 }
 
