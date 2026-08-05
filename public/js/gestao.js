@@ -126,6 +126,8 @@ function renderParcelaBadge(r) {
 
 let currentPayId = null;
 let currentPayTipo = null;
+let currentActiveGrupoId = null;
+let currentActiveGrupoTipo = null;
 
 function abrirModalPagar(id, tipo, e) {
   if (e) e.stopPropagation();
@@ -175,7 +177,10 @@ async function confirmarPagamentoParcela() {
     if (r.ok) {
       showGestaoToast('✓ Pagamento registrado!', 'ok');
       fecharModalPagar();
-      setTimeout(loadData, 1000);
+      await loadData();
+      if (currentActiveGrupoId && currentActiveGrupoTipo) {
+        abrirModalGrupo(currentActiveGrupoId, currentActiveGrupoTipo);
+      }
     } else {
       const d = await r.json();
       alert('Erro: ' + (d.error || 'Falha ao processar.'));
@@ -190,6 +195,9 @@ async function confirmarPagamentoParcela() {
 
 async function abrirModalGrupo(grupoId, tipo, e) {
   if (e) e.stopPropagation();
+  currentActiveGrupoId = grupoId;
+  currentActiveGrupoTipo = tipo;
+
   const modal = document.getElementById('modalGrupoParcelas');
   const body = document.getElementById('mgp-body');
   const header = document.getElementById('mgp-header');
@@ -256,6 +264,8 @@ async function abrirModalGrupo(grupoId, tipo, e) {
 }
 
 function fecharModalGrupo() {
+  currentActiveGrupoId = null;
+  currentActiveGrupoTipo = null;
   document.getElementById('modalGrupoParcelas').style.display = 'none';
 }
 
@@ -629,19 +639,41 @@ function gerarParcelasCards() {
       }
 
       const rotuloParcela = status === 'Parcial' ? `Parcela Futura ${i}/${num}` : `Parcela ${i}/${num}`;
+      const onDateChange = i === 1 ? 'onchange="recalcularDatasSubsequentes()"' : '';
 
       html += `
         <div class="parcela-card" data-index="${i}">
           <div class="pc-head">${rotuloParcela}</div>
           <div class="pc-body">
             <input type="text" class="pc-val" value="${fmt(valorSugerido)}" oninput="this.value = fmtInput(this.value)" placeholder="Valor">
-            <input type="date" class="pc-date" value="${dataVenc}" title="Data de Vencimento da Parcela">
+            <input type="date" class="pc-date" value="${dataVenc}" ${onDateChange} title="Data de Vencimento da Parcela">
           </div>
         </div>
       `;
     }
     list.innerHTML = html;
   }
+}
+
+function recalcularDatasSubsequentes() {
+  const cards = document.querySelectorAll('.parcela-card');
+  if (cards.length <= 1) return;
+
+  const intervalEl = document.querySelector('input[name="gf-intervalo"]:checked');
+  const interval = intervalEl ? intervalEl.value : '30';
+  if (interval === 'custom') return;
+
+  const card1Date = cards[0].querySelector('.pc-date').value;
+  if (!card1Date) return;
+
+  cards.forEach((card, i) => {
+    if (i === 0) return;
+    const d = new Date(card1Date + 'T12:00:00');
+    if (interval === '30') d.setMonth(d.getMonth() + i);
+    else if (interval === '15') d.setDate(d.getDate() + (i * 15));
+    else if (interval === '7') d.setDate(d.getDate() + (i * 7));
+    card.querySelector('.pc-date').value = toIso(d);
+  });
 }
 
 function distribuirIgual() {
@@ -666,6 +698,8 @@ function distribuirIgual() {
     const valor = i === cards.length - 1 ? (valorBase + sobra) : valorBase;
     input.value = fmt(valor);
   });
+
+  recalcularDatasSubsequentes();
 }
 
 function fmtInput(v) {
@@ -735,16 +769,15 @@ async function submitGestao() {
   if (status === 'Parcelado' && cards.length > 0) {
     const numParcelas = cards.length;
     const parcelasData = Array.from(cards).map((card, idx) => {
-      const isFirst = idx === 0;
       const valorParcela = parseVal(card.querySelector('.pc-val').value);
       const dataVenc = card.querySelector('.pc-date').value;
       return {
         valor: valorParcela,
         data_vencimento: isoToBr(dataVenc),
-        data_pagamento: isFirst ? isoToBr(toIso(new Date())) : '',
-        valor_pago: isFirst ? valorParcela : 0,
+        data_pagamento: '',
+        valor_pago: 0,
         parcela_ref: `${idx + 1}/${numParcelas} [${grupoId}]`,
-        status: isFirst ? 'Pago' : 'Pendente'
+        status: 'Pendente'
       };
     });
 
