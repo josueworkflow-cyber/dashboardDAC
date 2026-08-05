@@ -411,6 +411,24 @@ body.tv-mode .spark-grid {
   margin-top: 2px;
 }
 
+.kpi-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.kpi-clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--red) !important;
+  box-shadow: 0 4px 14px rgba(196, 18, 48, 0.18);
+}
+
+.kpi-clickable.active-kpi {
+  border-color: var(--red) !important;
+  background: rgba(196, 18, 48, 0.12) !important;
+  box-shadow: 0 0 12px rgba(196, 18, 48, 0.35) !important;
+}
+
 /* ─── Abas de gestão ─── */
 .gestao-tabs {
   display: flex;

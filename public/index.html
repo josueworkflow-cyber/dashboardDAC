@@ -565,6 +565,14 @@
                 <option value="Parcial">Parcial</option>
               </select>
             </div>
+            <div class="gfield" id="gf-valorpago-wrap" style="display:none;">
+              <label>Valor Pago (R$) *</label>
+              <input type="text" inputmode="decimal" id="gf-valorpago" placeholder="Ex: 300,00" oninput="calcValorRestante()">
+            </div>
+            <div class="gfield" id="gf-valorrestante-wrap" style="display:none;">
+              <label>Valor Restante (R$)</label>
+              <input type="text" id="gf-valorrestante" placeholder="0,00" readonly style="opacity:0.75; background:var(--card2);">
+            </div>
             <div class="gf-parcela-field parcela-config-wrap" id="gf-parcelas-wrap" style="display:none;">
               <!-- Header -->
               <div class="parcela-config-header">
@@ -1002,7 +1010,7 @@
 
         <div class="tw" style="max-height:580px;">
           <table>
-            <thead>
+            <thead id="thMovFinanceiras">
               <tr>
                 <th>Tipo</th>
                 <th>Categoria</th>

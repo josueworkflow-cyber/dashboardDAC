@@ -558,6 +558,108 @@ function resetGestaoForm() {
   toggleParcelaFields();
 }
 
+function toggleParcelaFields() {
+  const status = document.getElementById('gf-status').value;
+  const isParcial = status === 'Parcial';
+  const isPendente = status === 'Pendente';
+
+  const valorPagoWrap = document.getElementById('gf-valorpago-wrap');
+  const valorRestanteWrap = document.getElementById('gf-valorrestante-wrap');
+  const dpagInput = document.getElementById('gf-dpag');
+
+  if (valorPagoWrap) valorPagoWrap.style.display = isParcial ? 'block' : 'none';
+  if (valorRestanteWrap) valorRestanteWrap.style.display = isParcial ? 'block' : 'none';
+
+  if (isParcial) {
+    calcValorRestante();
+    if (dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
+  } else if (isPendente) {
+    if (dpagInput) dpagInput.value = '';
+  } else if (status === 'Pago') {
+    if (dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
+  }
+
+  // Ocultar configuração de parcelas multi-datas no lançamento parcial simples
+  document.querySelectorAll('.gf-parcela-field').forEach(el => {
+    el.style.display = 'none';
+  });
+}
+
+function gerarParcelasCards() {
+  const num = parseInt(document.getElementById('gf-parcelas').value, 10) || 0;
+  const list = document.getElementById('gf-parcelas-list');
+  const interval = document.querySelector('input[name="gf-intervalo"]:checked').value;
+  const baseDate = document.getElementById('gf-dvenc').value;
+  const baseVal = parseVal(document.getElementById('gf-val').value) || 0;
+
+  if (num <= 0) {
+    list.innerHTML = '';
+    return;
+  }
+
+  // Se o número de parcelas mudou ou é a primeira vez, gera os campos
+  const currentCount = list.querySelectorAll('.parcela-card').length;
+  
+  // Para simplificar, sempre regeramos se for "Auto" (não custom) ou se o número mudou
+  if (num !== currentCount || interval !== 'custom') {
+    let html = '';
+    const valorSugerido = (baseVal / num).toFixed(2);
+    
+    for (let i = 1; i <= num; i++) {
+      let dataVenc = baseDate;
+      if (baseDate && interval !== 'custom') {
+        const d = new Date(baseDate + 'T12:00:00');
+        if (interval === '30') d.setMonth(d.getMonth() + (i - 1));
+        else if (interval === '15') d.setDate(d.getDate() + ((i - 1) * 15));
+        else if (interval === '7') d.setDate(d.getDate() + ((i - 1) * 7));
+        dataVenc = toIso(d);
+      }
+
+      html += `
+        <div class="parcela-card" data-index="${i}">
+          <div class="pc-head">Parcela ${i}/${num}</div>
+          <div class="pc-body">
+            <input type="text" class="pc-val" value="${fmt(valorSugerido)}" oninput="this.value = fmtInput(this.value)" placeholder="Valor">
+            <input type="date" class="pc-date" value="${dataVenc}">
+          </div>
+        </div>
+      `;
+    }
+    list.innerHTML = html;
+  }
+}
+
+function distribuirIgual() {
+  const baseVal = parseVal(document.getElementById('gf-val').value) || 0;
+  const cards = document.querySelectorAll('.parcela-card');
+  if (cards.length === 0 || baseVal <= 0) return;
+
+  const valorBase = Math.floor((baseVal / cards.length) * 100) / 100;
+  const sobra = Math.round((baseVal - (valorBase * cards.length)) * 100) / 100;
+
+  cards.forEach((card, i) => {
+    const input = card.querySelector('.pc-val');
+    const valor = i === cards.length - 1 ? (valorBase + sobra) : valorBase;
+    input.value = fmt(valor);
+  });
+}
+
+function fmtInput(v) {
+  return fmt(parseVal(v));
+}
+
+function calcValorRestante() {
+  const valTotalEl = document.getElementById('gf-val');
+  const valPagoEl = document.getElementById('gf-valorpago');
+  const restanteEl = document.getElementById('gf-valorrestante');
+  if (!valTotalEl || !valPagoEl || !restanteEl) return;
+
+  const valTotal = parseVal(valTotalEl.value) || 0;
+  const valPago = parseVal(valPagoEl.value) || 0;
+  const restante = Math.max(0, valTotal - valPago);
+  restanteEl.value = fmt(restante);
+}
+
 // ─── Submeter lançamento ───
 
 async function submitGestao() {
@@ -565,6 +667,8 @@ async function submitGestao() {
   const cat = document.getElementById('gf-cat').value;
   const val = document.getElementById('gf-val').value;
   const dvenc = document.getElementById('gf-dvenc').value;
+  const status = document.getElementById('gf-status').value;
+  const dpag = document.getElementById('gf-dpag').value;
 
   if (!mov || !cat || !val || !dvenc) {
     showGestaoToast('Preencha os campos obrigatórios: Movimentação, Categoria, Valor e Data Vencimento.', 'err');
@@ -585,14 +689,14 @@ async function submitGestao() {
     return;
   }
 
-  const isParcelado = document.getElementById('gf-status').value === 'Parcial';
   const numParcelas = parseInt(document.getElementById('gf-parcelas').value, 10) || 0;
+  const cards = document.querySelectorAll('.parcela-card');
+  const isMultiParcelado = numParcelas > 1 && cards.length > 0;
 
   let body;
   let endpoint = `${API}/lancamento`;
 
-  if (isParcelado && numParcelas > 1) {
-    const cards = document.querySelectorAll('.parcela-card');
+  if (isMultiParcelado) {
     const grupoId = `PRC-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
     
     const parcelasData = Array.from(cards).map((card, idx) => {
@@ -620,19 +724,31 @@ async function submitGestao() {
     };
     endpoint = `${API}/lancamento/parcelado`;
   } else {
+    let valorPagoFinal = 0;
+    if (status === 'Pago') {
+      valorPagoFinal = valorNum;
+    } else if (status === 'Parcial') {
+      valorPagoFinal = parseVal(document.getElementById('gf-valorpago').value) || 0;
+    }
+
+    let dataPagamentoFinal = '';
+    if (status !== 'Pendente' && dpag) {
+      dataPagamentoFinal = isoToBr(dpag);
+    }
+
     body = {
       movimentacao: mov,
       categoria: cat,
       observacoes: document.getElementById('gf-obs').value,
       fornecedor: document.getElementById('gf-forn').value,
-      valor: parseVal(val),
+      valor: valorNum,
       conta_bancaria: document.getElementById('gf-conta').value,
       data_vencimento: isoToBr(dvenc),
-      data_pagamento: isoToBr(document.getElementById('gf-dpag').value),
+      data_pagamento: dataPagamentoFinal,
       forma_pagamento: document.getElementById('gf-forma').value,
-      status: document.getElementById('gf-status').value,
+      status: status,
       num_parcelas: numParcelas,
-      valor_pago: 0, // No novo sistema, se é pago, o valor_pago é o valor total
+      valor_pago: valorPagoFinal,
       modo_emissao: mov === 'Entrada' ? (document.getElementById('gf-nf').value || '') : ''
     };
     if (body.status === 'Pago') body.valor_pago = body.valor;

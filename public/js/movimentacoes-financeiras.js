@@ -1,11 +1,23 @@
 /* ═══════════════════════════════════════════════
    movimentacoes-financeiras.js — Unificação ENTRADAS + SAÍDAS
+   com KPIs clicáveis e colunas dinâmicas
    ═══════════════════════════════════════════════ */
 
+let currentMfKpiFilter = null;
+
 async function initMovimentacoesFinanceiras() {
-  // Reset de datas se necessário
   document.getElementById('mfDateFrom').value = '';
   document.getElementById('mfDateTo').value = '';
+  currentMfKpiFilter = null;
+  renderMovimentacoesFinanceiras();
+}
+
+function toggleMfKpiFilter(filterKey) {
+  if (currentMfKpiFilter === filterKey) {
+    currentMfKpiFilter = null;
+  } else {
+    currentMfKpiFilter = filterKey;
+  }
   renderMovimentacoesFinanceiras();
 }
 
@@ -70,7 +82,19 @@ function renderMovimentacoesFinanceiras() {
       });
     }
 
+    // Filtro por clique no KPI
+    if (currentMfKpiFilter === 'receber') {
+      rows = rows.filter(r => (r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada')) && r.status !== 'Pago' && r.status !== 'Cancelado');
+    } else if (currentMfKpiFilter === 'pagar') {
+      rows = rows.filter(r => (r._tipo === 'saída' || !(r.movimentacao || '').toLowerCase().includes('entrada')) && r.status !== 'Pago' && r.status !== 'Cancelado');
+    } else if (currentMfKpiFilter === 'entradas') {
+      rows = rows.filter(r => r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada'));
+    } else if (currentMfKpiFilter === 'saidas') {
+      rows = rows.filter(r => r._tipo === 'saída' || !(r.movimentacao || '').toLowerCase().includes('entrada'));
+    }
+
     const tbody = document.getElementById('tbMovFinanceiras');
+    const thead = document.getElementById('thMovFinanceiras');
     if (!tbody) return;
 
     // Ordenar por data (mais recente primeiro)
@@ -80,12 +104,59 @@ function renderMovimentacoesFinanceiras() {
       return db - da;
     });
 
-    // Atualizar KPIs
-    updateMfKpis(rows);
+    // Atualizar cabeçalho dinâmico (<thead>)
+    if (thead) {
+      if (currentMfKpiFilter === 'receber') {
+        thead.innerHTML = `<tr>
+          <th>Tipo</th>
+          <th>Categoria</th>
+          <th>Observações</th>
+          <th>Cliente</th>
+          <th>Status</th>
+          <th>Valor Total</th>
+          <th>Valor a Receber</th>
+          <th>Parcelas</th>
+          <th>Vencimento</th>
+          <th>Conta Bancária</th>
+          <th>Forma Pgto</th>
+        </tr>`;
+      } else if (currentMfKpiFilter === 'pagar') {
+        thead.innerHTML = `<tr>
+          <th>Tipo</th>
+          <th>Categoria</th>
+          <th>Observações</th>
+          <th>Fornecedor</th>
+          <th>Status</th>
+          <th>Valor Total</th>
+          <th>Valor a Pagar</th>
+          <th>Parcelas</th>
+          <th>Vencimento</th>
+          <th>Conta Bancária</th>
+          <th>Forma Pgto</th>
+        </tr>`;
+      } else {
+        thead.innerHTML = `<tr>
+          <th>Tipo</th>
+          <th>Categoria</th>
+          <th>Observações</th>
+          <th>Valor</th>
+          <th>Fornecedor/Cliente</th>
+          <th>Conta Bancária</th>
+          <th>Vencimento</th>
+          <th>Pagamento</th>
+          <th>Forma</th>
+          <th>Status</th>
+          <th>Modo de Emissão</th>
+          <th>Parcelas</th>
+          <th>Valor Pago</th>
+        </tr>`;
+      }
+    }
 
     if (rows.length === 0) {
       tbody.innerHTML = '';
       document.getElementById('mfVazio').style.display = 'block';
+      updateMfKpis(rows);
       return;
     }
     document.getElementById('mfVazio').style.display = 'none';
@@ -98,6 +169,43 @@ function renderMovimentacoesFinanceiras() {
       const stClass = r.status === 'Pago' ? 'sp' : r.status === 'Cancelado' ? 'so' : r.status === 'Parcial' ? 'sy' : 'sn';
       const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
 
+      if (currentMfKpiFilter === 'receber') {
+        const valTotal = parseFloat(r.valor) || 0;
+        const valPago = parseFloat(r.valor_pago) || 0;
+        const aReceber = Math.max(0, valTotal - valPago);
+        return `<tr>
+          <td>${movTag}</td>
+          <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
+          <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
+          <td style="font-size:11px; font-weight:600;">${r.cliente || r.fornecedor || '—'}</td>
+          <td><span class="stag ${stClass}">${r.status || 'Pendente'}</span></td>
+          <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
+          <td class="mono" style="color:#4ADE80;font-weight:700;">+ ${fmt(aReceber)}</td>
+          <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
+          <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
+          <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
+          <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
+        </tr>`;
+      } else if (currentMfKpiFilter === 'pagar') {
+        const valTotal = parseFloat(r.valor) || 0;
+        const valPago = parseFloat(r.valor_pago) || 0;
+        const aPagar = Math.max(0, valTotal - valPago);
+        return `<tr>
+          <td>${movTag}</td>
+          <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
+          <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
+          <td style="font-size:11px; font-weight:600;">${r.fornecedor || r.cliente || '—'}</td>
+          <td><span class="stag ${stClass}">${r.status || 'Pendente'}</span></td>
+          <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
+          <td class="mono" style="color:var(--red);font-weight:700;">- ${fmt(aPagar)}</td>
+          <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
+          <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
+          <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
+          <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
+        </tr>`;
+      }
+
+      // Renderização padrão (Visão Geral de 13 colunas)
       return `<tr>
         <td>${movTag}</td>
         <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
@@ -114,7 +222,7 @@ function renderMovimentacoesFinanceiras() {
         <td class="mono" style="font-size:11px;">${fmt(r.valor_pago || 0)}</td>
       </tr>`;
     }).join('');
-    
+
     // Atualizar KPIs
     updateMfKpis(rows);
 
@@ -127,20 +235,23 @@ function updateMfKpis(rows) {
   const kpiWrap = document.getElementById('mfKpis');
   if (!kpiWrap) return;
 
-  const totalEnt = rows.filter(r => r._tipo === 'entrada').reduce((acc, r) => acc + getEffectiveValue(r), 0);
-  const totalSai = rows.filter(r => r._tipo === 'saída').reduce((acc, r) => acc + getEffectiveValue(r), 0);
+  // Usar lista completa de Entradas e Saídas sem o filtro do KPI atual para manter os valores nos cards
+  const ents = ENT.map(r => ({ ...r, _tipo: 'entrada' }));
+  const sais = SAI.map(r => ({ ...r, _tipo: 'saída' }));
+  const allRows = [...ents, ...sais];
+
+  const totalEnt = allRows.filter(r => r._tipo === 'entrada').reduce((acc, r) => acc + getEffectiveValue(r), 0);
+  const totalSai = allRows.filter(r => r._tipo === 'saída').reduce((acc, r) => acc + getEffectiveValue(r), 0);
   const saldo = totalEnt - totalSai;
 
-  // 1. Contas a Receber (pendentes no período filtrado)
-  const pendReceber = rows.filter(r => r._tipo === 'entrada' && r.status !== 'Pago' && r.status !== 'Cancelado');
+  const pendReceber = allRows.filter(r => r._tipo === 'entrada' && r.status !== 'Pago' && r.status !== 'Cancelado');
   const totalReceber = pendReceber.reduce((s, r) => s + Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0)), 0);
   const receberSub = pendReceber.length > 0 
     ? `● ${pendReceber.length} pendente${pendReceber.length > 1 ? 's' : ''}` 
     : '✓ Nenhum pendente';
   const receberSubClass = pendReceber.length === 0 ? 'sub-g' : 'sub-y';
 
-  // 2. Contas a Pagar (pendentes no período filtrado)
-  const pendPagar = rows.filter(r => r._tipo === 'saída' && r.status !== 'Pago' && r.status !== 'Cancelado');
+  const pendPagar = allRows.filter(r => r._tipo === 'saída' && r.status !== 'Pago' && r.status !== 'Cancelado');
   const totalPagar = pendPagar.reduce((s, r) => s + Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0)), 0);
   
   let pagarSub = '✓ Tudo em dia';
@@ -172,25 +283,31 @@ function updateMfKpis(rows) {
     }
   }
 
+  const actEnt = currentMfKpiFilter === 'entradas' ? 'active-kpi' : '';
+  const actSai = currentMfKpiFilter === 'saidas' ? 'active-kpi' : '';
+  const actSaldo = currentMfKpiFilter === 'saldo' ? 'active-kpi' : '';
+  const actRec = currentMfKpiFilter === 'receber' ? 'active-kpi' : '';
+  const actPag = currentMfKpiFilter === 'pagar' ? 'active-kpi' : '';
+
   kpiWrap.innerHTML = `
-    <div class="gbadge">
+    <div class="gbadge kpi-clickable ${actEnt}" onclick="toggleMfKpiFilter('entradas')" title="Filtrar Entradas">
       <span class="gbadge-label">ENTRADAS</span>
       <span class="gbadge-val tg">${fmt(totalEnt)}</span>
     </div>
-    <div class="gbadge">
+    <div class="gbadge kpi-clickable ${actSai}" onclick="toggleMfKpiFilter('saidas')" title="Filtrar Saídas">
       <span class="gbadge-label">SAÍDAS</span>
       <span class="gbadge-val tr">${fmt(totalSai)}</span>
     </div>
-    <div class="gbadge">
+    <div class="gbadge kpi-clickable ${actSaldo}" onclick="toggleMfKpiFilter('saldo')" title="Ver Todos">
       <span class="gbadge-label">SALDO</span>
       <span class="gbadge-val ${saldo >= 0 ? 'tg' : 'tr'}">${fmt(saldo)}</span>
     </div>
-    <div class="gbadge">
+    <div class="gbadge kpi-clickable ${actRec}" onclick="toggleMfKpiFilter('receber')" title="Filtrar Contas a Receber">
       <span class="gbadge-label">C. A RECEBER</span>
       <span class="gbadge-val ty">${fmt(totalReceber)}</span>
       <span class="gbadge-sub ${receberSubClass}">${receberSub}</span>
     </div>
-    <div class="gbadge">
+    <div class="gbadge kpi-clickable ${actPag}" onclick="toggleMfKpiFilter('pagar')" title="Filtrar Contas a Pagar">
       <span class="gbadge-label">C. A PAGAR</span>
       <span class="gbadge-val tr">${fmt(totalPagar)}</span>
       <span class="gbadge-sub ${pagarSubClass}">${pagarSub}</span>
