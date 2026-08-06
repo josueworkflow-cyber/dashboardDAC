@@ -106,13 +106,15 @@ function parseVal(v) {
   return isNaN(n) ? 0 : n;
 }
 
-// Normaliza string para comparação (remove acentos e converte para maiúsculas)
+// Normaliza string para comparação (remove acentos, converte para maiúsculas e remove pontuações das pontas)
 function normalizeString(str) {
   if (!str) return '';
   return str.toString()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
+    .replace(/[.,;:\s]+$/, '')
+    .replace(/^[.,;:\s]+/, '')
     .trim();
 }
 

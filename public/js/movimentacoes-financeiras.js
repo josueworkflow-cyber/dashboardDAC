@@ -25,16 +25,24 @@ function populateMfCategorias() {
   const select = document.getElementById('mfCategoria');
   if (!select) return;
   const currentVal = select.value;
+  const tipoFilter = document.getElementById('mfTipo') ? document.getElementById('mfTipo').value : '';
 
   const allRawCats = [];
-  if (Array.isArray(ENT)) ENT.forEach(r => { if (r.categoria) allRawCats.push(r.categoria.trim()); });
-  if (Array.isArray(SAI)) SAI.forEach(r => { if (r.categoria) allRawCats.push(r.categoria.trim()); });
+  if (!tipoFilter || tipoFilter === 'entrada') {
+    if (Array.isArray(ENT)) ENT.forEach(r => { if (r.categoria) allRawCats.push(r.categoria); });
+  }
+  if (!tipoFilter || tipoFilter === 'saída' || tipoFilter === 'saida') {
+    if (Array.isArray(SAI)) SAI.forEach(r => { if (r.categoria) allRawCats.push(r.categoria); });
+  }
 
-  const catMap = new Map(); // norm -> display
+  const catMap = new Map(); // norm -> clean display
   allRawCats.forEach(cat => {
-    const norm = normalizeString(cat);
+    if (!cat) return;
+    const cleanLabel = cat.toString().replace(/[.,;:\s]+$/, '').replace(/^[.,;:\s]+/, '').trim();
+    if (!cleanLabel) return;
+    const norm = normalizeString(cleanLabel);
     if (!catMap.has(norm)) {
-      catMap.set(norm, cat); // Mantém a primeira capitalização limpa
+      catMap.set(norm, cleanLabel); // Mantém a primeira capitalização limpa sem ponto no final
     }
   });
 
@@ -47,6 +55,8 @@ function populateMfCategorias() {
 
   if (currentVal && sortedNormKeys.includes(currentVal)) {
     select.value = currentVal;
+  } else {
+    select.value = '';
   }
 }
 

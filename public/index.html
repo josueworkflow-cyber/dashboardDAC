@@ -985,7 +985,7 @@
 
           <!-- FILTROS (AGORA EM BAIXO) -->
           <div style="display:flex; gap:7px; flex-wrap:wrap; align-items:center; justify-content: center; width: 100%;">
-            <select class="fs" id="mfTipo" onchange="renderMovimentacoesFinanceiras()">
+            <select class="fs" id="mfTipo" onchange="populateMfCategorias(); renderMovimentacoesFinanceiras()">
               <option value="">Entradas + Saídas</option>
               <option value="entrada">Apenas Entradas</option>
               <option value="saída">Apenas Saídas</option>
