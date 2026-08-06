@@ -747,54 +747,31 @@ async function gerarRelatorioPDF() {
       `;
     }
 
-    // 3. Obter cabeçalhos exatos visíveis na tela (11 ou 13 colunas)
+    // 3. Montar cabeçalhos e colgroup exatos (11 ou 13 colunas)
     const isGeralView = !currentMfKpiFilter;
     const fontSize = isGeralView ? '7.5px' : '8.5px';
-    const cellPadding = isGeralView ? '5px 3px' : '6px 5px';
-    const headerPadding = isGeralView ? '6px 3px' : '7px 5px';
+    const cellPadding = isGeralView ? '5px 3px' : '6px 4px';
+    const headerPadding = isGeralView ? '6px 3px' : '7px 4px';
 
-    const theadEl = document.getElementById('thMovFinanceiras');
-    let tableHeadersHtml = '';
-    if (theadEl && theadEl.firstElementChild) {
-      const ths = Array.from(theadEl.firstElementChild.children);
-      tableHeadersHtml = ths.map(th => {
-        const cleanText = th.innerText.replace(/[↕▲▼]/g, '').trim();
-        return `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.2px; padding:${headerPadding}; text-align:center; border:1px solid #a10e27; font-size:${fontSize}; white-space:nowrap;">${cleanText}</th>`;
-      }).join('');
+    let headersList = [];
+    let colWidths = [];
+
+    if (currentMfKpiFilter === 'receber') {
+      headersList = ['TIPO', 'CATEGORIA', 'OBSERVAÇÕES', 'CLIENTE', 'STATUS', 'VALOR TOTAL', 'VALOR A RECEBER', 'PARCELAS', 'VENCIMENTO', 'CONTA BANCÁRIA', 'FORMA PGTO'];
+      colWidths = ['7%', '10%', '13%', '14%', '8%', '9%', '10%', '6%', '8%', '8%', '7%'];
+    } else if (currentMfKpiFilter === 'pagar') {
+      headersList = ['TIPO', 'CATEGORIA', 'OBSERVAÇÕES', 'FORNECEDOR', 'STATUS', 'VALOR TOTAL', 'VALOR A PAGAR', 'PARCELAS', 'VENCIMENTO', 'CONTA BANCÁRIA', 'FORMA PGTO'];
+      colWidths = ['7%', '10%', '13%', '14%', '8%', '9%', '10%', '6%', '8%', '8%', '7%'];
+    } else {
+      headersList = ['TIPO', 'CATEGORIA', 'OBSERVAÇÕES', 'VALOR', 'FORNECEDOR/CLIENTE', 'CONTA BANCÁRIA', 'VENCIMENTO', 'PAGAMENTO', 'FORMA PGTO', 'STATUS', 'N. FISCAL', 'PARCELAS', 'VALOR PAGO'];
+      colWidths = ['6%', '8.5%', '11.5%', '8.5%', '13.5%', '8.5%', '7.5%', '7.5%', '7%', '7%', '4.5%', '4.5%', '6.5%'];
     }
 
-    // Colgroup para garantir proporcionalidade de 100% da largura
-    const colGroupHtml = isGeralView ? `
-      <colgroup>
-        <col style="width: 6.5%;">
-        <col style="width: 8.5%;">
-        <col style="width: 12%;">
-        <col style="width: 8.5%;">
-        <col style="width: 13%;">
-        <col style="width: 8.5%;">
-        <col style="width: 7.5%;">
-        <col style="width: 7.5%;">
-        <col style="width: 6.5%;">
-        <col style="width: 6.5%;">
-        <col style="width: 5%;">
-        <col style="width: 5%;">
-        <col style="width: 5%;">
-      </colgroup>
-    ` : `
-      <colgroup>
-        <col style="width: 7%;">
-        <col style="width: 10%;">
-        <col style="width: 15%;">
-        <col style="width: 15%;">
-        <col style="width: 8%;">
-        <col style="width: 9%;">
-        <col style="width: 9%;">
-        <col style="width: 6%;">
-        <col style="width: 8%;">
-        <col style="width: 7%;">
-        <col style="width: 6%;">
-      </colgroup>
-    `;
+    const tableHeadersHtml = headersList.map((h, i) => 
+      `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.2px; padding:${headerPadding}; text-align:center; border:1px solid #a10e27; font-size:${fontSize}; white-space:nowrap; width:${colWidths[i]};">${h}</th>`
+    ).join('');
+
+    const colGroupHtml = `<colgroup>${colWidths.map(w => `<col style="width:${w};">`).join('')}</colgroup>`;
 
     // 4. Renderizar linhas exatas correspondentes com alternância de tons cinza
     const tableRowsHtml = rows.map((r, idx) => {
