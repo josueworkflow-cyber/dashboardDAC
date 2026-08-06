@@ -909,7 +909,8 @@ async function gerarRelatorioPDF() {
         html2canvas: { 
           scale: 2, 
           useCORS: true, 
-          logging: false
+          logging: false,
+          windowWidth: 1000
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
