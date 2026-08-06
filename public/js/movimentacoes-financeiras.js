@@ -806,14 +806,14 @@ function gerarRelatorioPDF() {
         tbody { display: table-row-group; }
       </style>
 
-      <!-- Cabeçalho -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #c41230; padding-bottom:16px; margin-bottom:20px; page-break-inside:avoid; break-inside:avoid;">
-        <div>
-          <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block;">
+      <!-- Cabeçalho Centralizado -->
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:16px; margin-bottom:20px; page-break-inside:avoid; break-inside:avoid;">
+        <div style="margin-bottom:8px;">
+          <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:48px; width:auto; display:block; margin:0 auto;">
         </div>
-        <div style="text-align:right;">
-          <div style="font-size:18px; font-weight:700; color:#0f172a; text-transform:uppercase;">${tituloRelatorio}</div>
-          <div style="font-size:10px; color:#64748b; margin-top:3px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
+        <div>
+          <div style="font-size:18px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
+          <div style="font-size:10px; color:#64748b; margin-top:4px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
         </div>
       </div>
 
