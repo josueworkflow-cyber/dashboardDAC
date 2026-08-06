@@ -876,7 +876,7 @@ async function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML em memória (SEM anexar ao document.body para NÃO PISCAR na tela)
+    // 5. Montar container HTML oculto no DOM para layout correto do html2canvas
     const printContainer = document.createElement('div');
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
@@ -884,6 +884,13 @@ async function gerarRelatorioPDF() {
     printContainer.style.padding = '16px';
     printContainer.style.width = '1000px';
     printContainer.style.boxSizing = 'border-box';
+    printContainer.style.overflow = 'hidden';
+    // Anexar ao DOM invisível para o html2canvas ter dimensões reais (sem piscar)
+    printContainer.style.visibility = 'hidden';
+    printContainer.style.position = 'fixed';
+    printContainer.style.top = '-10000px';
+    printContainer.style.left = '0';
+    document.body.appendChild(printContainer);
 
     printContainer.innerHTML = `
       <style>
@@ -951,7 +958,8 @@ async function gerarRelatorioPDF() {
           logging: false,
           scrollX: 0,
           scrollY: 0,
-          windowWidth: 1000
+          windowWidth: 1000,
+          width: 1000
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
@@ -989,6 +997,10 @@ async function gerarRelatorioPDF() {
     console.error('❌ Erro ao gerar relatório PDF:', err);
     alert('Ocorreu um erro ao emitir o relatório. Por favor, tente novamente.');
   } finally {
+    // Remover container oculto do DOM
+    if (printContainer && printContainer.parentNode) {
+      printContainer.parentNode.removeChild(printContainer);
+    }
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalBtnHtml;
