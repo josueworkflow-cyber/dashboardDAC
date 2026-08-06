@@ -549,10 +549,41 @@ function updateMfKpis(rows) {
   `;
 }
 
+// ─── Helper: Carregar a Logo Oficial como Base64 Data URI ───
+let cachedLogoBase64 = null;
+
+async function getLogoBase64() {
+  if (cachedLogoBase64) return cachedLogoBase64;
+  try {
+    const res = await fetch('/LOGOTIPO PRINCIPAL.png');
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        cachedLogoBase64 = reader.result;
+        resolve(reader.result);
+      };
+      reader.onerror = () => resolve('/LOGOTIPO PRINCIPAL.png');
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    return '/LOGOTIPO PRINCIPAL.png';
+  }
+}
+
 // ─── Emissão de Relatório PDF de Altíssimo Padrão ───
 
 async function gerarRelatorioPDF() {
+  const btn = event && event.currentTarget ? event.currentTarget : null;
+  const originalBtnHtml = btn ? btn.innerHTML : '';
+
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Gerando PDF...';
+      btn.style.opacity = '0.7';
+    }
+
     // 1. Obter linhas atualmente filtradas e visíveis na tela
     const search = (document.getElementById('mfSearch').value || '').toLowerCase();
     const tipoFilter = document.getElementById('mfTipo').value;
@@ -639,6 +670,9 @@ async function gerarRelatorioPDF() {
         return db - da;
       });
     }
+
+    // Carregar a imagem da logo como Base64 em memória
+    const logoSrc = await getLogoBase64();
 
     // 2. Determinar título, período e métricas do resumo executivo (1 bloco único)
     let tituloRelatorio = 'Relatório de Movimentações Financeiras';
@@ -827,10 +861,10 @@ async function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML FORA DA TELA (left: -9999px) para NENHUM PISCA-PISCA na tela
+    // 5. Montar container HTML no DOM em (0,0) para captura garantida do html2canvas
     const printContainer = document.createElement('div');
-    printContainer.style.position = 'absolute';
-    printContainer.style.left = '-9999px';
+    printContainer.style.position = 'fixed';
+    printContainer.style.left = '0';
     printContainer.style.top = '0';
     printContainer.style.width = '1000px';
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
@@ -838,6 +872,7 @@ async function gerarRelatorioPDF() {
     printContainer.style.background = '#ffffff';
     printContainer.style.padding = '16px';
     printContainer.style.boxSizing = 'border-box';
+    printContainer.style.zIndex = '999999';
 
     printContainer.innerHTML = `
       <style>
@@ -859,7 +894,7 @@ async function gerarRelatorioPDF() {
       <!-- Cabeçalho Centralizado -->
       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:12px; margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; width:100%;">
         <div style="margin-bottom:6px;">
-          <img id="pdfReportLogo" src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block; margin:0 auto;">
+          <img src="${logoSrc}" alt="DAC Hospitalar" style="height:44px; width:auto; display:block; margin:0 auto;">
         </div>
         <div>
           <div style="font-size:16px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
@@ -894,15 +929,6 @@ async function gerarRelatorioPDF() {
 
     document.body.appendChild(printContainer);
 
-    // Aguardar carregamento da imagem do logotipo antes de acionar o canvas
-    const logoImg = document.getElementById('pdfReportLogo');
-    if (logoImg && !logoImg.complete) {
-      await new Promise(resolve => {
-        logoImg.onload = resolve;
-        logoImg.onerror = resolve;
-      });
-    }
-
     // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
     if (typeof html2pdf !== 'undefined') {
       const opt = {
@@ -915,6 +941,8 @@ async function gerarRelatorioPDF() {
           logging: false,
           scrollX: 0,
           scrollY: 0,
+          x: 0,
+          y: 0,
           windowWidth: 1000
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
@@ -942,5 +970,11 @@ async function gerarRelatorioPDF() {
   } catch (err) {
     console.error('❌ Erro ao gerar relatório PDF:', err);
     alert('Ocorreu um erro ao emitir o relatório. Por favor, tente novamente.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalBtnHtml;
+      btn.style.opacity = '1';
+    }
   }
 }
