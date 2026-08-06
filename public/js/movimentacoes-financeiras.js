@@ -729,6 +729,39 @@ function gerarRelatorioPDF() {
       }).join('');
     }
 
+    // Colgroup para garantir proporcionalidade de 100% da largura
+    const colGroupHtml = isGeralView ? `
+      <colgroup>
+        <col style="width: 6.5%;">
+        <col style="width: 8.5%;">
+        <col style="width: 12%;">
+        <col style="width: 8.5%;">
+        <col style="width: 13%;">
+        <col style="width: 8.5%;">
+        <col style="width: 7.5%;">
+        <col style="width: 7.5%;">
+        <col style="width: 6.5%;">
+        <col style="width: 6.5%;">
+        <col style="width: 5%;">
+        <col style="width: 5%;">
+        <col style="width: 5%;">
+      </colgroup>
+    ` : `
+      <colgroup>
+        <col style="width: 7%;">
+        <col style="width: 10%;">
+        <col style="width: 15%;">
+        <col style="width: 15%;">
+        <col style="width: 8%;">
+        <col style="width: 9%;">
+        <col style="width: 9%;">
+        <col style="width: 6%;">
+        <col style="width: 8%;">
+        <col style="width: 7%;">
+        <col style="width: 6%;">
+      </colgroup>
+    `;
+
     // 4. Renderizar linhas exatas correspondentes com alternância de tons cinza
     const tableRowsHtml = rows.map((r, idx) => {
       const isEnt = r._tipo === 'entrada';
@@ -794,19 +827,23 @@ function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML do relatório para conversão PDF com largura fixa A4 (1080px)
+    // 5. Montar container HTML fixado no DOM em (0,0) para captura perfeita do html2canvas
     const printContainer = document.createElement('div');
+    printContainer.style.position = 'fixed';
+    printContainer.style.left = '0';
+    printContainer.style.top = '0';
+    printContainer.style.zIndex = '-99999';
+    printContainer.style.width = '1000px';
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
     printContainer.style.background = '#ffffff';
-    printContainer.style.padding = '18px';
-    printContainer.style.width = '1080px';
-    printContainer.style.minWidth = '1080px';
+    printContainer.style.padding = '16px';
     printContainer.style.boxSizing = 'border-box';
+    printContainer.style.margin = '0';
 
     printContainer.innerHTML = `
       <style>
-        table { border-collapse: collapse; width: 100%; table-layout: fixed; page-break-inside: auto; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; page-break-inside: auto; margin: 0; }
         tr { 
           page-break-inside: avoid !important; 
           break-inside: avoid-page !important; 
@@ -822,24 +859,25 @@ function gerarRelatorioPDF() {
       </style>
 
       <!-- Cabeçalho Centralizado -->
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:14px; margin-bottom:16px; page-break-inside:avoid; break-inside:avoid;">
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:12px; margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; width:100%;">
         <div style="margin-bottom:6px;">
           <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block; margin:0 auto;">
         </div>
         <div>
-          <div style="font-size:17px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
-          <div style="font-size:9.5px; color:#64748b; margin-top:3px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
+          <div style="font-size:16px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
+          <div style="font-size:9px; color:#64748b; margin-top:3px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
         </div>
       </div>
 
       <!-- Resumo Executivo em 1 Bloco Único -->
-      <div style="page-break-inside:avoid; break-inside:avoid;">
+      <div style="page-break-inside:avoid; break-inside:avoid; width:100%;">
         ${summaryHtml}
       </div>
 
       <!-- Tabela -->
-      <div style="width:100%; margin-bottom:16px;">
+      <div style="width:100%; margin-bottom:14px;">
         <table style="width:100%; border-collapse:collapse; font-size:${fontSize}; table-layout:fixed;">
+          ${colGroupHtml}
           <thead>
             <tr>${tableHeadersHtml}</tr>
           </thead>
@@ -850,24 +888,28 @@ function gerarRelatorioPDF() {
       </div>
 
       <!-- Rodapé -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:10px; font-size:8.5px; color:#64748b; page-break-inside:avoid; break-inside:avoid;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:8px; font-size:8px; color:#64748b; page-break-inside:avoid; break-inside:avoid; width:100%;">
         <div>DAC Hospitalar — Gestão Financeira</div>
         <div>Documento gerado automaticamente</div>
       </div>
     `;
 
+    document.body.appendChild(printContainer);
+
     // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
     if (typeof html2pdf !== 'undefined') {
       const opt = {
-        margin: [5, 5, 5, 5],
+        margin: [6, 6, 6, 6],
         filename: `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2, 
           useCORS: true, 
           logging: false,
-          windowWidth: 1080,
-          width: 1080
+          scrollX: 0,
+          scrollY: 0,
+          x: 0,
+          y: 0
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
@@ -877,7 +919,12 @@ function gerarRelatorioPDF() {
         }
       };
 
-      html2pdf().set(opt).from(printContainer).save();
+      html2pdf().set(opt).from(printContainer).save().then(() => {
+        if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+      }).catch(err => {
+        console.error('Erro no salvamento do PDF:', err);
+        if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+      });
     } else {
       const win = window.open('', '_blank');
       win.document.write(`<html><head><title>${tituloRelatorio}</title></head><body>${printContainer.innerHTML}</body></html>`);
