@@ -714,13 +714,18 @@ function gerarRelatorioPDF() {
     }
 
     // 3. Obter cabeçalhos exatos visíveis na tela (11 ou 13 colunas)
+    const isGeralView = !currentMfKpiFilter;
+    const fontSize = isGeralView ? '7.5px' : '8.5px';
+    const cellPadding = isGeralView ? '5px 3px' : '6px 5px';
+    const headerPadding = isGeralView ? '6px 3px' : '7px 5px';
+
     const theadEl = document.getElementById('thMovFinanceiras');
     let tableHeadersHtml = '';
     if (theadEl && theadEl.firstElementChild) {
       const ths = Array.from(theadEl.firstElementChild.children);
       tableHeadersHtml = ths.map(th => {
         const cleanText = th.innerText.replace(/[↕▲▼]/g, '').trim();
-        return `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; padding:9px 8px; text-align:center; border:1px solid #a10e27; font-size:9px;">${cleanText}</th>`;
+        return `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.2px; padding:${headerPadding}; text-align:center; border:1px solid #a10e27; font-size:${fontSize}; white-space:nowrap;">${cleanText}</th>`;
       }).join('');
     }
 
@@ -740,68 +745,68 @@ function gerarRelatorioPDF() {
         const valPago = parseFloat(r.valor_pago) || 0;
         const aReceber = Math.max(0, valTotal - valPago);
         return `<tr style="background:${bg}; page-break-inside:avoid; break-inside:avoid;">
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;"><strong>${r.cliente || r.fornecedor || '—'}</strong></td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${statusBadge}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center;">${fmt(valTotal)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:#16a34a; font-weight:700;">+ ${fmt(aReceber)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${cleanParcela}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_vencimento || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.conta_bancaria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.forma_pagamento || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${movTag}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.categoria || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><strong>${r.cliente || r.fornecedor || '—'}</strong></td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${statusBadge}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; font-size:${fontSize};">${fmt(valTotal)}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:#16a34a; font-weight:700; font-size:${fontSize};">+ ${fmt(aReceber)}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${cleanParcela}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.data_vencimento || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.conta_bancaria || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.forma_pagamento || '—'}</td>
         </tr>`;
       } else if (currentMfKpiFilter === 'pagar') {
         const valTotal = parseFloat(r.valor) || 0;
         const valPago = parseFloat(r.valor_pago) || 0;
         const aPagar = Math.max(0, valTotal - valPago);
         return `<tr style="background:${bg}; page-break-inside:avoid; break-inside:avoid;">
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;"><strong>${r.fornecedor || r.cliente || '—'}</strong></td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${statusBadge}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center;">${fmt(valTotal)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:#c41230; font-weight:700;">- ${fmt(aPagar)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${cleanParcela}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_vencimento || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.conta_bancaria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.forma_pagamento || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${movTag}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.categoria || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><strong>${r.fornecedor || r.cliente || '—'}</strong></td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${statusBadge}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; font-size:${fontSize};">${fmt(valTotal)}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:#c41230; font-weight:700; font-size:${fontSize};">- ${fmt(aPagar)}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${cleanParcela}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.data_vencimento || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.conta_bancaria || '—'}</td>
+          <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.forma_pagamento || '—'}</td>
         </tr>`;
       }
 
-      // Visão Geral de 13 Colunas
+      // Visão Geral de 13 Colunas — Otimização Compacta para A4 Landscape
       return `<tr style="background:${bg}; page-break-inside:avoid; break-inside:avoid;">
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:${valColor}; font-weight:700;">${valSign} ${fmt(r.valor)}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;"><strong>${person}</strong></td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.conta_bancaria || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_vencimento || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_pagamento || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.forma_pagamento || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${statusBadge}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${isEnt ? (r.nota_fiscal || '—') : '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${cleanParcela}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center;">${fmt(r.valor_pago || 0)}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${movTag}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:85px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.categoria || '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:95px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:${valColor}; font-weight:700; font-size:${fontSize};">${valSign} ${fmt(r.valor)}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:105px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><strong>${person}</strong></td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize}; max-width:85px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.conta_bancaria || '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.data_vencimento || '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.data_pagamento || '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${r.forma_pagamento || '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${statusBadge}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${isEnt ? (r.nota_fiscal || '—') : '—'}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; text-align:center; font-size:${fontSize};">${cleanParcela}</td>
+        <td style="padding:${cellPadding}; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; font-size:${fontSize};">${fmt(r.valor_pago || 0)}</td>
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML do relatório para conversão PDF com largura fixa A4 (1050px) para evitar distorção no Mobile PWA
+    // 5. Montar container HTML do relatório para conversão PDF com largura fixa A4 (1080px)
     const printContainer = document.createElement('div');
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
     printContainer.style.background = '#ffffff';
-    printContainer.style.padding = '24px';
-    printContainer.style.width = '1050px';
-    printContainer.style.minWidth = '1050px';
+    printContainer.style.padding = '18px';
+    printContainer.style.width = '1080px';
+    printContainer.style.minWidth = '1080px';
     printContainer.style.boxSizing = 'border-box';
 
     printContainer.innerHTML = `
       <style>
-        table { border-collapse: collapse; width: 100%; page-break-inside: auto; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; page-break-inside: auto; }
         tr { 
           page-break-inside: avoid !important; 
           break-inside: avoid-page !important; 
@@ -817,13 +822,13 @@ function gerarRelatorioPDF() {
       </style>
 
       <!-- Cabeçalho Centralizado -->
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:16px; margin-bottom:20px; page-break-inside:avoid; break-inside:avoid;">
-        <div style="margin-bottom:8px;">
-          <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:48px; width:auto; display:block; margin:0 auto;">
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:14px; margin-bottom:16px; page-break-inside:avoid; break-inside:avoid;">
+        <div style="margin-bottom:6px;">
+          <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block; margin:0 auto;">
         </div>
         <div>
-          <div style="font-size:18px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
-          <div style="font-size:10px; color:#64748b; margin-top:4px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
+          <div style="font-size:17px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
+          <div style="font-size:9.5px; color:#64748b; margin-top:3px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
         </div>
       </div>
 
@@ -833,8 +838,8 @@ function gerarRelatorioPDF() {
       </div>
 
       <!-- Tabela -->
-      <div style="width:100%; margin-bottom:20px;">
-        <table style="width:100%; border-collapse:collapse; font-size:9.5px;">
+      <div style="width:100%; margin-bottom:16px;">
+        <table style="width:100%; border-collapse:collapse; font-size:${fontSize}; table-layout:fixed;">
           <thead>
             <tr>${tableHeadersHtml}</tr>
           </thead>
@@ -845,7 +850,7 @@ function gerarRelatorioPDF() {
       </div>
 
       <!-- Rodapé -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:12px; font-size:9px; color:#64748b; page-break-inside:avoid; break-inside:avoid;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:10px; font-size:8.5px; color:#64748b; page-break-inside:avoid; break-inside:avoid;">
         <div>DAC Hospitalar — Gestão Financeira</div>
         <div>Documento gerado automaticamente</div>
       </div>
@@ -854,15 +859,15 @@ function gerarRelatorioPDF() {
     // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
     if (typeof html2pdf !== 'undefined') {
       const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [5, 5, 5, 5],
         filename: `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2, 
           useCORS: true, 
           logging: false,
-          windowWidth: 1050,
-          width: 1050
+          windowWidth: 1080,
+          width: 1080
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
