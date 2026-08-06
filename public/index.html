@@ -993,17 +993,20 @@
             <select class="fs" id="mfCategoria" onchange="renderMovimentacoesFinanceiras()">
               <option value="">Todas as Categorias</option>
             </select>
+            <select class="fs" id="mfStatus" onchange="renderMovimentacoesFinanceiras()">
+              <option value="">Todos os Status</option>
+              <option value="pago">Pago</option>
+              <option value="pendente">Pendente</option>
+              <option value="vencido">Vencido</option>
+              <option value="parcial">Parcial</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
             <span class="mob-hide" style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
             <input type="date" id="mfDateFrom" onchange="renderMovimentacoesFinanceiras()"
               style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
             <span style="font-size:11px;color:var(--muted);">até</span>
             <input type="date" id="mfDateTo" onchange="renderMovimentacoesFinanceiras()"
               style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
-            <button onclick="setMfPeriod('hoje',this)" class="filter-btn mf-period-btn">Hoje</button>
-            <button onclick="setMfPeriod('7d',this)" class="filter-btn mf-period-btn">7D</button>
-            <button onclick="setMfPeriod('15d',this)" class="filter-btn mf-period-btn">15D</button>
-            <button onclick="setMfPeriod('30d',this)" class="filter-btn mf-period-btn">30D</button>
-            <button onclick="setMfPeriod('tudo',this)" class="filter-btn mf-period-btn active">Tudo</button>
           </div>
         </div>
         

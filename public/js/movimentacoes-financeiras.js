@@ -12,6 +12,8 @@ async function initMovimentacoesFinanceiras() {
   document.getElementById('mfDateTo').value = '';
   const catEl = document.getElementById('mfCategoria');
   if (catEl) catEl.value = '';
+  const stEl = document.getElementById('mfStatus');
+  if (stEl) stEl.value = '';
   currentMfKpiFilter = null;
   currentMfSortCol = null;
   currentMfSortDir = 'asc';
@@ -131,6 +133,7 @@ function renderMovimentacoesFinanceiras() {
     const search = (document.getElementById('mfSearch').value || '').toLowerCase();
     const tipoFilter = document.getElementById('mfTipo').value;
     const catFilter = document.getElementById('mfCategoria') ? document.getElementById('mfCategoria').value : '';
+    const statusFilter = document.getElementById('mfStatus') ? document.getElementById('mfStatus').value : '';
     const dateFrom = document.getElementById('mfDateFrom').value;
     const dateTo = document.getElementById('mfDateTo').value;
 
@@ -147,6 +150,30 @@ function renderMovimentacoesFinanceiras() {
     // Filtro de Categoria
     if (catFilter) {
       rows = rows.filter(r => (r.categoria || '').trim() === catFilter);
+    }
+
+    // Filtro de Status
+    if (statusFilter) {
+      rows = rows.filter(r => {
+        const st = (r.status || 'Pendente').trim().toLowerCase();
+        let isOverdue = false;
+        if (r.data_vencimento && st !== 'pago' && st !== 'cancelado') {
+          const venc = parseDate(r.data_vencimento);
+          if (venc) {
+            venc.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (venc < today) isOverdue = true;
+          }
+        }
+
+        if (statusFilter === 'pago') return st === 'pago';
+        if (statusFilter === 'vencido') return isOverdue;
+        if (statusFilter === 'pendente') return st === 'pendente' && !isOverdue;
+        if (statusFilter === 'parcial') return st.includes('parcial');
+        if (statusFilter === 'cancelado') return st === 'cancelado';
+        return true;
+      });
     }
 
     // Filtro de Busca
