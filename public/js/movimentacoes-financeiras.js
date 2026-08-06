@@ -885,11 +885,11 @@ async function gerarRelatorioPDF() {
     printContainer.style.width = '1000px';
     printContainer.style.boxSizing = 'border-box';
     printContainer.style.overflow = 'hidden';
-    // Anexar ao DOM invisível para o html2canvas ter dimensões reais (sem piscar)
-    printContainer.style.visibility = 'hidden';
-    printContainer.style.position = 'fixed';
-    printContainer.style.top = '-10000px';
-    printContainer.style.left = '0';
+    // Anexar ao DOM fora da tela para o html2canvas renderizar (sem piscar e sem ficar em branco)
+    printContainer.style.position = 'absolute';
+    printContainer.style.left = '-9999px';
+    printContainer.style.top = '0';
+    printContainer.style.zIndex = '-9999';
     document.body.appendChild(printContainer);
 
     printContainer.innerHTML = `
