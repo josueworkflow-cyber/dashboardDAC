@@ -38,7 +38,12 @@ function populateMfCategorias() {
   const catMap = new Map(); // norm -> clean display
   allRawCats.forEach(cat => {
     if (!cat) return;
-    const cleanLabel = cat.toString().replace(/[.,;:\s]+$/, '').replace(/^[.,;:\s]+/, '').trim();
+    const cleanLabel = cat.toString()
+      .replace(/[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[.,;:\s]+$/, '')
+      .replace(/^[.,;:\s]+/, '')
+      .trim();
     if (!cleanLabel) return;
     const norm = normalizeString(cleanLabel);
     if (!catMap.has(norm)) {

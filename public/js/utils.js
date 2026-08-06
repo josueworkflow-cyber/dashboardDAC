@@ -106,13 +106,15 @@ function parseVal(v) {
   return isNaN(n) ? 0 : n;
 }
 
-// Normaliza string para comparação (remove acentos, converte para maiúsculas e remove pontuações das pontas)
+// Normaliza string para comparação (remove acentos, espaços invisíveis/NBSP, converte para maiúsculas e remove pontuações das pontas)
 function normalizeString(str) {
   if (!str) return '';
   return str.toString()
+    .replace(/[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/g, ' ')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
+    .replace(/\s+/g, ' ')
     .replace(/[.,;:\s]+$/, '')
     .replace(/^[.,;:\s]+/, '')
     .trim();
