@@ -902,9 +902,10 @@ async function gerarRelatorioPDF() {
 
     // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
     if (typeof html2pdf !== 'undefined') {
+      const pdfFilename = `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const opt = {
         margin: [6, 6, 6, 6],
-        filename: `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        filename: pdfFilename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2, 
@@ -920,7 +921,23 @@ async function gerarRelatorioPDF() {
         }
       };
 
-      await html2pdf().set(opt).from(printContainer).save();
+      // No mobile com suporte a compartilhamento nativo, gerar como File e usar navigator.share
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile && navigator.share && navigator.canShare) {
+        const pdfBlob = await html2pdf().set(opt).from(printContainer).outputPdf('blob');
+        const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [pdfFile] })) {
+          await navigator.share({
+            title: tituloRelatorio,
+            files: [pdfFile]
+          });
+        } else {
+          // Fallback: download normal se não suportar compartilhar arquivos
+          await html2pdf().set(opt).from(printContainer).save();
+        }
+      } else {
+        await html2pdf().set(opt).from(printContainer).save();
+      }
     } else {
       const win = window.open('', '_blank');
       win.document.write(`<html><head><title>${tituloRelatorio}</title></head><body>${printContainer.innerHTML}</body></html>`);
