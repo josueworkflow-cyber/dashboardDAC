@@ -26,16 +26,26 @@ function populateMfCategorias() {
   if (!select) return;
   const currentVal = select.value;
 
-  const catsSet = new Set();
-  if (Array.isArray(ENT)) ENT.forEach(r => { if (r.categoria) catsSet.add(r.categoria.trim()); });
-  if (Array.isArray(SAI)) SAI.forEach(r => { if (r.categoria) catsSet.add(r.categoria.trim()); });
+  const allRawCats = [];
+  if (Array.isArray(ENT)) ENT.forEach(r => { if (r.categoria) allRawCats.push(r.categoria.trim()); });
+  if (Array.isArray(SAI)) SAI.forEach(r => { if (r.categoria) allRawCats.push(r.categoria.trim()); });
 
-  const sortedCats = Array.from(catsSet).sort((a, b) => a.localeCompare(b));
+  const catMap = new Map(); // norm -> display
+  allRawCats.forEach(cat => {
+    const norm = normalizeString(cat);
+    if (!catMap.has(norm)) {
+      catMap.set(norm, cat); // Mantém a primeira capitalização limpa
+    }
+  });
+
+  const sortedNormKeys = Array.from(catMap.keys()).sort((a, b) => {
+    return catMap.get(a).localeCompare(catMap.get(b), 'pt-BR', { sensitivity: 'base' });
+  });
 
   select.innerHTML = '<option value="">Todas as Categorias</option>' +
-    sortedCats.map(c => `<option value="${c}">${c}</option>`).join('');
+    sortedNormKeys.map(norm => `<option value="${norm}">${catMap.get(norm)}</option>`).join('');
 
-  if (currentVal && sortedCats.includes(currentVal)) {
+  if (currentVal && sortedNormKeys.includes(currentVal)) {
     select.value = currentVal;
   }
 }
@@ -149,7 +159,7 @@ function renderMovimentacoesFinanceiras() {
 
     // Filtro de Categoria
     if (catFilter) {
-      rows = rows.filter(r => (r.categoria || '').trim() === catFilter);
+      rows = rows.filter(r => normalizeString(r.categoria) === catFilter);
     }
 
     // Filtro de Status

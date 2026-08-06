@@ -43,7 +43,7 @@ function renderSaidas() {
   if (fromVal && toVal) rows = rows.filter(r =>
     isInRange(r.data_pagamento, fromVal, toVal) || isInRange(r.data_vencimento, fromVal, toVal)
   );
-  if (cat) rows = rows.filter(r => r.categoria === cat);
+  if (cat) rows = rows.filter(r => normalizeString(r.categoria) === cat);
   if (forn) rows = rows.filter(r => r.fornecedor === forn);
 
   document.getElementById('tbSaiFull').innerHTML = rows.map(r => {

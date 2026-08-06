@@ -27,8 +27,16 @@ function populateFilters() {
     [...new Set(ENT.map(e => e.cliente).filter(Boolean))].sort().map(c => `<option>${c}</option>`).join('');
   eFp.innerHTML = '<option value="">Todas Formas</option>' +
     [...new Set(ENT.map(e => e.forma_pagamento).filter(Boolean))].sort().map(f => `<option>${f}</option>`).join('');
+  const sCatMap = new Map();
+  SAI.forEach(s => {
+    if (s.categoria) {
+      const norm = normalizeString(s.categoria);
+      if (!sCatMap.has(norm)) sCatMap.set(norm, s.categoria.trim());
+    }
+  });
+  const sCatKeys = Array.from(sCatMap.keys()).sort((a, b) => sCatMap.get(a).localeCompare(sCatMap.get(b), 'pt-BR', { sensitivity: 'base' }));
   sCat.innerHTML = '<option value="">Todas Categorias</option>' +
-    [...new Set(SAI.map(s => s.categoria).filter(Boolean))].sort().map(c => `<option>${c}</option>`).join('');
+    sCatKeys.map(k => `<option value="${k}">${sCatMap.get(k)}</option>`).join('');
   sForn.innerHTML = '<option value="">Todos Fornecedores</option>' +
     [...new Set(SAI.map(s => s.fornecedor).filter(Boolean))].sort().map(f => `<option>${f}</option>`).join('');
 
