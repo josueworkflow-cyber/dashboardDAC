@@ -739,7 +739,7 @@ function gerarRelatorioPDF() {
         const valTotal = parseFloat(r.valor) || 0;
         const valPago = parseFloat(r.valor_pago) || 0;
         const aReceber = Math.max(0, valTotal - valPago);
-        return `<tr style="background:${bg};">
+        return `<tr style="background:${bg}; page-break-inside:avoid; break-inside:avoid;">
           <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
           <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
           <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
@@ -756,7 +756,7 @@ function gerarRelatorioPDF() {
         const valTotal = parseFloat(r.valor) || 0;
         const valPago = parseFloat(r.valor_pago) || 0;
         const aPagar = Math.max(0, valTotal - valPago);
-        return `<tr style="background:${bg};">
+        return `<tr style="background:${bg}; page-break-inside:avoid; break-inside:avoid;">
           <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
           <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
           <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
@@ -772,7 +772,7 @@ function gerarRelatorioPDF() {
       }
 
       // Visão Geral de 13 Colunas
-      return `<tr style="background:${bg};">
+      return `<tr style="background:${bg}; page-break-inside:avoid; break-inside:avoid;">
         <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
         <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
         <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
@@ -799,8 +799,15 @@ function gerarRelatorioPDF() {
     printContainer.style.boxSizing = 'border-box';
 
     printContainer.innerHTML = `
+      <style>
+        table { border-collapse: collapse; width: 100%; page-break-inside: auto; }
+        tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        thead { display: table-header-group; }
+        tbody { display: table-row-group; }
+      </style>
+
       <!-- Cabeçalho -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #c41230; padding-bottom:16px; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #c41230; padding-bottom:16px; margin-bottom:20px; page-break-inside:avoid; break-inside:avoid;">
         <div>
           <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block;">
         </div>
@@ -811,7 +818,9 @@ function gerarRelatorioPDF() {
       </div>
 
       <!-- Resumo Executivo em 1 Bloco Único -->
-      ${summaryHtml}
+      <div style="page-break-inside:avoid; break-inside:avoid;">
+        ${summaryHtml}
+      </div>
 
       <!-- Tabela -->
       <div style="width:100%; overflow-x:auto; margin-bottom:20px;">
@@ -826,7 +835,7 @@ function gerarRelatorioPDF() {
       </div>
 
       <!-- Rodapé -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:12px; font-size:9px; color:#64748b;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:12px; font-size:9px; color:#64748b; page-break-inside:avoid; break-inside:avoid;">
         <div>DAC Hospitalar — Gestão Financeira</div>
         <div>Documento gerado automaticamente</div>
       </div>
@@ -838,8 +847,12 @@ function gerarRelatorioPDF() {
         margin: [8, 8, 8, 8],
         filename: `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { 
+          mode: ['css', 'legacy'],
+          avoid: ['tr', '.summary-box', '.report-header']
+        }
       };
 
       html2pdf().set(opt).from(printContainer).save();
