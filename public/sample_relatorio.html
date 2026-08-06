@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Contas a Receber — DAC Hospitalar</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 30px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    
+    .report-container {
+      max-width: 1050px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid #cbd5e1;
+    }
+
+    /* Cabeçalho Corporativo */
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #c41230;
+      margin-bottom: 24px;
+    }
+    
+    .header-logo-bg {
+      background: #111116;
+      padding: 10px 20px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .header-logo-bg img {
+      height: 38px;
+      width: auto;
+      display: block;
+    }
+    
+    .header-info {
+      text-align: right;
+    }
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .header-meta {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .header-meta b {
+      color: #0f172a;
+    }
+
+    /* Bloco Único de Resumo Executivo */
+    .summary-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 5px solid #c41230;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .summary-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .summary-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .summary-value.red { color: #c41230; }
+    .summary-value.green { color: #16a34a; }
+    .summary-value.yellow { color: #d97706; }
+
+    /* Tabela com os Títulos Vermelho Padrão e Linhas com Tons de Cinza */
+    .report-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 24px;
+    }
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+    .report-table th {
+      background: #c41230; /* Vermelho Padrão do Sistema */
+      color: #ffffff;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 10px 10px;
+      text-align: left;
+      border: 1px solid #a10e27;
+    }
+    .report-table th.num { text-align: right; }
+    
+    .report-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #cbd5e1;
+      border-right: 1px solid #e2e8f0;
+      color: #1e293b;
+    }
+    .report-table td:last-child { border-right: none; }
+    
+    /* Alternância com Tons de Cinza Diferentes */
+    .report-table tr:nth-child(odd) {
+      background: #ffffff;
+    }
+    .report-table tr:nth-child(even) {
+      background: #f1f5f9; /* Tom de cinza claro */
+    }
+    .report-table tr:hover {
+      background: #e2e8f0;
+    }
+    
+    .report-table td.mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+    }
+    .report-table td.num { text-align: right; font-weight: 600; }
+    
+    /* Badges de Status */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-pago { background: #dcfce7; color: #15803d; }
+    .badge-pendente { background: #e2e8f0; color: #334155; }
+    .badge-vencido { background: #fee2e2; color: #b91c1c; }
+    .badge-parcial { background: #fef3c7; color: #b45309; }
+
+    /* Rodapé Corporativo */
+    .report-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 16px;
+      border-top: 1px solid #cbd5e1;
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .report-container { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+      .no-print { display: none !important; }
+      .report-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #c41230 !important; color: #ffffff !important; }
+      .report-table tr:nth-child(even) { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #f1f5f9 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="max-width: 1050px; margin: 0 auto 16px; text-align: right;">
+    <button onclick="window.print()" style="background: #c41230; color: white; border: none; padding: 10px 20px; font-weight: 600; border-radius: 6px; cursor: pointer; font-family: 'DM Sans', sans-serif;">🖨️ Salvar como PDF / Imprimir</button>
+  </div>
+
+  <div class="report-container">
+    <!-- Cabeçalho Corporativo -->
+    <div class="report-header">
+      <div>
+        <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block;">
+      </div>
+      <div class="header-info">
+        <div class="header-title">Relatório de Contas a Receber</div>
+        <div class="header-meta">Emissão: <b>06/08/2026 18:30</b> | Período: <b>01/08/2026 a 31/08/2026</b></div>
+      </div>
+    </div>
+
+    <!-- Bloco Único de Resumo Executivo -->
+    <div class="summary-box">
+      <div class="summary-item">
+        <span class="summary-label">Quantidade de Lançamentos</span>
+        <span class="summary-value">5 Lançamentos</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Valor Total a Receber</span>
+        <span class="summary-value green">R$ 13.750,00</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Recebimentos Atrasados</span>
+        <span class="summary-value red">R$ 2.500,00</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Recebimentos Futuros</span>
+        <span class="summary-value yellow">R$ 11.250,00</span>
+      </div>
+    </div>
+
+    <!-- Tabela com os Títulos Vermelho Padrão e Linhas com Tons de Cinza Alternados -->
+    <div class="report-table-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Categoria</th>
+            <th>Observações</th>
+            <th>Cliente</th>
+            <th>Status</th>
+            <th class="num">Valor Total</th>
+            <th class="num">Valor a Receber</th>
+            <th>Parcelas</th>
+            <th>Vencimento</th>
+            <th>Conta Bancária</th>
+            <th>Forma Pgto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="color:#16a34a; font-weight:700;">Entrada</span></td>
+            <td>Medicamentos</td>
+            <td>NFe Venda 1604 - Lote A</td>
+            <td><strong>PSG COMERCIO FARMACEUTICO LTDA</strong></td>
+            <td><span class="badge badge-vencido">⚠️ Vencido</span></td>
+            <td class="mono num">R$ 2.500,00</td>
+            <td class="mono num" style="color:#16a34a; font-weight:700;">+ R$ 2.500,00</td>
+            <td>1/1</td>
+            <td>01/08/2026</td>
+            <td>Banco Itaú - Conta Corrente</td>
+            <td>Boleto Bancário</td>
+          </tr>
+          <tr>
+            <td><span style="color:#16a34a; font-weight:700;">Entrada</span></td>
+            <td>Insumos Médicos</td>
+            <td>NFe Venda 1562 - Encomenda especial</td>
+            <td><strong>OESTE DAY HOSPITAL LTDA</strong></td>
+            <td><span class="badge badge-pendente">Pendente</span></td>
+            <td class="mono num">R$ 1.500,00</td>
+            <td class="mono num" style="color:#16a34a; font-weight:700;">+ R$ 1.500,00</td>
+            <td>1/2 [PRC-20260806-001]</td>
+            <td>15/08/2026</td>
+            <td>Banco do Brasil</td>
+            <td>PIX</td>
+          </tr>
+          <tr>
+            <td><span style="color:#16a34a; font-weight:700;">Entrada</span></td>
+            <td>Equipamentos</td>
+            <td>Pedido 3092 - Manutenção técnica</td>
+            <td><strong>B. G. S. CLINICA MEDICA LTDA</strong></td>
+            <td><span class="badge badge-parcial">Parcial</span></td>
+            <td class="mono num">R$ 4.000,00</td>
+            <td class="mono num" style="color:#16a34a; font-weight:700;">+ R$ 2.000,00</td>
+            <td>2/2 [PRC-20260806-002]</td>
+            <td>20/08/2026</td>
+            <td>Banco Santander</td>
+            <td>Transferência / TED</td>
+          </tr>
+          <tr>
+            <td><span style="color:#16a34a; font-weight:700;">Entrada</span></td>
+            <td>Serviços Médicos</td>
+            <td>NFe Venda 1593 - Exames laboratoriais</td>
+            <td><strong>INSTITUTO IVO PITANGUY</strong></td>
+            <td><span class="badge badge-pendente">Pendente</span></td>
+            <td class="mono num">R$ 4.550,00</td>
+            <td class="mono num" style="color:#16a34a; font-weight:700;">+ R$ 4.550,00</td>
+            <td>1/1</td>
+            <td>25/08/2026</td>
+            <td>Banco Itaú - Conta Corrente</td>
+            <td>Boleto Bancário</td>
+          </tr>
+          <tr>
+            <td><span style="color:#16a34a; font-weight:700;">Entrada</span></td>
+            <td>Medicamentos</td>
+            <td>Pedido 3042 - Suprimentos cirúrgicos</td>
+            <td><strong>ITASCAN CLINICA MEDICA LTDA</strong></td>
+            <td><span class="badge badge-pendente">Pendente</span></td>
+            <td class="mono num">R$ 3.200,00</td>
+            <td class="mono num" style="color:#16a34a; font-weight:700;">+ R$ 3.200,00</td>
+            <td>1/1</td>
+            <td>30/08/2026</td>
+            <td>Banco Bradesco</td>
+            <td>Cartão de Crédito</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Rodapé Corporativo -->
+    <div class="report-footer">
+      <div>DAC Hospitalar — Sistema de Gestão Financeira</div>
+      <div>Documento gerado automaticamente pelo sistema</div>
+    </div>
+  </div>
+</body>
+</html>

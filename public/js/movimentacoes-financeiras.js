@@ -548,3 +548,310 @@ function updateMfKpis(rows) {
     </div>
   `;
 }
+
+// ─── Emissão de Relatório PDF de Altíssimo Padrão ───
+
+function gerarRelatorioPDF() {
+  try {
+    // 1. Obter linhas atualmente filtradas e visíveis na tela
+    const search = (document.getElementById('mfSearch').value || '').toLowerCase();
+    const tipoFilter = document.getElementById('mfTipo').value;
+    const catFilter = document.getElementById('mfCategoria') ? document.getElementById('mfCategoria').value : '';
+    const statusFilter = document.getElementById('mfStatus') ? document.getElementById('mfStatus').value : '';
+    const dateFrom = document.getElementById('mfDateFrom').value;
+    const dateTo = document.getElementById('mfDateTo').value;
+
+    const ents = ENT.map(r => ({ ...r, _tipo: 'entrada' }));
+    const sais = SAI.map(r => ({ ...r, _tipo: 'saída' }));
+    let rows = [...ents, ...sais];
+
+    if (tipoFilter) {
+      rows = rows.filter(r => r._tipo === tipoFilter);
+    }
+    if (catFilter) {
+      rows = rows.filter(r => normalizeString(r.categoria) === catFilter);
+    }
+    if (statusFilter) {
+      rows = rows.filter(r => {
+        const st = (r.status || 'Pendente').trim().toLowerCase();
+        let isOverdue = false;
+        if (r.data_vencimento && st !== 'pago' && st !== 'cancelado') {
+          const venc = parseDate(r.data_vencimento);
+          if (venc) {
+            venc.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (venc < today) isOverdue = true;
+          }
+        }
+        if (statusFilter === 'pago') return st === 'pago';
+        if (statusFilter === 'vencido') return isOverdue;
+        if (statusFilter === 'pendente') return st === 'pendente' && !isOverdue;
+        if (statusFilter === 'parcial') return st.includes('parcial');
+        if (statusFilter === 'cancelado') return st === 'cancelado';
+        return true;
+      });
+    }
+    if (search) {
+      rows = rows.filter(r => 
+        (r.cliente || '').toLowerCase().includes(search) ||
+        (r.fornecedor || '').toLowerCase().includes(search) ||
+        (r.observacoes || '').toLowerCase().includes(search) ||
+        (r.categoria || '').toLowerCase().includes(search)
+      );
+    }
+    if (dateFrom || dateTo) {
+      rows = rows.filter(r => {
+        const dIso = parseBrToIso(r.data_pagamento || r.data_vencimento || r.data);
+        if (!dIso) return false;
+        if (dateFrom && dIso < dateFrom) return false;
+        if (dateTo && dIso > dateTo) return false;
+        return true;
+      });
+    }
+
+    if (currentMfKpiFilter === 'receber') {
+      rows = rows.filter(r => (r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada')) && r.status !== 'Pago' && r.status !== 'Cancelado');
+      rows = consolidateGroupRows(rows, 'entrada');
+    } else if (currentMfKpiFilter === 'pagar') {
+      rows = rows.filter(r => (r._tipo === 'saída' || !(r.movimentacao || '').toLowerCase().includes('entrada')) && r.status !== 'Pago' && r.status !== 'Cancelado');
+      rows = consolidateGroupRows(rows, 'saida');
+    }
+
+    if (currentMfSortCol) {
+      rows.sort((a, b) => {
+        let valA = getSortValue(a, currentMfSortCol);
+        let valB = getSortValue(b, currentMfSortCol);
+        let res = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          res = valA - valB;
+        } else if (valA instanceof Date && valB instanceof Date) {
+          res = valA.getTime() - valB.getTime();
+        } else {
+          res = String(valA || '').localeCompare(String(valB || ''), 'pt-BR', { sensitivity: 'base' });
+        }
+        return currentMfSortDir === 'asc' ? res : -res;
+      });
+    } else {
+      rows.sort((a, b) => {
+        const da = parseDate(a.data_pagamento || a.data_vencimento || a.data) || new Date(0);
+        const db = parseDate(b.data_pagamento || b.data_vencimento || b.data) || new Date(0);
+        return db - da;
+      });
+    }
+
+    // 2. Determinar título, período e métricas do resumo executivo (1 bloco único)
+    let tituloRelatorio = 'Relatório de Movimentações Financeiras';
+    if (currentMfKpiFilter === 'receber') tituloRelatorio = 'Relatório de Contas a Receber';
+    else if (currentMfKpiFilter === 'pagar') tituloRelatorio = 'Relatório de Contas a Pagar';
+
+    let periodoStr = 'Todo o Histórico';
+    if (dateFrom && dateTo) {
+      const fBr = dateFrom.split('-').reverse().join('/');
+      const tBr = dateTo.split('-').reverse().join('/');
+      periodoStr = `${fBr} a ${tBr}`;
+    } else if (dateFrom) {
+      periodoStr = `A partir de ${dateFrom.split('-').reverse().join('/')}`;
+    } else if (dateTo) {
+      periodoStr = `Até ${dateTo.split('-').reverse().join('/')}`;
+    }
+
+    const dataHoraEmissao = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+    // Métricas para 1 bloco único
+    let summaryHtml = '';
+    if (currentMfKpiFilter === 'receber') {
+      const totalReceber = rows.reduce((s, r) => s + Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0)), 0);
+      const pendReceber = rows.filter(r => r.status !== 'Pago');
+      const now = new Date(); now.setHours(0,0,0,0);
+      const atrasados = pendReceber.filter(r => {
+        if (!r.data_vencimento) return false;
+        const v = parseDate(r.data_vencimento);
+        return v && v < now;
+      }).reduce((s, r) => s + Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0)), 0);
+      const futuros = totalReceber - atrasados;
+
+      summaryHtml = `
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:5px solid #c41230; border-radius:6px; padding:14px 18px; margin-bottom:22px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Quantidade</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#0f172a;">${rows.length} Lançamento(s)</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Valor Total a Receber</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#16a34a;">${fmt(totalReceber)}</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Recebimentos Atrasados</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#c41230;">${fmt(atrasados)}</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Recebimentos Futuros</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#d97706;">${fmt(futuros)}</span></div>
+        </div>
+      `;
+    } else if (currentMfKpiFilter === 'pagar') {
+      const totalPagar = rows.reduce((s, r) => s + Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0)), 0);
+      const pendPagar = rows.filter(r => r.status !== 'Pago');
+      const now = new Date(); now.setHours(0,0,0,0);
+      const atrasados = pendPagar.filter(r => {
+        if (!r.data_vencimento) return false;
+        const v = parseDate(r.data_vencimento);
+        return v && v < now;
+      }).reduce((s, r) => s + Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0)), 0);
+      const futuros = totalPagar - atrasados;
+
+      summaryHtml = `
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:5px solid #c41230; border-radius:6px; padding:14px 18px; margin-bottom:22px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Quantidade</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#0f172a;">${rows.length} Lançamento(s)</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Valor Total a Pagar</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#c41230;">${fmt(totalPagar)}</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pagamentos Atrasados</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#c41230;">${fmt(atrasados)}</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pagamentos Futuros</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#d97706;">${fmt(futuros)}</span></div>
+        </div>
+      `;
+    } else {
+      const totEnt = rows.filter(r => r._tipo === 'entrada').reduce((s, r) => s + getEffectiveValue(r), 0);
+      const totSai = rows.filter(r => r._tipo === 'saída').reduce((s, r) => s + getEffectiveValue(r), 0);
+      const saldo = totEnt - totSai;
+
+      summaryHtml = `
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:5px solid #c41230; border-radius:6px; padding:14px 18px; margin-bottom:22px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Quantidade</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#0f172a;">${rows.length} Lançamento(s)</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Entradas</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#16a34a;">${fmt(totEnt)}</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Saídas</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#c41230;">${fmt(totSai)}</span></div>
+          <div><span style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Saldo Efetivo</span><br><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:${saldo >= 0 ? '#16a34a' : '#c41230'};">${fmt(saldo)}</span></div>
+        </div>
+      `;
+    }
+
+    // 3. Obter cabeçalhos exatos visíveis na tela (11 ou 13 colunas)
+    const theadEl = document.getElementById('thMovFinanceiras');
+    let tableHeadersHtml = '';
+    if (theadEl && theadEl.firstElementChild) {
+      const ths = Array.from(theadEl.firstElementChild.children);
+      tableHeadersHtml = ths.map(th => {
+        const cleanText = th.innerText.replace(/[↕▲▼]/g, '').trim();
+        const isNum = cleanText.toLowerCase().includes('valor');
+        return `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; padding:9px 8px; text-align:${isNum ? 'right' : 'left'}; border:1px solid #a10e27; font-size:9px;">${cleanText}</th>`;
+      }).join('');
+    }
+
+    // 4. Renderizar linhas exatas correspondentes com alternância de tons cinza
+    const tableRowsHtml = rows.map((r, idx) => {
+      const isEnt = r._tipo === 'entrada';
+      const movTag = isEnt ? `<span style="color:#16a34a; font-weight:700;">Entrada</span>` : `<span style="color:#c41230; font-weight:700;">Saída</span>`;
+      const valColor = isEnt ? '#16a34a' : '#c41230';
+      const valSign = isEnt ? '+' : '-';
+      const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(r) : r.status;
+      const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
+      const bg = idx % 2 === 0 ? '#ffffff' : '#f1f5f9';
+
+      if (currentMfKpiFilter === 'receber') {
+        const valTotal = parseFloat(r.valor) || 0;
+        const valPago = parseFloat(r.valor_pago) || 0;
+        const aReceber = Math.max(0, valTotal - valPago);
+        return `<tr style="background:${bg};">
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${movTag}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.categoria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;"><strong>${r.cliente || r.fornecedor || '—'}</strong></td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${statusBadge}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right;">${fmt(valTotal)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right; color:#16a34a; font-weight:700;">+ ${fmt(aReceber)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.parcela_ref || '1/1'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_vencimento || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.conta_bancaria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.forma_pagamento || '—'}</td>
+        </tr>`;
+      } else if (currentMfKpiFilter === 'pagar') {
+        const valTotal = parseFloat(r.valor) || 0;
+        const valPago = parseFloat(r.valor_pago) || 0;
+        const aPagar = Math.max(0, valTotal - valPago);
+        return `<tr style="background:${bg};">
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${movTag}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.categoria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;"><strong>${r.fornecedor || r.cliente || '—'}</strong></td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${statusBadge}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right;">${fmt(valTotal)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right; color:#c41230; font-weight:700;">- ${fmt(aPagar)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.parcela_ref || '1/1'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_vencimento || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.conta_bancaria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.forma_pagamento || '—'}</td>
+        </tr>`;
+      }
+
+      // Visão Geral de 13 Colunas
+      return `<tr style="background:${bg};">
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${movTag}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.categoria || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right; color:${valColor}; font-weight:700;">${valSign} ${fmt(r.valor)}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;"><strong>${person}</strong></td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.conta_bancaria || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_vencimento || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_pagamento || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.forma_pagamento || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${statusBadge}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${isEnt ? (r.nota_fiscal || '—') : '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.parcela_ref || '1/1'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right;">${fmt(r.valor_pago || 0)}</td>
+      </tr>`;
+    }).join('');
+
+    // 5. Montar container HTML do relatório para conversão PDF
+    const printContainer = document.createElement('div');
+    printContainer.style.fontFamily = "'DM Sans', sans-serif";
+    printContainer.style.color = '#0f172a';
+    printContainer.style.background = '#ffffff';
+    printContainer.style.padding = '24px';
+    printContainer.style.width = '100%';
+    printContainer.style.boxSizing = 'border-box';
+
+    printContainer.innerHTML = `
+      <!-- Cabeçalho -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #c41230; padding-bottom:16px; margin-bottom:20px;">
+        <div>
+          <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block;">
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:18px; font-weight:700; color:#0f172a; text-transform:uppercase;">${tituloRelatorio}</div>
+          <div style="font-size:10px; color:#64748b; margin-top:3px;">Emissão: <b>${dataHoraEmissao}</b> | Período: <b>${periodoStr}</b></div>
+        </div>
+      </div>
+
+      <!-- Resumo Executivo em 1 Bloco Único -->
+      ${summaryHtml}
+
+      <!-- Tabela -->
+      <div style="width:100%; overflow-x:auto; margin-bottom:20px;">
+        <table style="width:100%; border-collapse:collapse; font-size:9.5px;">
+          <thead>
+            <tr>${tableHeadersHtml}</tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Rodapé -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #cbd5e1; padding-top:12px; font-size:9px; color:#64748b;">
+        <div>DAC Hospitalar — Gestão Financeira</div>
+        <div>Documento gerado automaticamente</div>
+      </div>
+    `;
+
+    // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
+    if (typeof html2pdf !== 'undefined') {
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      };
+
+      html2pdf().set(opt).from(printContainer).save();
+    } else {
+      const win = window.open('', '_blank');
+      win.document.write(`<html><head><title>${tituloRelatorio}</title></head><body>${printContainer.innerHTML}</body></html>`);
+      win.document.close();
+      win.focus();
+      win.print();
+    }
+  } catch (err) {
+    console.error('❌ Erro ao gerar relatório PDF:', err);
+    alert('Ocorreu um erro ao emitir o relatório. Por favor, tente novamente.');
+  }
+}
