@@ -571,6 +571,44 @@ async function getLogoBase64() {
   }
 }
 
+// ─── Helper: Status Badge com estilos INLINE para PDF (classes CSS do app NÃO existem no container em memória) ───
+function renderStatusBadgePDF(r) {
+  if (!r) return '<span style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">Pendente</span>';
+  const status = (r.status || 'Pendente').trim();
+
+  if (status === 'Pago') {
+    return '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">Pago</span>';
+  }
+  if (status === 'Cancelado') {
+    return '<span style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">Cancelado</span>';
+  }
+
+  // Verificar se está vencido
+  let isOverdue = false;
+  if (r.data_vencimento) {
+    const venc = parseDate(r.data_vencimento);
+    if (venc) {
+      venc.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (venc < today) isOverdue = true;
+    }
+  }
+
+  if (isOverdue) {
+    if (status === 'Parcial') {
+      return '<span style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">⚠️ Parcial Vencido</span>';
+    }
+    return '<span style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">⚠️ Vencido</span>';
+  }
+
+  if (status === 'Parcial') {
+    return '<span style="background:#fef9c3; color:#a16207; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">Parcial</span>';
+  }
+
+  return `<span style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-size:7.5px; font-weight:600;">${status}</span>`;
+}
+
 // ─── Emissão de Relatório PDF de Altíssimo Padrão ───
 
 async function gerarRelatorioPDF() {
@@ -779,7 +817,7 @@ async function gerarRelatorioPDF() {
       const movTag = isEnt ? `<span style="color:#16a34a; font-weight:700;">Entrada</span>` : `<span style="color:#c41230; font-weight:700;">Saída</span>`;
       const valColor = isEnt ? '#16a34a' : '#c41230';
       const valSign = isEnt ? '+' : '-';
-      const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(r) : r.status;
+      const statusBadge = renderStatusBadgePDF(r);
       const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
       const bg = idx % 2 === 0 ? '#ffffff' : '#f1f5f9';
       const cleanParcela = (r.parcela_ref || '1/1').replace(/\[PRC-[^\]]+\]/gi, '').trim() || '1/1';
