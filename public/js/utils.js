@@ -115,3 +115,43 @@ function normalizeString(str) {
     .toUpperCase()
     .trim();
 }
+
+// Renderiza badge visual de status detectando automaticamente se está Vencido
+function renderStatusBadge(r) {
+  if (!r) return '<span class="stag sn">Pendente</span>';
+  const status = (r.status || 'Pendente').trim();
+
+  if (status === 'Pago') {
+    return `<span class="stag sp">Pago</span>`;
+  }
+  if (status === 'Cancelado') {
+    return `<span class="stag so">Cancelado</span>`;
+  }
+
+  // Verificar se está vencido (vencimento < hoje)
+  let isOverdue = false;
+  if (r.data_vencimento) {
+    const venc = parseDate(r.data_vencimento);
+    if (venc) {
+      venc.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (venc < today) {
+        isOverdue = true;
+      }
+    }
+  }
+
+  if (isOverdue) {
+    if (status === 'Parcial') {
+      return `<span class="stag so" style="display:inline-flex;align-items:center;gap:3px;" title="Vencimento ultrapassado!">⚠️ Parcial Vencido</span>`;
+    }
+    return `<span class="stag so" style="display:inline-flex;align-items:center;gap:3px;" title="Vencimento ultrapassado!">⚠️ Vencido</span>`;
+  }
+
+  if (status === 'Parcial') {
+    return `<span class="stag sy">Parcial</span>`;
+  }
+
+  return `<span class="stag sn">${status || 'Pendente'}</span>`;
+}

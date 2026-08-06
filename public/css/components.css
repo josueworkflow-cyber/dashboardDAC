@@ -1449,3 +1449,28 @@ body.tv-mode .spark-grid canvas { height: 36px !important; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ─── Cabeçalhos com Ordenação ─── */
+.th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.th-sortable:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--accent);
+}
+
+.sort-icon {
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.4;
+  display: inline-block;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.th-sortable:hover .sort-icon,
+.th-sortable.active-sort .sort-icon {
+  opacity: 1;
+}

@@ -1,15 +1,41 @@
 /* ═══════════════════════════════════════════════
    movimentacoes-financeiras.js — Unificação ENTRADAS + SAÍDAS
-   com KPIs clicáveis e colunas dinâmicas
+   com KPIs clicáveis, colunas dinâmicas e ordenação interativa por cabeçalho
    ═══════════════════════════════════════════════ */
 
 let currentMfKpiFilter = null;
+let currentMfSortCol = null;
+let currentMfSortDir = 'asc';
 
 async function initMovimentacoesFinanceiras() {
   document.getElementById('mfDateFrom').value = '';
   document.getElementById('mfDateTo').value = '';
+  const catEl = document.getElementById('mfCategoria');
+  if (catEl) catEl.value = '';
   currentMfKpiFilter = null;
+  currentMfSortCol = null;
+  currentMfSortDir = 'asc';
+  populateMfCategorias();
   renderMovimentacoesFinanceiras();
+}
+
+function populateMfCategorias() {
+  const select = document.getElementById('mfCategoria');
+  if (!select) return;
+  const currentVal = select.value;
+
+  const catsSet = new Set();
+  if (Array.isArray(ENT)) ENT.forEach(r => { if (r.categoria) catsSet.add(r.categoria.trim()); });
+  if (Array.isArray(SAI)) SAI.forEach(r => { if (r.categoria) catsSet.add(r.categoria.trim()); });
+
+  const sortedCats = Array.from(catsSet).sort((a, b) => a.localeCompare(b));
+
+  select.innerHTML = '<option value="">Todas as Categorias</option>' +
+    sortedCats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+  if (currentVal && sortedCats.includes(currentVal)) {
+    select.value = currentVal;
+  }
 }
 
 function toggleMfKpiFilter(filterKey) {
@@ -19,6 +45,62 @@ function toggleMfKpiFilter(filterKey) {
     currentMfKpiFilter = filterKey;
   }
   renderMovimentacoesFinanceiras();
+}
+
+function toggleMfSort(colKey) {
+  if (currentMfSortCol === colKey) {
+    currentMfSortDir = currentMfSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentMfSortCol = colKey;
+    // Padrão desc para valores monetários, asc para textos e datas
+    currentMfSortDir = (colKey.includes('valor') || colKey.includes('aReceber') || colKey.includes('aPagar')) ? 'desc' : 'asc';
+  }
+  renderMovimentacoesFinanceiras();
+}
+
+function getSortIconHtml(colKey) {
+  if (currentMfSortCol !== colKey) return '<span class="sort-icon">↕</span>';
+  return currentMfSortDir === 'asc'
+    ? '<span class="sort-icon" style="color:var(--accent);font-weight:bold;">▲</span>'
+    : '<span class="sort-icon" style="color:var(--accent);font-weight:bold;">▼</span>';
+}
+
+function getSortValue(r, colKey) {
+  switch (colKey) {
+    case 'tipo':
+      return r._tipo || r.movimentacao || '';
+    case 'categoria':
+      return r.categoria || '';
+    case 'observacoes':
+      return r.observacoes || '';
+    case 'cliente':
+      return r.cliente || r.fornecedor || '';
+    case 'fornecedor':
+      return r.fornecedor || r.cliente || '';
+    case 'status':
+      return (r.status || '').toLowerCase();
+    case 'valor':
+      return parseFloat(r.valor) || 0;
+    case 'aReceber':
+    case 'aPagar':
+      return Math.max(0, (parseFloat(r.valor) || 0) - (parseFloat(r.valor_pago) || 0));
+    case 'valor_pago':
+      return parseFloat(r.valor_pago) || 0;
+    case 'vencimento':
+      return parseDate(r.data_vencimento) || new Date(0);
+    case 'pagamento':
+      return parseDate(r.data_pagamento) || new Date(0);
+    case 'conta_bancaria':
+      return r.conta_bancaria || '';
+    case 'forma_pagamento':
+      return r.forma_pagamento || '';
+    case 'modo_emissao':
+      return r.nota_fiscal || r.modo_emissao || '';
+    case 'parcelas':
+      return r.parcela_ref || '';
+    default:
+      return '';
+  }
 }
 
 function setMfPeriod(p, btn) {
@@ -48,6 +130,7 @@ function renderMovimentacoesFinanceiras() {
   try {
     const search = (document.getElementById('mfSearch').value || '').toLowerCase();
     const tipoFilter = document.getElementById('mfTipo').value;
+    const catFilter = document.getElementById('mfCategoria') ? document.getElementById('mfCategoria').value : '';
     const dateFrom = document.getElementById('mfDateFrom').value;
     const dateTo = document.getElementById('mfDateTo').value;
 
@@ -59,6 +142,11 @@ function renderMovimentacoesFinanceiras() {
     // Filtro de Tipo (Entrada/Saída)
     if (tipoFilter) {
       rows = rows.filter(r => r._tipo === tipoFilter);
+    }
+
+    // Filtro de Categoria
+    if (catFilter) {
+      rows = rows.filter(r => (r.categoria || '').trim() === catFilter);
     }
 
     // Filtro de Busca
@@ -99,58 +187,76 @@ function renderMovimentacoesFinanceiras() {
     const thead = document.getElementById('thMovFinanceiras');
     if (!tbody) return;
 
-    // Ordenar por data (mais recente primeiro)
-    rows.sort((a, b) => {
-      const da = parseDate(a.data_pagamento || a.data_vencimento || a.data) || new Date(0);
-      const db = parseDate(b.data_pagamento || b.data_vencimento || b.data) || new Date(0);
-      return db - da;
-    });
+    // Ordenar linhas por coluna selecionada ou padrão (mais recente primeiro)
+    if (currentMfSortCol) {
+      rows.sort((a, b) => {
+        let valA = getSortValue(a, currentMfSortCol);
+        let valB = getSortValue(b, currentMfSortCol);
 
-    // Atualizar cabeçalho dinâmico (<thead>)
+        let res = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          res = valA - valB;
+        } else if (valA instanceof Date && valB instanceof Date) {
+          res = valA.getTime() - valB.getTime();
+        } else {
+          res = String(valA || '').localeCompare(String(valB || ''), 'pt-BR', { sensitivity: 'base' });
+        }
+
+        return currentMfSortDir === 'asc' ? res : -res;
+      });
+    } else {
+      rows.sort((a, b) => {
+        const da = parseDate(a.data_pagamento || a.data_vencimento || a.data) || new Date(0);
+        const db = parseDate(b.data_pagamento || b.data_vencimento || b.data) || new Date(0);
+        return db - da;
+      });
+    }
+
+    // Atualizar cabeçalho dinâmico (<thead>) com botões de ordenação
     if (thead) {
       if (currentMfKpiFilter === 'receber') {
         thead.innerHTML = `<tr>
-          <th>Tipo</th>
-          <th>Categoria</th>
-          <th>Observações</th>
-          <th>Cliente</th>
-          <th>Status</th>
-          <th>Valor Total</th>
-          <th>Valor a Receber</th>
-          <th>Parcelas</th>
-          <th>Vencimento</th>
-          <th>Conta Bancária</th>
-          <th>Forma Pgto</th>
+          <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'cliente' ? 'active-sort' : ''}" onclick="toggleMfSort('cliente')">Cliente ${getSortIconHtml('cliente')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor Total ${getSortIconHtml('valor')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'aReceber' ? 'active-sort' : ''}" onclick="toggleMfSort('aReceber')">Valor a Receber ${getSortIconHtml('aReceber')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma Pgto ${getSortIconHtml('forma_pagamento')}</th>
         </tr>`;
       } else if (currentMfKpiFilter === 'pagar') {
         thead.innerHTML = `<tr>
-          <th>Tipo</th>
-          <th>Categoria</th>
-          <th>Observações</th>
-          <th>Fornecedor</th>
-          <th>Status</th>
-          <th>Valor Total</th>
-          <th>Valor a Pagar</th>
-          <th>Parcelas</th>
-          <th>Vencimento</th>
-          <th>Conta Bancária</th>
-          <th>Forma Pgto</th>
+          <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'fornecedor' ? 'active-sort' : ''}" onclick="toggleMfSort('fornecedor')">Fornecedor ${getSortIconHtml('fornecedor')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor Total ${getSortIconHtml('valor')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'aPagar' ? 'active-sort' : ''}" onclick="toggleMfSort('aPagar')">Valor a Pagar ${getSortIconHtml('aPagar')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma Pgto ${getSortIconHtml('forma_pagamento')}</th>
         </tr>`;
       } else {
         thead.innerHTML = `<tr>
-          <th>Tipo</th>
-          <th>Categoria</th>
-          <th>Observações</th>
-          <th>Valor</th>
-          <th>Fornecedor/Cliente</th>
-          <th>Conta Bancária</th>
-          <th>Vencimento</th>
-          <th>Pagamento</th>
-          <th>Forma</th>
-          <th>Status</th>
-          <th>Modo de Emissão</th>
-          <th>Parcelas</th>
-          <th>Valor Pago</th>
+          <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor ${getSortIconHtml('valor')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'cliente' ? 'active-sort' : ''}" onclick="toggleMfSort('cliente')">Fornecedor/Cliente ${getSortIconHtml('cliente')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('pagamento')">Pagamento ${getSortIconHtml('pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">Modo de Emissão ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'valor_pago' ? 'active-sort' : ''}" onclick="toggleMfSort('valor_pago')">Valor Pago ${getSortIconHtml('valor_pago')}</th>
         </tr>`;
       }
     }
@@ -168,7 +274,7 @@ function renderMovimentacoesFinanceiras() {
       const movTag = isEnt ? `<span class="stag sp">Entrada</span>` : `<span class="stag so">Saída</span>`;
       const valColor = isEnt ? '#4ADE80' : 'var(--red)';
       const valSign = isEnt ? '+' : '-';
-      const stClass = r.status === 'Pago' ? 'sp' : r.status === 'Cancelado' ? 'so' : r.status === 'Parcial' ? 'sy' : 'sn';
+      const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(r) : `<span class="stag sn">${r.status || 'Pendente'}</span>`;
       const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
 
       if (currentMfKpiFilter === 'receber') {
@@ -180,7 +286,7 @@ function renderMovimentacoesFinanceiras() {
           <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
           <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
           <td style="font-size:11px; font-weight:600;">${r.cliente || r.fornecedor || '—'}</td>
-          <td><span class="stag ${stClass}">${r.status || 'Pendente'}</span></td>
+          <td>${statusBadge}</td>
           <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
           <td class="mono" style="color:#4ADE80;font-weight:700;">+ ${fmt(aReceber)}</td>
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
@@ -197,7 +303,7 @@ function renderMovimentacoesFinanceiras() {
           <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
           <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
           <td style="font-size:11px; font-weight:600;">${r.fornecedor || r.cliente || '—'}</td>
-          <td><span class="stag ${stClass}">${r.status || 'Pendente'}</span></td>
+          <td>${statusBadge}</td>
           <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
           <td class="mono" style="color:var(--red);font-weight:700;">- ${fmt(aPagar)}</td>
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
@@ -218,7 +324,7 @@ function renderMovimentacoesFinanceiras() {
         <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
         <td style="font-size:11px;">${r.data_pagamento || '—'}</td>
         <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
-        <td><span class="stag ${stClass}">${r.status || 'Pendente'}</span></td>
+        <td>${statusBadge}</td>
         <td style="font-size:10px;color:var(--accent2);">${isEnt ? (r.nota_fiscal || '—') : '—'}</td>
         <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
         <td class="mono" style="font-size:11px;">${fmt(r.valor_pago || 0)}</td>

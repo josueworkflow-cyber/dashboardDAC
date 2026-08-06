@@ -228,7 +228,7 @@ async function abrirModalGrupo(grupoId, tipo, e) {
         totalGeral += val;
         if (row.status === 'Pago') totalPago += val;
 
-        const stClass = row.status === 'Pago' ? 'sp' : row.status === 'Cancelado' ? 'so' : 'sn';
+        const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(row) : `<span class="stag sn">${row.status}</span>`;
         const btnPagar = row.status !== 'Pago'
           ? `<button onclick="abrirModalPagar('${row.id}', '${tipo}', event)" class="gbtn gbtn-submit" style="padding:3px 8px; font-size:10px; border-radius:5px; white-space:nowrap;">💰 Pagar</button>`
           : `<span style="color:#4ADE80; font-size:11px; font-weight:600;">✓ Pago</span>`;
@@ -238,7 +238,7 @@ async function abrirModalGrupo(grupoId, tipo, e) {
             <td><strong>${row.parcela_ref ? row.parcela_ref.split(' ')[0] : '1/1'}</strong></td>
             <td>${row.data_vencimento || '—'}</td>
             <td class="mono">${fmt(val)}</td>
-            <td><span class="stag ${stClass}">${row.status}</span></td>
+            <td>${statusBadge}</td>
             <td>${row.data_pagamento || '—'}</td>
             <td>${btnPagar}</td>
           </tr>
@@ -456,17 +456,7 @@ function renderGestaoTable() {
     const fornecedor = r.cliente || r.fornecedor || '—';
 
     // Alerta para pendentes vencidos
-    let statusHtml = `<span class="stag ${stClass}">${r.status || 'Pendente'}</span>`;
-    if ((r.status === 'Pendente' || !r.status) && r.data_vencimento) {
-      const venc = parseDate(r.data_vencimento);
-      if (venc) {
-        venc.setHours(0,0,0,0);
-        const today = new Date(); today.setHours(0,0,0,0);
-        if (venc < today) {
-          statusHtml = `<span class="stag so" style="display:flex;align-items:center;gap:4px;">⚠️ Vencido</span>`;
-        }
-      }
-    }
+    let statusHtml = typeof renderStatusBadge === 'function' ? renderStatusBadge(r) : `<span class="stag ${stClass}">${r.status || 'Pendente'}</span>`;
 
     return `<tr>
       <td>
@@ -639,14 +629,13 @@ function gerarParcelasCards() {
       }
 
       const rotuloParcela = status === 'Parcial' ? `Parcela Futura ${i}/${num}` : `Parcela ${i}/${num}`;
-      const onDateChange = i === 1 ? 'onchange="recalcularDatasSubsequentes()"' : '';
 
       html += `
         <div class="parcela-card" data-index="${i}">
           <div class="pc-head">${rotuloParcela}</div>
           <div class="pc-body">
             <input type="text" class="pc-val" value="${fmt(valorSugerido)}" oninput="this.value = fmtInput(this.value)" placeholder="Valor">
-            <input type="date" class="pc-date" value="${dataVenc}" ${onDateChange} title="Data de Vencimento da Parcela">
+            <input type="date" class="pc-date" value="${dataVenc}" title="Data de Vencimento da Parcela">
           </div>
         </div>
       `;

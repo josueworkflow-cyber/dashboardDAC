@@ -990,6 +990,9 @@
               <option value="entrada">Apenas Entradas</option>
               <option value="saída">Apenas Saídas</option>
             </select>
+            <select class="fs" id="mfCategoria" onchange="renderMovimentacoesFinanceiras()">
+              <option value="">Todas as Categorias</option>
+            </select>
             <span class="mob-hide" style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
             <input type="date" id="mfDateFrom" onchange="renderMovimentacoesFinanceiras()"
               style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">

@@ -70,6 +70,10 @@ function renderAll() {
     renderGestaoBadges();
   }
 
+  if (typeof populateMfCategorias === 'function') {
+    populateMfCategorias();
+  }
+
   if (typeof initMonitoramento === 'function') {
     initMonitoramento();
   }
