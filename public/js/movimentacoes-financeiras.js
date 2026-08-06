@@ -789,19 +789,29 @@ function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML do relatório para conversão PDF
+    // 5. Montar container HTML do relatório para conversão PDF com largura fixa A4 (1050px) para evitar distorção no Mobile PWA
     const printContainer = document.createElement('div');
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
     printContainer.style.background = '#ffffff';
     printContainer.style.padding = '24px';
-    printContainer.style.width = '100%';
+    printContainer.style.width = '1050px';
+    printContainer.style.minWidth = '1050px';
     printContainer.style.boxSizing = 'border-box';
 
     printContainer.innerHTML = `
       <style>
         table { border-collapse: collapse; width: 100%; page-break-inside: auto; }
-        tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        tr { 
+          page-break-inside: avoid !important; 
+          break-inside: avoid-page !important; 
+          -webkit-column-break-inside: avoid !important; 
+          -webkit-region-break-inside: avoid !important; 
+        }
+        td, th { 
+          page-break-inside: avoid !important; 
+          break-inside: avoid-page !important; 
+        }
         thead { display: table-header-group; }
         tbody { display: table-row-group; }
       </style>
@@ -823,7 +833,7 @@ function gerarRelatorioPDF() {
       </div>
 
       <!-- Tabela -->
-      <div style="width:100%; overflow-x:auto; margin-bottom:20px;">
+      <div style="width:100%; margin-bottom:20px;">
         <table style="width:100%; border-collapse:collapse; font-size:9.5px;">
           <thead>
             <tr>${tableHeadersHtml}</tr>
@@ -847,10 +857,17 @@ function gerarRelatorioPDF() {
         margin: [8, 8, 8, 8],
         filename: `${tituloRelatorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          logging: false,
+          windowWidth: 1050,
+          width: 1050
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
-          mode: ['css', 'legacy'],
+          mode: ['avoid-all', 'css', 'legacy'],
+          before: '.page-break',
           avoid: ['tr', '.summary-box', '.report-header']
         }
       };
