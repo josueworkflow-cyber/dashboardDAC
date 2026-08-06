@@ -911,6 +911,8 @@ async function gerarRelatorioPDF() {
           scale: 2, 
           useCORS: true, 
           logging: false,
+          scrollX: 0,
+          scrollY: 0,
           windowWidth: 1000
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
