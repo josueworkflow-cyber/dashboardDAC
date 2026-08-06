@@ -551,7 +551,7 @@ function updateMfKpis(rows) {
 
 // ─── Emissão de Relatório PDF de Altíssimo Padrão ───
 
-function gerarRelatorioPDF() {
+async function gerarRelatorioPDF() {
   try {
     // 1. Obter linhas atualmente filtradas e visíveis na tela
     const search = (document.getElementById('mfSearch').value || '').toLowerCase();
@@ -827,19 +827,17 @@ function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML em z-index visível para captura do html2canvas
+    // 5. Montar container HTML FORA DA TELA (left: -9999px) para NENHUM PISCA-PISCA na tela
     const printContainer = document.createElement('div');
-    printContainer.style.position = 'fixed';
-    printContainer.style.left = '0';
+    printContainer.style.position = 'absolute';
+    printContainer.style.left = '-9999px';
     printContainer.style.top = '0';
-    printContainer.style.zIndex = '99999';
     printContainer.style.width = '1000px';
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
     printContainer.style.background = '#ffffff';
     printContainer.style.padding = '16px';
     printContainer.style.boxSizing = 'border-box';
-    printContainer.style.margin = '0';
 
     printContainer.innerHTML = `
       <style>
@@ -861,7 +859,7 @@ function gerarRelatorioPDF() {
       <!-- Cabeçalho Centralizado -->
       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:3px solid #c41230; padding-bottom:12px; margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; width:100%;">
         <div style="margin-bottom:6px;">
-          <img src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block; margin:0 auto;">
+          <img id="pdfReportLogo" src="/LOGOTIPO PRINCIPAL.png" alt="DAC Hospitalar" style="height:44px; width:auto; display:block; margin:0 auto;">
         </div>
         <div>
           <div style="font-size:16px; font-weight:700; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">${tituloRelatorio}</div>
@@ -896,6 +894,15 @@ function gerarRelatorioPDF() {
 
     document.body.appendChild(printContainer);
 
+    // Aguardar carregamento da imagem do logotipo antes de acionar o canvas
+    const logoImg = document.getElementById('pdfReportLogo');
+    if (logoImg && !logoImg.complete) {
+      await new Promise(resolve => {
+        logoImg.onload = resolve;
+        logoImg.onerror = resolve;
+      });
+    }
+
     // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
     if (typeof html2pdf !== 'undefined') {
       const opt = {
@@ -907,7 +914,8 @@ function gerarRelatorioPDF() {
           useCORS: true, 
           logging: false,
           scrollX: 0,
-          scrollY: 0
+          scrollY: 0,
+          windowWidth: 1000
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
@@ -917,20 +925,19 @@ function gerarRelatorioPDF() {
         }
       };
 
-      html2pdf().set(opt).from(printContainer).save().then(() => {
-        setTimeout(() => {
-          if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
-        }, 300);
-      }).catch(err => {
-        console.error('Erro no salvamento do PDF:', err);
-        if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
-      });
+      await html2pdf().set(opt).from(printContainer).save();
+      if (printContainer.parentNode) {
+        printContainer.parentNode.removeChild(printContainer);
+      }
     } else {
       const win = window.open('', '_blank');
       win.document.write(`<html><head><title>${tituloRelatorio}</title></head><body>${printContainer.innerHTML}</body></html>`);
       win.document.close();
       win.focus();
       win.print();
+      if (printContainer.parentNode) {
+        printContainer.parentNode.removeChild(printContainer);
+      }
     }
   } catch (err) {
     console.error('❌ Erro ao gerar relatório PDF:', err);
