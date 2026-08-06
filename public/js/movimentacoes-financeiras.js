@@ -764,7 +764,7 @@ async function gerarRelatorioPDF() {
       colWidths = ['7%', '10%', '13%', '14%', '8%', '9%', '10%', '6%', '8%', '8%', '7%'];
     } else {
       headersList = ['TIPO', 'CATEGORIA', 'OBSERVAÇÕES', 'VALOR', 'FORNECEDOR/CLIENTE', 'CONTA BANCÁRIA', 'VENCIMENTO', 'PAGAMENTO', 'FORMA PGTO', 'STATUS', 'N. FISCAL', 'PARCELAS', 'VALOR PAGO'];
-      colWidths = ['6%', '8.5%', '11.5%', '8.5%', '13.5%', '8.5%', '7.5%', '7.5%', '7%', '7%', '4.5%', '4.5%', '6.5%'];
+      colWidths = ['6%', '8%', '11%', '8.5%', '13%', '8.5%', '7.5%', '7.5%', '7%', '7%', '5%', '5%', '6%'];
     }
 
     const tableHeadersHtml = headersList.map((h, i) => 
