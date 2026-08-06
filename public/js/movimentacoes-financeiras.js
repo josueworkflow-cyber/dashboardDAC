@@ -827,12 +827,12 @@ function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML fixado no DOM em (0,0) para captura perfeita do html2canvas
+    // 5. Montar container HTML em z-index visível para captura do html2canvas
     const printContainer = document.createElement('div');
     printContainer.style.position = 'fixed';
     printContainer.style.left = '0';
     printContainer.style.top = '0';
-    printContainer.style.zIndex = '-99999';
+    printContainer.style.zIndex = '99999';
     printContainer.style.width = '1000px';
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
@@ -907,9 +907,7 @@ function gerarRelatorioPDF() {
           useCORS: true, 
           logging: false,
           scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0
+          scrollY: 0
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
@@ -920,7 +918,9 @@ function gerarRelatorioPDF() {
       };
 
       html2pdf().set(opt).from(printContainer).save().then(() => {
-        if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+        setTimeout(() => {
+          if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+        }, 300);
       }).catch(err => {
         console.error('Erro no salvamento do PDF:', err);
         if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
