@@ -861,18 +861,14 @@ async function gerarRelatorioPDF() {
       </tr>`;
     }).join('');
 
-    // 5. Montar container HTML no DOM em (0,0) para captura garantida do html2canvas
+    // 5. Montar container HTML em memória (SEM anexar ao document.body para NÃO PISCAR na tela)
     const printContainer = document.createElement('div');
-    printContainer.style.position = 'fixed';
-    printContainer.style.left = '0';
-    printContainer.style.top = '0';
-    printContainer.style.width = '1000px';
     printContainer.style.fontFamily = "'DM Sans', sans-serif";
     printContainer.style.color = '#0f172a';
     printContainer.style.background = '#ffffff';
     printContainer.style.padding = '16px';
+    printContainer.style.width = '1000px';
     printContainer.style.boxSizing = 'border-box';
-    printContainer.style.zIndex = '999999';
 
     printContainer.innerHTML = `
       <style>
@@ -927,8 +923,6 @@ async function gerarRelatorioPDF() {
       </div>
     `;
 
-    document.body.appendChild(printContainer);
-
     // 6. Gerar PDF usando html2pdf se disponível ou janela de impressão como fallback
     if (typeof html2pdf !== 'undefined') {
       const opt = {
@@ -938,12 +932,7 @@ async function gerarRelatorioPDF() {
         html2canvas: { 
           scale: 2, 
           useCORS: true, 
-          logging: false,
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          windowWidth: 1000
+          logging: false
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak: { 
@@ -954,18 +943,12 @@ async function gerarRelatorioPDF() {
       };
 
       await html2pdf().set(opt).from(printContainer).save();
-      if (printContainer.parentNode) {
-        printContainer.parentNode.removeChild(printContainer);
-      }
     } else {
       const win = window.open('', '_blank');
       win.document.write(`<html><head><title>${tituloRelatorio}</title></head><body>${printContainer.innerHTML}</body></html>`);
       win.document.close();
       win.focus();
       win.print();
-      if (printContainer.parentNode) {
-        printContainer.parentNode.removeChild(printContainer);
-      }
     }
   } catch (err) {
     console.error('❌ Erro ao gerar relatório PDF:', err);
