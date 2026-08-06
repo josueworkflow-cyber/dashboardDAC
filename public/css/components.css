@@ -678,14 +678,31 @@ body.tv-mode .spark-grid {
     display: none !important;
   }
 
-  /* Ajuste para a tabela unificada financeira */
-  #p-movimentacoes-financeiras th:nth-child(7), #p-movimentacoes-financeiras td:nth-child(7),
-  #p-movimentacoes-financeiras th:nth-child(8), #p-movimentacoes-financeiras td:nth-child(8),
-  #p-movimentacoes-financeiras th:nth-child(9), #p-movimentacoes-financeiras td:nth-child(9) {
-    display: none !important;
-  }
   .mob-hide {
     display: none !important;
+  }
+}
+
+/* ─── Centralização e Otimização da Tabela de Movimentações Financeiras ─── */
+#thMovFinanceiras th,
+#tbMovFinanceiras td {
+  text-align: center !important;
+}
+
+@media (max-width: 768px) {
+  .mf-filters-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .mf-filters-container select,
+  .mf-filters-container input[type="date"],
+  .mf-filters-container button {
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    text-align: center !important;
   }
 }
 

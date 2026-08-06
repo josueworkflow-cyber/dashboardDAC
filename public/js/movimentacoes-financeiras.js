@@ -720,8 +720,7 @@ function gerarRelatorioPDF() {
       const ths = Array.from(theadEl.firstElementChild.children);
       tableHeadersHtml = ths.map(th => {
         const cleanText = th.innerText.replace(/[↕▲▼]/g, '').trim();
-        const isNum = cleanText.toLowerCase().includes('valor');
-        return `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; padding:9px 8px; text-align:${isNum ? 'right' : 'left'}; border:1px solid #a10e27; font-size:9px;">${cleanText}</th>`;
+        return `<th style="background:#c41230; color:#ffffff; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; padding:9px 8px; text-align:center; border:1px solid #a10e27; font-size:9px;">${cleanText}</th>`;
       }).join('');
     }
 
@@ -734,58 +733,59 @@ function gerarRelatorioPDF() {
       const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(r) : r.status;
       const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
       const bg = idx % 2 === 0 ? '#ffffff' : '#f1f5f9';
+      const cleanParcela = (r.parcela_ref || '1/1').replace(/\[PRC-[^\]]+\]/gi, '').trim() || '1/1';
 
       if (currentMfKpiFilter === 'receber') {
         const valTotal = parseFloat(r.valor) || 0;
         const valPago = parseFloat(r.valor_pago) || 0;
         const aReceber = Math.max(0, valTotal - valPago);
         return `<tr style="background:${bg};">
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${movTag}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.categoria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;"><strong>${r.cliente || r.fornecedor || '—'}</strong></td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${statusBadge}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right;">${fmt(valTotal)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right; color:#16a34a; font-weight:700;">+ ${fmt(aReceber)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.parcela_ref || '1/1'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_vencimento || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.conta_bancaria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.forma_pagamento || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;"><strong>${r.cliente || r.fornecedor || '—'}</strong></td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${statusBadge}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center;">${fmt(valTotal)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:#16a34a; font-weight:700;">+ ${fmt(aReceber)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${cleanParcela}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_vencimento || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.conta_bancaria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.forma_pagamento || '—'}</td>
         </tr>`;
       } else if (currentMfKpiFilter === 'pagar') {
         const valTotal = parseFloat(r.valor) || 0;
         const valPago = parseFloat(r.valor_pago) || 0;
         const aPagar = Math.max(0, valTotal - valPago);
         return `<tr style="background:${bg};">
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${movTag}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.categoria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;"><strong>${r.fornecedor || r.cliente || '—'}</strong></td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${statusBadge}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right;">${fmt(valTotal)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right; color:#c41230; font-weight:700;">- ${fmt(aPagar)}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.parcela_ref || '1/1'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_vencimento || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.conta_bancaria || '—'}</td>
-          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.forma_pagamento || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;"><strong>${r.fornecedor || r.cliente || '—'}</strong></td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${statusBadge}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center;">${fmt(valTotal)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:#c41230; font-weight:700;">- ${fmt(aPagar)}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${cleanParcela}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_vencimento || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.conta_bancaria || '—'}</td>
+          <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.forma_pagamento || '—'}</td>
         </tr>`;
       }
 
       // Visão Geral de 13 Colunas
       return `<tr style="background:${bg};">
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${movTag}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.categoria || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right; color:${valColor}; font-weight:700;">${valSign} ${fmt(r.valor)}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;"><strong>${person}</strong></td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.conta_bancaria || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_vencimento || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.data_pagamento || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.forma_pagamento || '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${statusBadge}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${isEnt ? (r.nota_fiscal || '—') : '—'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1;">${r.parcela_ref || '1/1'}</td>
-        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:right;">${fmt(r.valor_pago || 0)}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${movTag}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.categoria || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.observacoes || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center; color:${valColor}; font-weight:700;">${valSign} ${fmt(r.valor)}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;"><strong>${person}</strong></td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.conta_bancaria || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_vencimento || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.data_pagamento || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${r.forma_pagamento || '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${statusBadge}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${isEnt ? (r.nota_fiscal || '—') : '—'}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; text-align:center;">${cleanParcela}</td>
+        <td style="padding:7px 8px; border-bottom:1px solid #cbd5e1; font-family:'JetBrains Mono',monospace; text-align:center;">${fmt(r.valor_pago || 0)}</td>
       </tr>`;
     }).join('');
 
