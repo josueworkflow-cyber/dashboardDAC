@@ -19,7 +19,8 @@
     rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="/vendor/jspdf.umd.min.js"></script>
+  <script src="/vendor/jspdf.plugin.autotable.min.js"></script>
 
   <!-- Estilos da aplicação -->
   <link rel="stylesheet" href="/css/variables.css">
@@ -1008,7 +1009,7 @@
             <span style="font-size:11px;color:var(--muted);">até</span>
             <input type="date" id="mfDateTo" onchange="renderMovimentacoesFinanceiras()"
               style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">
-            <button onclick="gerarRelatorioPDF()" class="gbtn" style="background:var(--red); color:#fff; font-weight:600; font-size:12px; padding:6px 14px; border-radius:7px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; border:none; transition:all 0.2s ease;">
+            <button onclick="gerarRelatorioPDF(event)" class="gbtn" style="background:var(--red); color:#fff; font-weight:600; font-size:12px; padding:6px 14px; border-radius:7px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; border:none; transition:all 0.2s ease;">
               📄 Emitir Relatório
             </button>
           </div>
@@ -1746,6 +1747,7 @@
   <script src="/js/estoque.js"></script>
   <script src="/js/graficos-estoque.js"></script>
   <script src="/js/movimentacao-estoque.js"></script>
+  <script src="/js/financial-report-pdf.js"></script>
   <script src="/js/movimentacoes-financeiras.js"></script>
   <script src="/js/messenger.js"></script>
   <script src="/js/comercial.js"></script>

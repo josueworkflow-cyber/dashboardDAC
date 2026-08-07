@@ -106,8 +106,8 @@ function renderParcelaBadge(r) {
   const tipo = r._tipo || (r.movimentacao && normalizeString(r.movimentacao).includes('ENTRADA') ? 'entrada' : 'saida');
 
   const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/);
-  const grupoId = groupMatch ? groupMatch[1] : null;
-  const parcelaNum = ref ? ref.split(' ')[0] : (status === 'Pago' ? '1/1' : '0/1');
+  const grupoId = r._parcelGroupId || (groupMatch ? groupMatch[1] : null);
+  const parcelaNum = r._parcelLabel || (ref ? ref.split(' ')[0] : (status === 'Pago' ? '1/1' : '0/1'));
 
   if (!grupoId && numParcelas <= 1) {
     return '<span style="color:var(--muted);font-size:11px;">—</span>';

@@ -1,12 +1,40 @@
 // Versão do cache
-const CACHE_NAME = 'dac-pwa-v4';
+const CACHE_NAME = 'dac-pwa-v6-financial-pdf';
 
-// Recursos mínimos a serem cacheados offline
+// Shell local completo. Assim uma atualização do service worker não deixa a
+// aplicação sem CSS ou scripts caso o próximo acesso já aconteça offline.
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/iconeapp.png'
+  '/iconeapp.png',
+  '/LOGOTIPO PRINCIPAL.png',
+  '/css/LOGOTIPO PRINCIPAL NEGATIVA.png',
+  '/css/variables.css',
+  '/css/layout.css',
+  '/css/components.css',
+  '/css/graficos-estoque.css',
+  '/css/comercial.css',
+  '/css/mobile.css',
+  '/vendor/jspdf.umd.min.js',
+  '/vendor/jspdf.plugin.autotable.min.js',
+  '/js/config.js',
+  '/js/utils.js',
+  '/js/auth.js',
+  '/js/nav.js',
+  '/js/charts.js',
+  '/js/transacoes.js',
+  '/js/dashboard.js',
+  '/js/gestao.js',
+  '/js/monitoramento.js',
+  '/js/estoque.js',
+  '/js/graficos-estoque.js',
+  '/js/movimentacao-estoque.js',
+  '/js/financial-report-pdf.js',
+  '/js/movimentacoes-financeiras.js',
+  '/js/messenger.js',
+  '/js/comercial.js',
+  '/js/api.js'
 ];
 
 self.addEventListener('install', event => {
@@ -67,4 +95,3 @@ self.addEventListener('fetch', event => {
       })
   );
 });
-
