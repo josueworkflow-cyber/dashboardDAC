@@ -298,6 +298,7 @@
       case 'valor_pago': return parseMoney(row.valor_pago);
       case 'vencimento': return dateToIso(row.data_vencimento);
       case 'pagamento': return dateToIso(row.data_pagamento);
+      case 'data_emissao': return dateToIso(row.data_emissao);
       case 'conta_bancaria': return normalizeText(row.conta_bancaria);
       case 'forma_pagamento': return normalizeText(row.forma_pagamento);
       case 'modo_emissao': return normalizeText(row.modo_emissao || row.nota_fiscal);
@@ -468,49 +469,57 @@
     if (variant === 'receber') {
       return [
         { key: 'tipo', header: 'TIPO', width: 14, align: 'center', value: () => 'Entrada' },
-        { key: 'categoria', header: 'CATEGORIA', width: 24, align: 'center', value: row => cleanPdfText(row.categoria) },
-        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 39, align: 'left', value: row => cleanPdfText(row.observacoes) },
-        { key: 'cliente', header: 'CLIENTE', width: 36, align: 'left', value: row => cleanPdfText(row.cliente || row.fornecedor) },
-        { key: 'status', header: 'STATUS', width: 23, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
-        { key: 'valor', header: 'VALOR TOTAL', width: 25, align: 'right', value: row => formatCurrency(row.valor) },
-        { key: 'restante', header: 'A RECEBER', width: 29, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
-        { key: 'parcelas', header: 'PARCELAS', width: 17, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
-        { key: 'vencimento', header: 'VENCIMENTO', width: 22, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-        { key: 'conta', header: 'CONTA BANCÁRIA', width: 26, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
-        { key: 'forma', header: 'FORMA PGTO', width: 24, align: 'center', value: row => cleanPdfText(row.forma_pagamento) }
+        { key: 'categoria', header: 'CATEGORIA', width: 22, align: 'center', value: row => cleanPdfText(row.categoria) },
+        { key: 'cliente', header: 'CLIENTE', width: 32, align: 'left', value: row => cleanPdfText(row.cliente || row.fornecedor) },
+        { key: 'status', header: 'STATUS', width: 20, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
+        { key: 'valor', header: 'VALOR TOTAL', width: 24, align: 'right', value: row => formatCurrency(row.valor) },
+        { key: 'data_emissao', header: 'DATA EMISSÃO', width: 22, align: 'center', value: row => cleanPdfText(row.data_emissao) },
+        { key: 'restante', header: 'A RECEBER', width: 24, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
+        { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+        { key: 'vencimento', header: 'VENCIMENTO', width: 20, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
+        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+        { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 30, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
+        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 32, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
     }
 
     if (variant === 'pagar') {
       return [
         { key: 'tipo', header: 'TIPO', width: 14, align: 'center', value: () => 'Saída' },
-        { key: 'categoria', header: 'CATEGORIA', width: 24, align: 'center', value: row => cleanPdfText(row.categoria) },
-        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 39, align: 'left', value: row => cleanPdfText(row.observacoes) },
-        { key: 'fornecedor', header: 'FORNECEDOR', width: 36, align: 'left', value: row => cleanPdfText(row.fornecedor || row.cliente) },
-        { key: 'status', header: 'STATUS', width: 23, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
-        { key: 'valor', header: 'VALOR TOTAL', width: 25, align: 'right', value: row => formatCurrency(row.valor) },
-        { key: 'restante', header: 'A PAGAR', width: 29, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
-        { key: 'parcelas', header: 'PARCELAS', width: 17, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
-        { key: 'vencimento', header: 'VENCIMENTO', width: 22, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-        { key: 'conta', header: 'CONTA BANCÁRIA', width: 26, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
-        { key: 'forma', header: 'FORMA PGTO', width: 24, align: 'center', value: row => cleanPdfText(row.forma_pagamento) }
+        { key: 'categoria', header: 'CATEGORIA', width: 22, align: 'center', value: row => cleanPdfText(row.categoria) },
+        { key: 'fornecedor', header: 'FORNECEDOR', width: 32, align: 'left', value: row => cleanPdfText(row.fornecedor || row.cliente) },
+        { key: 'status', header: 'STATUS', width: 20, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
+        { key: 'valor', header: 'VALOR TOTAL', width: 24, align: 'right', value: row => formatCurrency(row.valor) },
+        { key: 'data_emissao', header: 'DATA EMISSÃO', width: 22, align: 'center', value: row => cleanPdfText(row.data_emissao) },
+        { key: 'restante', header: 'A PAGAR', width: 24, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
+        { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+        { key: 'vencimento', header: 'VENCIMENTO', width: 20, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
+        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+        { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 30, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
+        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 32, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
     }
 
+    const isEntradasVariant = variant === 'entradas';
+    const isSaidasVariant = variant === 'saidas';
+    const personHeader = isEntradasVariant ? 'CLIENTE' : (isSaidasVariant ? 'FORNECEDOR' : 'FORNECEDOR/CLIENTE');
+
     return [
       { key: 'tipo', header: 'TIPO', width: 14, align: 'center', value: row => row._tipo === 'entrada' ? 'Entrada' : 'Saída' },
-      { key: 'categoria', header: 'CATEGORIA', width: 22, align: 'center', value: row => cleanPdfText(row.categoria) },
-      { key: 'observacoes', header: 'OBSERVAÇÕES', width: 34, align: 'left', value: row => cleanPdfText(row.observacoes) },
-      { key: 'valor', header: 'VALOR', width: 22, align: 'right', value: row => valueCell(row, row._tipo === 'entrada' ? '+' : '-') },
-      { key: 'pessoa', header: 'FORNECEDOR/CLIENTE', width: 31, align: 'left', value: row => cleanPdfText(person(row)) },
-      { key: 'conta', header: 'CONTA BANCÁRIA', width: 25, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
-      { key: 'vencimento', header: 'VENCIMENTO', width: 19, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-      { key: 'pagamento', header: 'PAGAMENTO', width: 19, align: 'center', value: row => cleanPdfText(row.data_pagamento) },
-      { key: 'forma', header: 'FORMA PGTO', width: 22, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
-      { key: 'status', header: 'STATUS', width: 20, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
-      { key: 'emissao', header: 'NF / PEDIDO', width: 15, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
-      { key: 'parcelas', header: 'PARCELAS', width: 15, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
-      { key: 'valor_pago', header: 'VALOR PAGO', width: 21, align: 'right', value: row => formatCurrency(row.valor_pago) }
+      { key: 'categoria', header: 'CATEGORIA', width: 20, align: 'center', value: row => cleanPdfText(row.categoria) },
+      { key: 'pessoa', header: personHeader, width: 28, align: 'left', value: row => cleanPdfText(person(row)) },
+      { key: 'valor', header: 'VALOR', width: 20, align: 'right', value: row => valueCell(row, row._tipo === 'entrada' ? '+' : '-') },
+      { key: 'modo_emissao', header: 'NF / PEDIDO', width: 16, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+      { key: 'empresa', header: 'EMPRESA', width: 15, align: 'center', value: row => cleanPdfText(row.empresa, 'DAC') },
+      { key: 'data_emissao', header: 'DATA EMISSÃO', width: 18, align: 'center', value: row => cleanPdfText(row.data_emissao) },
+      { key: 'status', header: 'STATUS', width: 18, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
+      { key: 'vencimento', header: 'VENCIMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
+      { key: 'conta', header: 'CONTA BANCÁRIA', width: 22, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
+      { key: 'valor_pago', header: 'VALOR PAGO', width: 20, align: 'right', value: row => formatCurrency(row.valor_pago) },
+      { key: 'parcelas', header: 'PARCELAS', width: 14, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+      { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 24, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
+      { key: 'pagamento', header: 'PAGAMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_pagamento) },
+      { key: 'observacoes', header: 'OBSERVAÇÕES', width: 26, align: 'left', value: row => cleanPdfText(row.observacoes) }
     ];
   }
 

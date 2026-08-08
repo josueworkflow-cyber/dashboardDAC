@@ -198,9 +198,9 @@ test('modelos geral, receber, pagar, entradas e saídas têm títulos e colunas 
   const entriesByType = report.createModel({ ...data, filters: { type: 'entrada' } });
   const exitsByType = report.createModel({ ...data, filters: { type: 'saida' } });
 
-  assert.equal(general.columns.length, 13);
-  assert.equal(receivable.columns.length, 11);
-  assert.equal(payable.columns.length, 11);
+  assert.equal(general.columns.length, 15);
+  assert.equal(receivable.columns.length, 12);
+  assert.equal(payable.columns.length, 12);
   assert.equal(receivable.title, 'Relatório de Contas a Receber');
   assert.equal(payable.title, 'Relatório de Contas a Pagar');
   assert.equal(entries.title, 'Relatório de Entradas Financeiras');
@@ -210,7 +210,7 @@ test('modelos geral, receber, pagar, entradas e saídas têm títulos e colunas 
   assert.equal(entriesByType.variant, 'entradas');
   assert.equal(exitsByType.variant, 'saidas');
 
-  const emissionColumn = general.columns.find(column => column.key === 'emissao');
+  const emissionColumn = general.columns.find(column => column.key === 'modo_emissao');
   assert.equal(emissionColumn.value(general.rows.find(row => row._tipo === 'saída')), 'Recibo');
 });
 

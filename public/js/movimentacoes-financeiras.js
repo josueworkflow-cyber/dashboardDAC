@@ -161,12 +161,23 @@ function renderMfStatusBadge(row, referenceDate) {
   return '<span class="stag sn">Pendente</span>';
 }
 
+function getMfVariant(filters) {
+  if (currentMfKpiFilter === 'receber') return 'receber';
+  if (currentMfKpiFilter === 'pagar') return 'pagar';
+  const typeNorm = (filters?.type || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (typeNorm === 'entrada') return 'entradas';
+  if (typeNorm === 'saida') return 'saidas';
+  return 'geral';
+}
+
 function renderMovimentacoesFinanceiras() {
   try {
     // Esta mesma função pura também alimenta o PDF. Assim os filtros, a
     // consolidação e a ordenação são idênticos em qualquer viewport.
     const referenceNow = new Date();
-    const rows = getFilteredMfRows(getMfFilterState(), referenceNow);
+    const filters = getMfFilterState();
+    const rows = getFilteredMfRows(filters, referenceNow);
+    const variant = getMfVariant(filters);
 
     const tbody = document.getElementById('tbMovFinanceiras');
     const thead = document.getElementById('thMovFinanceiras');
@@ -174,50 +185,54 @@ function renderMovimentacoesFinanceiras() {
 
     // Atualizar cabeçalho dinâmico (<thead>) com botões de ordenação
     if (thead) {
-      if (currentMfKpiFilter === 'receber') {
+      if (variant === 'receber') {
         thead.innerHTML = `<tr>
           <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
           <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
           <th class="th-sortable ${currentMfSortCol === 'cliente' ? 'active-sort' : ''}" onclick="toggleMfSort('cliente')">Cliente ${getSortIconHtml('cliente')}</th>
           <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
           <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor Total ${getSortIconHtml('valor')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'data_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('data_emissao')">Data da Emissão ${getSortIconHtml('data_emissao')}</th>
           <th class="th-sortable ${currentMfSortCol === 'aReceber' ? 'active-sort' : ''}" onclick="toggleMfSort('aReceber')">Valor a Receber ${getSortIconHtml('aReceber')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">NF / Pedido ${getSortIconHtml('modo_emissao')}</th>
           <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma Pgto ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma de Pagamento ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
-      } else if (currentMfKpiFilter === 'pagar') {
+      } else if (variant === 'pagar') {
         thead.innerHTML = `<tr>
           <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
           <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
           <th class="th-sortable ${currentMfSortCol === 'fornecedor' ? 'active-sort' : ''}" onclick="toggleMfSort('fornecedor')">Fornecedor ${getSortIconHtml('fornecedor')}</th>
           <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
           <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor Total ${getSortIconHtml('valor')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'data_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('data_emissao')">Data da Emissão ${getSortIconHtml('data_emissao')}</th>
           <th class="th-sortable ${currentMfSortCol === 'aPagar' ? 'active-sort' : ''}" onclick="toggleMfSort('aPagar')">Valor a Pagar ${getSortIconHtml('aPagar')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">NF / Pedido ${getSortIconHtml('modo_emissao')}</th>
           <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma Pgto ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma de Pagamento ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
       } else {
+        const personHeader = variant === 'entradas' ? 'Cliente' : (variant === 'saidas' ? 'Fornecedor' : 'Fornecedor/Cliente');
+        const personSortKey = variant === 'saidas' ? 'fornecedor' : 'cliente';
         thead.innerHTML = `<tr>
-          <th class="th-sortable ${currentMfSortCol === 'empresa' ? 'active-sort' : ''}" onclick="toggleMfSort('empresa')">Empresa ${getSortIconHtml('empresa')}</th>
           <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
           <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">NF / Pedido ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === personSortKey ? 'active-sort' : ''}" onclick="toggleMfSort('${personSortKey}')">${personHeader} ${getSortIconHtml(personSortKey)}</th>
           <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor ${getSortIconHtml('valor')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'cliente' ? 'active-sort' : ''}" onclick="toggleMfSort('cliente')">Fornecedor/Cliente ${getSortIconHtml('cliente')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('pagamento')">Pagamento ${getSortIconHtml('pagamento')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'data_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('data_emissao')">Emissão ${getSortIconHtml('data_emissao')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">NF / Pedido ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'empresa' ? 'active-sort' : ''}" onclick="toggleMfSort('empresa')">Empresa ${getSortIconHtml('empresa')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'data_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('data_emissao')">Data da Emissão ${getSortIconHtml('data_emissao')}</th>
           <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'conta_bancaria' ? 'active-sort' : ''}" onclick="toggleMfSort('conta_bancaria')">Conta Bancária ${getSortIconHtml('conta_bancaria')}</th>
           <th class="th-sortable ${currentMfSortCol === 'valor_pago' ? 'active-sort' : ''}" onclick="toggleMfSort('valor_pago')">Valor Pago ${getSortIconHtml('valor_pago')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma de Pagamento ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('pagamento')">Pagamento ${getSortIconHtml('pagamento')}</th>
           <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
       }
@@ -239,62 +254,60 @@ function renderMovimentacoesFinanceiras() {
       const statusBadge = renderMfStatusBadge(r, referenceNow);
       const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
 
-      if (currentMfKpiFilter === 'receber') {
+      if (variant === 'receber') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
         const valPago = DacFinancialReport.parseMoney(r.valor_pago);
         const aReceber = Math.max(0, valTotal - valPago);
         return `<tr>
-          <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
           <td>${movTag}</td>
           <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
-          <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
           <td style="font-size:11px; font-weight:600;">${r.cliente || r.fornecedor || '—'}</td>
           <td>${statusBadge}</td>
           <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
+          <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
           <td class="mono" style="color:#4ADE80;font-weight:700;">+ ${fmt(aReceber)}</td>
-          <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
+          <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
           <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
-          <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
+          <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
           <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
           <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
         </tr>`;
-      } else if (currentMfKpiFilter === 'pagar') {
+      } else if (variant === 'pagar') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
         const valPago = DacFinancialReport.parseMoney(r.valor_pago);
         const aPagar = Math.max(0, valTotal - valPago);
         return `<tr>
-          <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
           <td>${movTag}</td>
           <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
-          <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
           <td style="font-size:11px; font-weight:600;">${r.fornecedor || r.cliente || '—'}</td>
           <td>${statusBadge}</td>
           <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
+          <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
           <td class="mono" style="color:var(--red);font-weight:700;">- ${fmt(aPagar)}</td>
-          <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
+          <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
           <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
-          <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
+          <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
           <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
           <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
         </tr>`;
       }
 
-      // Renderização padrão (Visão Geral)
+      // Renderização padrão (15 colunas na nova ordem)
       return `<tr>
-        <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
         <td>${movTag}</td>
         <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
-        <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
-        <td class="mono" style="color:${valColor};font-weight:700;">${valSign} ${fmt(r.valor)}</td>
         <td style="font-size:11px; font-weight:600;">${person}</td>
-        <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
-        <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
-        <td style="font-size:11px;">${r.data_pagamento || '—'}</td>
+        <td class="mono" style="color:${valColor};font-weight:700;">${valSign} ${fmt(r.valor)}</td>
+        <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
+        <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
         <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
-        <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
         <td>${statusBadge}</td>
-        <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r.parcela_ref || '—')}</td>
+        <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
+        <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
         <td class="mono" style="font-size:11px;">${fmt(r.valor_pago || 0)}</td>
+        <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
+        <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
+        <td style="font-size:11px;">${r.data_pagamento || '—'}</td>
         <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
       </tr>`;
     }).join('');
