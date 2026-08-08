@@ -412,7 +412,7 @@ function renderTabelaSemanalNF() {
 
   let html = '';
   visibleWeeks.forEach(group => {
-    const totalSemana = group.items.reduce((s, e) => s + getEffectiveValue(e), 0);
+    const totalSemana = group.items.reduce((s, e) => s + getPaidValue(e), 0);
     const dateRange = getWeekDateRange(group.week, group.month, group.year);
     const isOpen = monOpenWeeks.has(group.key);
     
@@ -436,7 +436,7 @@ function renderTabelaSemanalNF() {
                 ${group.items.map(e => `
                   <tr>
                     <td style="font-size:10px; padding:5px 8px;">${e.cliente || '—'}</td>
-                    <td class="tg" style="padding:5px 8px; font-size:11px;">${fmt(getEffectiveValue(e))}</td>
+                    <td class="tg" style="padding:5px 8px; font-size:11px;">${fmt(parseVal(e.valor || e.valor_pago) || getPaidValue(e))}</td>
                     <td style="padding:5px 8px;"><span class="st ${(e.status || '').toLowerCase() === 'pago' ? 'sg' : 'sp'}">${e.status || '—'}</span></td>
                   </tr>
                 `).join('')}
@@ -486,10 +486,13 @@ function renderEntradasNFChart() {
   // Agrupa por semana
   const weekTotals = {};
   entradas.forEach(e => {
-    const d = parseDate(e.data_pagamento || e.data_vencimento);
+    const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
     if (!d) return;
     const week = getWeekOfMonth(d);
-    weekTotals[week] = (weekTotals[week] || 0) + getEffectiveValue(e);
+    const val = getPaidValue(e);
+    if (val > 0) {
+      weekTotals[week] = (weekTotals[week] || 0) + val;
+    }
   });
 
   const weekNums = Object.keys(weekTotals).map(Number).sort((a, b) => a - b);
@@ -575,7 +578,7 @@ function renderEntradasPieChart() {
     return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
   });
 
-  const totalMensal = entradas.reduce((s, e) => s + getEffectiveValue(e), 0);
+  const totalMensal = entradas.reduce((s, e) => s + getPaidValue(e), 0);
   const restanteTeto = Math.max(0, tetoMensal - totalMensal);
   const overflow = Math.max(0, totalMensal - tetoMensal);
 
@@ -660,7 +663,7 @@ function renderAcompanhamentoAnual() {
   entradas.forEach(e => {
     const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
     if (!d || d.getFullYear() !== anoAtual) return;
-    mesesData[d.getMonth()] += getEffectiveValue(e);
+    mesesData[d.getMonth()] += getPaidValue(e);
   });
 
   let totalAnual = 0;

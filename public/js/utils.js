@@ -68,15 +68,50 @@ function filterByPeriodo(rows, periodo) {
   });
 }
 
-// Retorna o valor efetivo de um lançamento respeitando o status:
-// - Cancelado / Pendente → 0 (não entra nos cálculos)
-// - Parcial → valor_pago (somente o que já foi pago)
-// - Pago (ou sem status) → valor integral
+/**
+ * Retorna o valor efetivo pago de um lançamento ou parcela:
+ * - Se r._groupItems (linha consolidada), soma o valor dos itens com status 'Pago' (ou valor_pago parcial)
+ * - Se for lançamento/parcela individual:
+ *   - Status 'Pago': valor_pago (se informado) ou valor integral
+ *   - Status 'Parcial': valor_pago
+ *   - Outros status (Pendente, Cancelado, etc.): 0
+ */
+function getPaidValue(r) {
+  if (!r) return 0;
+
+  // 1. Linha consolidada de grupo de parcelas
+  if (r._groupItems && Array.isArray(r._groupItems) && r._groupItems.length > 0) {
+    return r._groupItems.reduce((sum, item) => {
+      if (!item) return sum;
+      const st = String(item.status || '').trim().toLowerCase();
+      if (st === 'pago') {
+        const val = parseVal(item.valor_pago) || parseVal(item.valor);
+        return sum + val;
+      }
+      if (st === 'parcial') {
+        return sum + parseVal(item.valor_pago);
+      }
+      return sum;
+    }, 0);
+  }
+
+  // 2. Lançamento/parcela individual
+  const status = String(r.status || '').trim().toLowerCase();
+  if (status === 'pago') {
+    const valPago = parseVal(r.valor_pago);
+    if (valPago > 0) return valPago;
+    return parseVal(r.valor);
+  }
+
+  if (status === 'parcial') {
+    return parseVal(r.valor_pago);
+  }
+
+  return 0;
+}
+
 function getEffectiveValue(r) {
-  const status = (r.status || '').trim().toLowerCase();
-  if (status === 'cancelado' || status === 'pendente') return 0;
-  if (status === 'parcial') return parseVal(r.valor_pago);
-  return parseVal(r.valor);
+  return getPaidValue(r);
 }
 
 // Converte data BR (dd/mm/yyyy) para ISO (yyyy-mm-dd)
