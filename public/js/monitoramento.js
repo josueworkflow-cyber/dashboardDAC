@@ -92,13 +92,13 @@ function initMonitoramento() {
 
   const transportMonthSelect = document.getElementById('monMesFilterTransporte');
   if (transportMonthSelect && (transportMonthSelect.value === "" || transportMonthSelect.getAttribute('data-init') !== 'true')) {
-    transportMonthSelect.value = currentMonth;
+    transportMonthSelect.value = ""; // Padrão: Todos os meses
     transportMonthSelect.setAttribute('data-init', 'true');
   }
 
   const despVarMonthSelect = document.getElementById('monMesFilterDespVar');
   if (despVarMonthSelect && (despVarMonthSelect.value === "" || despVarMonthSelect.getAttribute('data-init') !== 'true')) {
-    despVarMonthSelect.value = currentMonth;
+    despVarMonthSelect.value = ""; // Padrão: Todos
     despVarMonthSelect.setAttribute('data-init', 'true');
   }
 
@@ -154,7 +154,8 @@ function classifyEmpresa(entry) {
 }
 
 function isDACEntry(entry) {
-  return classifyEmpresa(entry) === 'DAC';
+  const cls = classifyEmpresa(entry);
+  return cls === 'DAC' || cls === 'OUTROS';
 }
 
 function isPulseEntry(entry) {
@@ -725,6 +726,16 @@ function renderDesempenhoVendas() {
   });
 }
 
+// ─── Helper de Valor Monetário ───
+function getValOrEffective(s) {
+  if (!s) return 0;
+  const status = String(s.status || '').trim().toLowerCase();
+  if (status === 'cancelado') return 0;
+  const eff = typeof getEffectiveValue === 'function' ? getEffectiveValue(s) : 0;
+  if (eff > 0) return eff;
+  return typeof parseVal === 'function' ? parseVal(s.valor || s.valor_pago) : (parseFloat(s.valor) || 0);
+}
+
 // ─── Helper de Categoria para Transporte Terceirizado / Logística ───
 function isTransporteCategory(categoria) {
   const cat = String(categoria || '').trim().toUpperCase();
@@ -732,8 +743,13 @@ function isTransporteCategory(categoria) {
     cat.includes('LOGIST') ||
     cat.includes('LOGÍST') ||
     cat.includes('TRANSPORTE') ||
+    cat.includes('TERCEIRI') ||
+    cat.includes('TERCERI') ||
     cat.includes('FRETE') ||
-    cat.includes('DELIVERY')
+    cat.includes('DELIVERY') ||
+    cat.includes('ENTREGA') ||
+    cat.includes('MOTORISTA') ||
+    cat.includes('CARRETEIRO')
   );
 }
 
@@ -749,7 +765,7 @@ function renderDespesasVariaveis() {
   if (mesFiltro !== '') {
     const targetMonth = parseInt(mesFiltro, 10);
     saidas = saidas.filter(s => {
-      const d = parseDate(s.data_pagamento || s.data_vencimento);
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao);
       return d && d.getMonth() === targetMonth;
     });
   }
@@ -757,7 +773,10 @@ function renderDespesasVariaveis() {
   var catMap = {};
   saidas.forEach(function(s) {
     var cat = (s.categoria || 'Outros').trim();
-    catMap[cat] = (catMap[cat] || 0) + getEffectiveValue(s);
+    const val = getValOrEffective(s);
+    if (val > 0) {
+      catMap[cat] = (catMap[cat] || 0) + val;
+    }
   });
 
   var sorted = Object.entries(catMap).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
@@ -770,8 +789,16 @@ function renderDespesasVariaveis() {
   monDespVarChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
-      labels: labels,
-      datasets: [{ label: 'Despesas', data: data, backgroundColor: data.map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length] + 'CC'; }), borderColor: data.map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length]; }), borderWidth: 1, borderRadius: 5, barPercentage: 0.6 }]
+      labels: labels.length > 0 ? labels : ['Sem lançamentos'],
+      datasets: [{
+        label: 'Despesas',
+        data: data.length > 0 ? data : [0],
+        backgroundColor: (data.length > 0 ? data : [0]).map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length] + 'CC'; }),
+        borderColor: (data.length > 0 ? data : [0]).map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length]; }),
+        borderWidth: 1,
+        borderRadius: 5,
+        barPercentage: 0.6
+      }]
     },
     plugins: plugins,
     options: {
@@ -803,7 +830,7 @@ function renderTransporteTerceirizado() {
   });
 
   // Total geral acumulado
-  var totalLogistica = logisticaItems.reduce(function(s, e) { return s + getEffectiveValue(e); }, 0);
+  var totalLogistica = logisticaItems.reduce(function(s, e) { return s + getValOrEffective(e); }, 0);
 
   var logisticaMes = logisticaItems;
   var labelMes = 'Acumulado Total';
@@ -811,13 +838,13 @@ function renderTransporteTerceirizado() {
   if (mesFiltro !== '') {
     const targetMonth = parseInt(mesFiltro, 10);
     logisticaMes = logisticaItems.filter(function(s) {
-      var d = parseDate(s.data_pagamento || s.data_vencimento);
+      var d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao);
       return d && d.getMonth() === targetMonth;
     });
     labelMes = (MESES_NOMES[targetMonth] || 'Mês Selecionado');
   }
 
-  var totalMes = logisticaMes.reduce(function(s, e) { return s + getEffectiveValue(e); }, 0);
+  var totalMes = logisticaMes.reduce(function(s, e) { return s + getValOrEffective(e); }, 0);
 
   container.innerHTML =
     '<div class="transport-summary">' +
@@ -841,7 +868,10 @@ function renderTransporteChart(items) {
   var fornecedorMap = {};
   items.forEach(function(s) {
     var forn = String(s.fornecedor || '').trim() || 'Sem Fornecedor';
-    fornecedorMap[forn] = (fornecedorMap[forn] || 0) + getEffectiveValue(s);
+    var val = getValOrEffective(s);
+    if (val > 0) {
+      fornecedorMap[forn] = (fornecedorMap[forn] || 0) + val;
+    }
   });
 
   // Ordena do maior para menor
@@ -855,12 +885,12 @@ function renderTransporteChart(items) {
   monTransporteChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
-      labels: labels,
+      labels: labels.length > 0 ? labels : ['Sem lançamentos'],
       datasets: [{
         label: 'Logística',
-        data: data,
-        backgroundColor: data.map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length] + 'CC'; }),
-        borderColor: data.map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length]; }),
+        data: data.length > 0 ? data : [0],
+        backgroundColor: (data.length > 0 ? data : [0]).map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length] + 'CC'; }),
+        borderColor: (data.length > 0 ? data : [0]).map(function(_, i) { return PALETTE_SOBER[i % PALETTE_SOBER.length]; }),
         borderWidth: 1,
         borderRadius: 5,
         barPercentage: 0.6
