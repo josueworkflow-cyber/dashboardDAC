@@ -32,7 +32,7 @@ const COLS_ENTRADAS = [
 const COLS_SAIDAS = [
   'categoria', 'modo_emissao', 'valor', 'fornecedor', 'conta_bancaria', 
   'data_vencimento', 'data_pagamento', 'forma_pagamento', 'status', 
-  'movimentacao', 'empresa', 'num_parcelas', 'valor_pago', 'parcela_ref', 'observacoes', 'data_emissao'
+  'movimentacao', 'empresa', 'num_parcelas', 'valor_pago', 'parcela_ref', 'observacoes'
 ];
 const COLS_ESTOQUE = [
   'fornecedor', 'valor', 'data', 'pagamento', 'movimentacao',

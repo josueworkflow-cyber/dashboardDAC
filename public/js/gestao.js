@@ -462,18 +462,21 @@ function renderGestaoTable() {
       <td>
         <button onclick="editLancamento('${r.id}')" style="background:transparent;border:none;color:var(--accent);cursor:pointer;font-size:16px;" title="Editar Lançamento">✎</button>
       </td>
+      <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
       <td>${movTag}</td>
       <td><span class="stag cby">${r.categoria || '—'}</span></td>
-      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
+      <td style="font-size:11px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
       <td class="mono" style="color:${valColor};font-weight:700;">${valSign} ${fmt(r.valor)}</td>
       <td style="font-size:11px;">${fornecedor}</td>
       <td style="font-size:11px;color:var(--muted);">${r.conta_bancaria || '—'}</td>
       <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
       <td style="font-size:11px;">${r.data_pagamento || '—'}</td>
+      <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
       <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
       <td>${statusHtml}</td>
       <td>${renderParcelaBadge(r)}</td>
-      <td>${isEnt ? (r.modo_emissao || '—') : '—'}</td>
+      <td class="mono" style="font-size:11px;">${fmt(r.valor_pago || 0)}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
     </tr>`;
   }).join('');
 
