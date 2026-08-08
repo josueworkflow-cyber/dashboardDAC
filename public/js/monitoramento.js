@@ -725,6 +725,18 @@ function renderDesempenhoVendas() {
   });
 }
 
+// ─── Helper de Categoria para Transporte Terceirizado / Logística ───
+function isTransporteCategory(categoria) {
+  const cat = String(categoria || '').trim().toUpperCase();
+  return (
+    cat.includes('LOGIST') ||
+    cat.includes('LOGÍST') ||
+    cat.includes('TRANSPORTE') ||
+    cat.includes('FRETE') ||
+    cat.includes('DELIVERY')
+  );
+}
+
 // ─── Gráfico Despesas Variáveis ───
 
 function renderDespesasVariaveis() {
@@ -732,21 +744,19 @@ function renderDespesasVariaveis() {
   if (!canvas) return;
 
   const mesFiltro = document.getElementById('monMesFilterDespVar')?.value || '';
-  const anoAtual = new Date().getFullYear();
-
   var saidas = getFilteredSaidas();
 
   if (mesFiltro !== '') {
-    const targetMonth = parseInt(mesFiltro);
+    const targetMonth = parseInt(mesFiltro, 10);
     saidas = saidas.filter(s => {
       const d = parseDate(s.data_pagamento || s.data_vencimento);
-      return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
+      return d && d.getMonth() === targetMonth;
     });
   }
 
   var catMap = {};
   saidas.forEach(function(s) {
-    var cat = s.categoria || 'Outros';
+    var cat = (s.categoria || 'Outros').trim();
     catMap[cat] = (catMap[cat] || 0) + getEffectiveValue(s);
   });
 
@@ -784,25 +794,28 @@ function renderTransporteTerceirizado() {
   var container = document.getElementById('monTransporte');
   if (!container) return;
 
-  var mesFiltro = document.getElementById('monMesFilterTransporte');
-  var targetMonth = mesFiltro ? parseInt(mesFiltro.value) : new Date().getMonth();
-  var anoAtual = new Date().getFullYear();
-
+  const mesFiltro = document.getElementById('monMesFilterTransporte')?.value || '';
   var saidas = getFilteredSaidas();
-  // Filtra por categoria "Logistica"
+
+  // Filtra por categoria de logística, transporte ou frete
   var logisticaItems = saidas.filter(function(s) {
-    var cat = String(s.categoria || '').trim().toUpperCase();
-    return cat === 'LOGISTICA' || cat === 'LOGÍSTICA';
+    return isTransporteCategory(s.categoria);
   });
 
-  // Total geral (anual)
+  // Total geral acumulado
   var totalLogistica = logisticaItems.reduce(function(s, e) { return s + getEffectiveValue(e); }, 0);
 
-  // Filtra pelo mês selecionado
-  var logisticaMes = logisticaItems.filter(function(s) {
-    var d = parseDate(s.data_pagamento || s.data_vencimento);
-    return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
-  });
+  var logisticaMes = logisticaItems;
+  var labelMes = 'Acumulado Total';
+
+  if (mesFiltro !== '') {
+    const targetMonth = parseInt(mesFiltro, 10);
+    logisticaMes = logisticaItems.filter(function(s) {
+      var d = parseDate(s.data_pagamento || s.data_vencimento);
+      return d && d.getMonth() === targetMonth;
+    });
+    labelMes = (MESES_NOMES[targetMonth] || 'Mês Selecionado');
+  }
 
   var totalMes = logisticaMes.reduce(function(s, e) { return s + getEffectiveValue(e); }, 0);
 
@@ -810,9 +823,9 @@ function renderTransporteTerceirizado() {
     '<div class="transport-summary">' +
       '<div class="transport-icon">🚛</div>' +
       '<div class="transport-info">' +
-        '<div class="transport-label">Total no Mês (' + MESES_NOMES[targetMonth] + ')</div>' +
+        '<div class="transport-label">Total (' + labelMes + ')</div>' +
         '<div class="transport-value">' + fmt(totalMes) + '</div>' +
-        '<div class="transport-count">' + logisticaMes.length + ' lançamento(s) · Total Anual: ' + fmt(totalLogistica) + '</div>' +
+        '<div class="transport-count">' + logisticaMes.length + ' lançamento(s) · Acumulado: ' + fmt(totalLogistica) + '</div>' +
       '</div>' +
     '</div>';
 
