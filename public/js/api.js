@@ -41,67 +41,76 @@ async function loadData() {
 
     renderAll();
   } catch (e) {
+    console.error('❌ Erro no carregamento/renderização dos dados:', e);
     dot.className = 'gsdot err';
     lbl.textContent = 'Erro';
   }
 }
 
+function safeRun(fn, name) {
+  try {
+    if (typeof fn === 'function') fn();
+  } catch (err) {
+    console.error(`❌ Erro em ${name || 'renderAll'}:`, err);
+  }
+}
+
 // Dispara todas as funções de renderização
 function renderAll() {
-  renderKpis();
-  populateFilters();
-  renderEntradas();
-  renderSaidas();
-  renderIndicadores();
-  renderSaidasCategoriaChart();
-  renderFluxoChart();
-  renderReceitaClienteChart();
-  renderCrescimento();
-  populateGeneralMonthFilters();
-  renderEvolucaoDespesas();
-  renderReceitaFormaPagamento();
-  renderContaDistribuicao();
-  renderContaSparklines();
-  renderSmartNewsFeed();
+  safeRun(renderKpis, 'renderKpis');
+  safeRun(populateFilters, 'populateFilters');
+  safeRun(renderEntradas, 'renderEntradas');
+  safeRun(renderSaidas, 'renderSaidas');
+  safeRun(renderIndicadores, 'renderIndicadores');
+  safeRun(renderSaidasCategoriaChart, 'renderSaidasCategoriaChart');
+  safeRun(renderFluxoChart, 'renderFluxoChart');
+  safeRun(renderReceitaClienteChart, 'renderReceitaClienteChart');
+  safeRun(renderCrescimento, 'renderCrescimento');
+  safeRun(populateGeneralMonthFilters, 'populateGeneralMonthFilters');
+  safeRun(renderEvolucaoDespesas, 'renderEvolucaoDespesas');
+  safeRun(renderReceitaFormaPagamento, 'renderReceitaFormaPagamento');
+  safeRun(renderContaDistribuicao, 'renderContaDistribuicao');
+  safeRun(renderContaSparklines, 'renderContaSparklines');
+  safeRun(renderSmartNewsFeed, 'renderSmartNewsFeed');
   
   if (typeof renderGestaoTable === 'function') {
-    populateGestaoCatFiltro();
-    renderGestaoTable();
-    renderGestaoBadges();
+    safeRun(populateGestaoCatFiltro, 'populateGestaoCatFiltro');
+    safeRun(renderGestaoTable, 'renderGestaoTable');
+    safeRun(renderGestaoBadges, 'renderGestaoBadges');
   }
 
   if (typeof populateMfCategorias === 'function') {
-    populateMfCategorias();
+    safeRun(populateMfCategorias, 'populateMfCategorias');
   }
 
   if (typeof initMonitoramento === 'function') {
-    initMonitoramento();
+    safeRun(initMonitoramento, 'initMonitoramento');
   }
 
   if (typeof renderEstoqueTable === 'function') {
-    renderEstoqueTable();
+    safeRun(renderEstoqueTable, 'renderEstoqueTable');
   }
 
   if (typeof renderGraficosEstoque === 'function') {
-    renderGraficosEstoque();
+    safeRun(renderGraficosEstoque, 'renderGraficosEstoque');
   }
 
   if (typeof renderMovimentacaoEstoque === 'function') {
-    renderMovimentacaoEstoque();
+    safeRun(renderMovimentacaoEstoque, 'renderMovimentacaoEstoque');
   }
 
   if (typeof renderMovimentacoesFinanceiras === 'function') {
-    renderMovimentacoesFinanceiras();
+    safeRun(renderMovimentacoesFinanceiras, 'renderMovimentacoesFinanceiras');
   }
 
   if (typeof renderFooterKpis === 'function') {
-    renderKanban();
-    renderFooterKpis();
+    safeRun(renderKanban, 'renderKanban');
+    safeRun(renderFooterKpis, 'renderFooterKpis');
   }
 
   if (typeof renderHistoricoTable === 'function') {
-    renderHistoricoTable();
-    renderHistoricoKpis();
+    safeRun(renderHistoricoTable, 'renderHistoricoTable');
+    safeRun(renderHistoricoKpis, 'renderHistoricoKpis');
   }
 }
 

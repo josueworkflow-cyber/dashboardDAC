@@ -25,11 +25,13 @@ function saveOpenWeeks() {
 const monPieShadow = {
   id: 'monPieShadow',
   beforeDraw(chart) {
+    if (!chart || !chart.chartArea) return;
     const { ctx } = chart;
     const { top, left, width, height } = chart.chartArea;
     const x = left + width / 2;
     const y = top + height / 2;
-    const outerRadius = chart.getDatasetMeta(0).data[0]?.outerRadius || 0;
+    const meta = chart.getDatasetMeta(0);
+    const outerRadius = meta?.data?.[0]?.outerRadius || 0;
     if (outerRadius === 0) return;
 
     ctx.save();
@@ -44,9 +46,12 @@ const monPieShadow = {
 const monCenterText = {
   id: 'monCenterText',
   afterDraw(chart) {
+    if (!chart || !chart.config?.options?.plugins?.monCenterText) return;
     const { ctx, width, height } = chart;
-    const total = chart.config.options.plugins.monCenterText.total;
-    const teto = chart.config.options.plugins.monCenterText.teto;
+    const opts = chart.config.options.plugins.monCenterText;
+    if (typeof opts.total !== 'number' || !opts.teto) return;
+    const total = opts.total;
+    const teto = opts.teto;
     const pct = ((total / teto) * 100).toFixed(0);
     
     ctx.save();
