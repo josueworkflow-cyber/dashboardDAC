@@ -1405,22 +1405,29 @@
 
       <!-- PRIMEIRA LINHA: 3 BLOCOS -->
       <div class="g3" style="align-items: start;">
-        <!-- BLOCO 1: ENTRADAS COM NOTA FISCAL -->
+        <!-- BLOCO 1: ENTRADAS -->
         <div class="card fa" style="overflow: hidden; min-width: 0; display: flex; flex-direction: column;">
           <div class="ch" style="padding:10px 16px 8px; gap:6px;">
             <div class="ct" style="display:flex;align-items:center;gap:6px;">
-            ENTRADAS COM NF
+              ENTRADAS
               <div class="ind-card" style="display:inline-block;">
                 <span class="ind-info">i</span>
-                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Tabela de todas as entradas com nota fiscal, organizadas por semana do mês. Respeita o filtro DAC/Pulse.</div>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Tabela e resumo gráfico das entradas, organizadas por semana do mês. Suporta filtros por Empresa, Mês e Tipo de Emissão.</div>
               </div>
             </div>
-            <div style="display:flex; gap:4px; align-items:center;">
-              <div class="monitor-filter" style="gap:3px;">
-                <button class="filter-btn mon-filter-btn active" style="padding:4px 10px; font-size:10px;" onclick="setMonitorFilter('DAC', this)">DAC</button>
-                <button class="filter-btn mon-filter-btn" style="padding:4px 10px; font-size:10px;" onclick="setMonitorFilter('Pulse', this)">PULSE</button>
-              </div>
-              <select class="fs" id="monMesFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;">
+            <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+              <select class="fs" id="monEmpresaFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Empresa">
+                <option value="DAC" selected>DAC</option>
+                <option value="PULSE">PULSE</option>
+                <option value="ambos">Ambos</option>
+              </select>
+              <select class="fs" id="monTipoFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Tipo de Emissão">
+                <option value="nf">Com NF</option>
+                <option value="pd">Por PD</option>
+                <option value="ambos" selected>Ambos</option>
+              </select>
+              <select class="fs" id="monMesFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Mês">
+                <option value="">Todos</option>
                 <option value="0">Jan</option>
                 <option value="1">Fev</option>
                 <option value="2">Mar</option>

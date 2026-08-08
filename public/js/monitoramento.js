@@ -86,7 +86,7 @@ function initMonitoramento() {
   
   const monthSelect = document.getElementById('monMesFilterNF');
   if (monthSelect && (monthSelect.value === "" || monthSelect.getAttribute('data-init') !== 'true')) {
-    monthSelect.value = currentMonth;
+    monthSelect.value = ""; // Padrão: Todos os meses
     monthSelect.setAttribute('data-init', 'true');
   }
 
@@ -132,6 +132,10 @@ function renderMonitoramento() {
 
 function setMonitorFilter(tipo, btn) {
   monitorFilter = String(tipo).toUpperCase();
+  const empSelect = document.getElementById('monEmpresaFilterNF');
+  if (empSelect) {
+    empSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : 'DAC';
+  }
   document.querySelectorAll('.mon-filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderMonitoramento();
@@ -197,11 +201,29 @@ function isNotaFiscal(entry) {
   );
 }
 
-function getFilteredEntradas() {
+function isPorPD(entry) {
+  if (!entry) return false;
+  const modo = String(entry.modo_emissao || entry.nota_fiscal || '').trim().toUpperCase();
+  if (!modo) return true;
+  if (isNotaFiscal(entry)) return false;
+  return true;
+}
+
+function getFilteredEntradasBlock1() {
   if (typeof ENT === 'undefined' || ENT.length === 0) return [];
+
+  const empFiltro = document.getElementById('monEmpresaFilterNF')?.value || monitorFilter || 'DAC';
+  const tipoFiltro = document.getElementById('monTipoFilterNF')?.value || 'ambos';
+
   return ENT.filter(e => {
-    if (monitorFilter === 'DAC') return isDACEntry(e);
-    if (monitorFilter === 'PULSE') return isPulseEntry(e);
+    // 1. Filtro por Empresa (DAC / PULSE / Ambos)
+    if (empFiltro === 'DAC' && !isDACEntry(e)) return false;
+    if (empFiltro === 'PULSE' && !isPulseEntry(e)) return false;
+
+    // 2. Filtro por Tipo de Emissão (Com NF / Por PD / Ambos)
+    if (tipoFiltro === 'nf' && !isNotaFiscal(e)) return false;
+    if (tipoFiltro === 'pd' && !isPorPD(e)) return false;
+
     return true;
   });
 }
@@ -337,13 +359,13 @@ function renderTabelaSemanalNF() {
 
   const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
 
-  let entradas = getFilteredEntradasNF();
+  let entradas = getFilteredEntradasBlock1();
 
   if (mesFiltro !== '') {
-    const targetMonth = parseInt(mesFiltro);
+    const targetMonth = parseInt(mesFiltro, 10);
     const anoAtual = new Date().getFullYear();
     entradas = entradas.filter(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento);
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
       return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
     });
   }
@@ -351,7 +373,7 @@ function renderTabelaSemanalNF() {
   const weeks = groupByWeek(entradas);
 
   if (weeks.length === 0) {
-    container.innerHTML = '<div class="mon-empty">Nenhuma entrada com nota fiscal encontrada</div>';
+    container.innerHTML = '<div class="mon-empty">Nenhuma entrada encontrada para os filtros selecionados</div>';
     return;
   }
 
@@ -433,13 +455,13 @@ function renderEntradasNFChart() {
   if (!canvas) return;
 
   const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
-  let entradas = getFilteredEntradasNF();
+  let entradas = getFilteredEntradasBlock1();
   const anoAtual = new Date().getFullYear();
 
   if (mesFiltro !== '') {
-    const targetMonth = parseInt(mesFiltro);
+    const targetMonth = parseInt(mesFiltro, 10);
     entradas = entradas.filter(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento);
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
       return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
     });
   }
@@ -507,17 +529,17 @@ function renderEntradasPieChart() {
 
   const ctx = canvas.getContext('2d');
   const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
-  const monitorFilterLocal = monitorFilter; // DAC ou Pulse
-  const tetoAnual = monitorFilterLocal === 'DAC' ? TETO_DAC : TETO_PULSE;
+  const empFiltro = document.getElementById('monEmpresaFilterNF')?.value || monitorFilter || 'DAC';
+  const tetoAnual = empFiltro === 'PULSE' ? TETO_PULSE : TETO_DAC;
   const tetoMensal = tetoAnual / 12;
 
-  let entradas = getFilteredEntradasNF();
+  let entradas = getFilteredEntradasBlock1();
   const now = new Date();
   const anoAtual = now.getFullYear();
-  const targetMonth = mesFiltro !== '' ? parseInt(mesFiltro) : now.getMonth();
+  const targetMonth = mesFiltro !== '' ? parseInt(mesFiltro, 10) : now.getMonth();
 
   entradas = entradas.filter(e => {
-    const d = parseDate(e.data_pagamento || e.data_vencimento);
+    const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
     return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
   });
 
