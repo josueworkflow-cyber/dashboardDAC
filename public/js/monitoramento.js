@@ -163,15 +163,37 @@ function isPulseEntry(entry) {
 
 function isNotaFiscal(entry) {
   if (!entry) return false;
-  const modo = String(entry.modo_emissao || '').trim().toUpperCase();
-  
-  // Se estiver em branco, "SEM NF" ou "PEDIDO", NÃO é nota fiscal
-  if (!modo || modo.includes('PEDIDO') || modo.includes('POR PD') || modo.includes('SEM NF')) {
+  const modo = String(entry.modo_emissao || entry.nota_fiscal || '').trim().toUpperCase();
+
+  if (!modo) return false;
+
+  // Se for qualquer variação de Pedido, PD, Sem NF, Orçamento ou Sem Nota
+  const isPedidoOrSemNf = (
+    modo === 'PD' ||
+    modo.includes('PEDIDO') ||
+    modo.includes('PD') ||
+    modo.includes('SEM NF') ||
+    modo.includes('S/ NF') ||
+    modo.includes('S/NF') ||
+    modo.includes('SEM NOTA') ||
+    modo.includes('ORÇAMENTO') ||
+    modo.includes('ORCAMENTO')
+  );
+
+  if (isPedidoOrSemNf) {
     return false;
   }
-  
-  // Se possuir identificação de Nota Fiscal ("NOTA FISCAL", "NF", "EMITIDA" ou preenchimento de NF)
-  return modo.includes('NOTA FISCAL') || modo.includes('NF') || modo.includes('EMITIDA') || modo.length > 0;
+
+  // É Nota Fiscal apenas se contiver indicativo válido de NF/Emissão
+  return (
+    modo.includes('NOTA FISCAL') ||
+    modo.includes('NF') ||
+    modo.includes('EMITIDA') ||
+    modo.includes('NFE') ||
+    modo.includes('NFSE') ||
+    modo.includes('EMISSAO') ||
+    modo.includes('EMISSÃO')
+  );
 }
 
 function getFilteredEntradas() {
