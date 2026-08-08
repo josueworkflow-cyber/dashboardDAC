@@ -159,3 +159,86 @@ function renderStatusBadge(r) {
 
   return `<span class="stag sn">${status || 'Pendente'}</span>`;
 }
+
+/**
+ * Retorna o rótulo da parcela no formato "X/Y"
+ * X = quantidade de parcelas já pagas
+ * Y = total de parcelas
+ */
+function getParcelaLabel(r) {
+  if (!r) return null;
+
+  // 1. Se r tem _groupItems (linha consolidada pelo relatório financeiro),
+  // calcula diretamente a partir dos itens do grupo.
+  if (r._groupItems && Array.isArray(r._groupItems) && r._groupItems.length > 0) {
+    const totalItems = r._groupItems.length;
+    const paidItems = r._groupItems.filter(item => String(item.status || '').trim().toLowerCase() === 'pago').length;
+    return `${paidItems}/${totalItems}`;
+  }
+
+  // 2. Se r tem _parcelLabel e ele já está formatado como X/Y, usa-o
+  if (r._parcelLabel && /^\d+\/\d+$/.test(String(r._parcelLabel).trim())) {
+    return String(r._parcelLabel).trim();
+  }
+
+  const ref = String(r.parcela_ref || '').trim();
+  const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/i);
+  const grupoId = r._parcelGroupId || (groupMatch ? groupMatch[1] : null);
+
+  let totalCount = parseInt(r.num_parcelas, 10) || 0;
+  if (!totalCount && ref) {
+    const slashMatch = ref.split(' ')[0].match(/\/(\d+)/);
+    if (slashMatch) totalCount = parseInt(slashMatch[1], 10);
+  }
+
+  // Se não pertence a um grupo e o total de parcelas <= 1, não é parcelado
+  if (!grupoId && totalCount <= 1) {
+    return null;
+  }
+
+  if (!totalCount) totalCount = 1;
+
+  // Busca todos os lançamentos do mesmo grupo no estado global (ENT e SAI) para contar os pagos
+  let paidCount = 0;
+  if (grupoId && typeof ENT !== 'undefined' && typeof SAI !== 'undefined') {
+    const allRows = [...(ENT || []), ...(SAI || [])];
+    const groupRows = allRows.filter(item => {
+      const g = item._parcelGroupId || (item.parcela_ref && item.parcela_ref.match(/\[(PRC-[^\]]+)\]/i)?.[1]);
+      return g === grupoId;
+    });
+
+    if (groupRows.length > 0) {
+      paidCount = groupRows.filter(item => String(item.status || '').trim().toLowerCase() === 'pago').length;
+      if (groupRows.length > totalCount) totalCount = groupRows.length;
+    } else {
+      paidCount = String(r.status || '').trim().toLowerCase() === 'pago' ? 1 : 0;
+    }
+  } else {
+    paidCount = String(r.status || '').trim().toLowerCase() === 'pago' ? 1 : 0;
+  }
+
+  return `${paidCount}/${totalCount}`;
+}
+
+/**
+ * Helper global para renderizar a badge de parcela com ícone 📋 e X/Y
+ */
+function renderParcelaBadge(r) {
+  const label = getParcelaLabel(r);
+  if (!label) {
+    return '<span style="color:var(--muted);font-size:11px;">—</span>';
+  }
+
+  const ref = String(r.parcela_ref || '').trim();
+  const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/i);
+  const grupoId = r._parcelGroupId || (groupMatch ? groupMatch[1] : null);
+  const tipo = r._tipo || (r.movimentacao && normalizeString(r.movimentacao).includes('ENTRADA') ? 'entrada' : 'saida');
+
+  return `
+    <button onclick="${grupoId ? `abrirModalGrupo('${grupoId}', '${tipo}', event)` : ''}" 
+            class="filter-btn" style="font-size:11px; padding:4px 9px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;" 
+            title="Ver parcelas e vencimentos">
+      <span>📋</span> ${label}
+    </button>
+  `;
+}

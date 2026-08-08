@@ -144,7 +144,7 @@ test('consolidação preserva parcelas pagas do período e identifica o agrupame
   assert.equal(rows[0].status, 'Parcial');
   assert.match(rows[0].parcela_ref, /\[PRC-HIST\]/);
   assert.equal(rows[0]._parcelGroupId, 'PRC-HIST');
-  assert.equal(rows[0]._parcelLabel, '3 parcelas');
+  assert.equal(rows[0]._parcelLabel, '1/3');
   assert.equal(rows[0]._consolidatedCount, 3);
   assert.equal(rows[0]._consolidatedOpenCount, 2);
   assert.equal(report.getRemainingValue(rows[0]), 200);

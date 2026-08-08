@@ -100,24 +100,21 @@ function calcValorRestante() {
 // ─── Helper: gera badge de parcela para tabelas ───
 
 function renderParcelaBadge(r) {
-  const numParcelas = parseInt(r.num_parcelas, 10) || 0;
-  const ref = r.parcela_ref || ''; // Ex: "1/3 [PRC-001]"
-  const status = r.status || '';
-  const tipo = r._tipo || (r.movimentacao && normalizeString(r.movimentacao).includes('ENTRADA') ? 'entrada' : 'saida');
-
-  const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/);
-  const grupoId = r._parcelGroupId || (groupMatch ? groupMatch[1] : null);
-  const parcelaNum = r._parcelLabel || (ref ? ref.split(' ')[0] : (status === 'Pago' ? '1/1' : '0/1'));
-
-  if (!grupoId && numParcelas <= 1) {
+  const label = typeof getParcelaLabel === 'function' ? getParcelaLabel(r) : null;
+  if (!label) {
     return '<span style="color:var(--muted);font-size:11px;">—</span>';
   }
+
+  const ref = String(r.parcela_ref || '').trim();
+  const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/i);
+  const grupoId = r._parcelGroupId || (groupMatch ? groupMatch[1] : null);
+  const tipo = r._tipo || (r.movimentacao && normalizeString(r.movimentacao).includes('ENTRADA') ? 'entrada' : 'saida');
 
   return `
     <button onclick="${grupoId ? `abrirModalGrupo('${grupoId}', '${tipo}', event)` : ''}" 
             class="filter-btn" style="font-size:11px; padding:4px 9px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;" 
             title="Ver parcelas e vencimentos">
-      <span>📋</span> ${parcelaNum}
+      <span>📋</span> ${label}
     </button>
   `;
 }

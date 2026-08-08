@@ -268,6 +268,9 @@
         ? 'Pago'
         : totalPaid > 0.005 ? 'Parcial' : 'Pendente';
 
+      const paidItemsCount = items.filter(item => normalizedStatus(item) === 'pago').length;
+      const totalItemsCount = items.length;
+
       result.push({
         ...baseItem,
         valor: totalValue,
@@ -275,9 +278,10 @@
         status: consolidatedStatus,
         data_vencimento: pendingDates.length ? pendingDates[0].display : (baseItem.data_vencimento || ''),
         _parcelGroupId: groupId,
-        _parcelLabel: items.length > 1 ? `${items.length} parcelas` : cleanParcelReference(baseItem.parcela_ref),
+        _parcelLabel: `${paidItemsCount}/${totalItemsCount}`,
         _consolidatedCount: items.length,
-        _consolidatedOpenCount: openItems.length
+        _consolidatedOpenCount: openItems.length,
+        _groupItems: items
       });
     });
 
@@ -303,7 +307,7 @@
       case 'forma_pagamento': return normalizeText(row.forma_pagamento);
       case 'modo_emissao': return normalizeText(row.modo_emissao || row.nota_fiscal);
       case 'empresa': return normalizeText(row.empresa);
-      case 'parcelas': return normalizeText(row._parcelLabel || cleanParcelReference(row.parcela_ref));
+      case 'parcelas': return normalizeText((typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref));
       default: return '';
     }
   }
@@ -477,7 +481,7 @@
         { key: 'restante', header: 'A RECEBER', width: 24, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
         { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
         { key: 'vencimento', header: 'VENCIMENTO', width: 20, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
         { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 30, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
         { key: 'observacoes', header: 'OBSERVAÇÕES', width: 32, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
@@ -494,7 +498,7 @@
         { key: 'restante', header: 'A PAGAR', width: 24, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
         { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
         { key: 'vencimento', header: 'VENCIMENTO', width: 20, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
         { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 30, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
         { key: 'observacoes', header: 'OBSERVAÇÕES', width: 32, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
@@ -516,7 +520,7 @@
       { key: 'vencimento', header: 'VENCIMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
       { key: 'conta', header: 'CONTA BANCÁRIA', width: 22, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
       { key: 'valor_pago', header: 'VALOR PAGO', width: 20, align: 'right', value: row => formatCurrency(row.valor_pago) },
-      { key: 'parcelas', header: 'PARCELAS', width: 14, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+      { key: 'parcelas', header: 'PARCELAS', width: 14, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
       { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 24, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
       { key: 'pagamento', header: 'PAGAMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_pagamento) },
       { key: 'observacoes', header: 'OBSERVAÇÕES', width: 26, align: 'left', value: row => cleanPdfText(row.observacoes) }
