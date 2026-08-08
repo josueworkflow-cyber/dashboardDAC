@@ -87,29 +87,29 @@ const MESES_CURTOS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
 function initMonitoramento() {
   if (typeof ENT === 'undefined' || typeof SAI === 'undefined') return;
 
-  const currentMonth = new Date().getMonth();
+  const currentMonth = String(new Date().getMonth());
   
   const monthSelect = document.getElementById('monMesFilterNF');
   if (monthSelect && (monthSelect.value === "" || monthSelect.getAttribute('data-init') !== 'true')) {
-    monthSelect.value = ""; // Padrão: Todos os meses
+    monthSelect.value = currentMonth;
     monthSelect.setAttribute('data-init', 'true');
   }
 
   const transportMonthSelect = document.getElementById('monMesFilterTransporte');
   if (transportMonthSelect && (transportMonthSelect.value === "" || transportMonthSelect.getAttribute('data-init') !== 'true')) {
-    transportMonthSelect.value = ""; // Padrão: Todos os meses
+    transportMonthSelect.value = currentMonth;
     transportMonthSelect.setAttribute('data-init', 'true');
   }
 
   const despVarMonthSelect = document.getElementById('monMesFilterDespVar');
   if (despVarMonthSelect && (despVarMonthSelect.value === "" || despVarMonthSelect.getAttribute('data-init') !== 'true')) {
-    despVarMonthSelect.value = ""; // Padrão: Todos
+    despVarMonthSelect.value = currentMonth;
     despVarMonthSelect.setAttribute('data-init', 'true');
   }
 
   const desempenhoMonthSelect = document.getElementById('monMesFilterDesempenho');
   if (desempenhoMonthSelect && (desempenhoMonthSelect.value === "" || desempenhoMonthSelect.getAttribute('data-init') !== 'true')) {
-    desempenhoMonthSelect.value = ""; // Padrão: Anual
+    desempenhoMonthSelect.value = currentMonth;
     desempenhoMonthSelect.setAttribute('data-init', 'true');
   }
 
