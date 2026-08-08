@@ -177,42 +177,44 @@ function isPulseEntry(entry) {
 
 function isNotaFiscal(entry) {
   if (!entry) return false;
-  const modo = String(entry.modo_emissao || entry.nota_fiscal || '').trim().toUpperCase();
+  const modo = String(entry.modo_emissao || '').trim().toUpperCase();
+  const nf = String(entry.nota_fiscal || '').trim().toUpperCase();
+  const combined = (modo + ' ' + nf).trim();
 
-  if (!modo) return false;
+  if (!combined) return false;
 
-  // Se for qualquer variação de Pedido, PD, Sem NF, Orçamento ou Sem Nota
-  const isPedidoOrSemNf = (
-    modo === 'PD' ||
-    modo.includes('PEDIDO') ||
-    modo.includes('PD') ||
-    modo.includes('SEM NF') ||
-    modo.includes('S/ NF') ||
-    modo.includes('S/NF') ||
-    modo.includes('SEM NOTA') ||
-    modo.includes('ORÇAMENTO') ||
-    modo.includes('ORCAMENTO')
-  );
-
-  if (isPedidoOrSemNf) {
+  // Se for explicitamente Sem NF, S/NF ou Orçamento sem NF
+  if (combined.includes('SEM NF') || combined.includes('S/ NF') || combined.includes('S/NF') || combined.includes('SEM NOTA') || combined.includes('ORÇAMENTO') || combined.includes('ORCAMENTO')) {
     return false;
   }
 
-  // É Nota Fiscal apenas se contiver indicativo válido de NF/Emissão
-  return (
-    modo.includes('NOTA FISCAL') ||
-    modo.includes('NF') ||
-    modo.includes('EMITIDA') ||
-    modo.includes('NFE') ||
-    modo.includes('NFSE') ||
-    modo.includes('EMISSAO') ||
-    modo.includes('EMISSÃO')
+  // É Nota Fiscal se contiver palavras-chave de NF/Emissão
+  const hasNfKeyword = (
+    combined.includes('NOTA FISCAL') ||
+    combined.includes('NFE') ||
+    combined.includes('NFSE') ||
+    combined.includes('DANFE') ||
+    combined.includes('EMITIDA') ||
+    combined.includes('EMISSÃO') ||
+    combined.includes('EMISSAO') ||
+    /\bNF\b/.test(combined)
   );
+
+  if (hasNfKeyword) return true;
+
+  // Se o campo nota_fiscal contém o número da nota fiscal e não é PD puro
+  if (/^\d+$/.test(nf) && !modo.includes('PEDIDO') && modo !== 'PD') {
+    return true;
+  }
+
+  return false;
 }
 
 function isPorPD(entry) {
   if (!entry) return false;
-  return !isNotaFiscal(entry);
+  // Por PD jamais exibe lançamentos com Nota Fiscal
+  if (isNotaFiscal(entry)) return false;
+  return true;
 }
 
 function getFilteredEntradasBlock1() {
