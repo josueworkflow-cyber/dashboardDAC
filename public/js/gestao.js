@@ -338,9 +338,9 @@ function updateGestaoCategorias() {
   const sel = document.getElementById('gf-cat');
   sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
 
-  // Mostra campo Nota Fiscal apenas para Entradas
+  // Mostra campo Nota Fiscal / Pedido para Entradas e Saídas
   const nfWrap = document.getElementById('gf-nf-wrap');
-  if (nfWrap) nfWrap.style.display = mov === 'Entrada' ? '' : 'none';
+  if (nfWrap) nfWrap.style.display = '';
 }
 
 // ─── Popula filtro de categorias da tabela ───
