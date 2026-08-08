@@ -141,6 +141,10 @@ function setMonitorFilter(tipo, btn) {
   if (empSelect) {
     empSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : 'DAC';
   }
+  const empAnualSelect = document.getElementById('monEmpresaFilterAnual');
+  if (empAnualSelect) {
+    empAnualSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : 'DAC';
+  }
   document.querySelectorAll('.mon-filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderMonitoramento();
@@ -628,23 +632,41 @@ function renderAcompanhamentoAnual() {
   const container = document.getElementById('monAnual');
   if (!container) return;
 
-  const teto = monitorFilter === 'DAC' ? TETO_DAC : TETO_PULSE;
-  const entradas = getFilteredEntradasNF();
+  const empFiltro = document.getElementById('monEmpresaFilterAnual')?.value || monitorFilter || 'DAC';
+
+  let teto = TETO_DAC;
+  let tetoLabel = 'Teto DAC';
+  if (empFiltro === 'PULSE') {
+    teto = TETO_PULSE;
+    tetoLabel = 'Teto PULSE';
+  } else if (empFiltro === 'ambos') {
+    teto = TETO_DAC + TETO_PULSE;
+    tetoLabel = 'Teto Ambos (DAC + PULSE)';
+  }
+
   const now = new Date();
   const anoAtual = now.getFullYear();
+
+  const filterEntry = e => {
+    if (empFiltro === 'DAC') return isDACEntry(e);
+    if (empFiltro === 'PULSE') return isPulseEntry(e);
+    return true; // 'ambos' inclui DAC e PULSE
+  };
+
+  const entradas = (typeof ENT !== 'undefined' ? ENT : []).filter(e => filterEntry(e) && isNotaFiscal(e));
 
   const mesesData = {};
   for (let m = 0; m < 12; m++) mesesData[m] = 0;
 
   entradas.forEach(e => {
-    const d = parseDate(e.data_pagamento || e.data_vencimento);
+    const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
     if (!d || d.getFullYear() !== anoAtual) return;
     mesesData[d.getMonth()] += getEffectiveValue(e);
   });
 
   let totalAnual = 0;
   for (let m = 0; m < 12; m++) totalAnual += mesesData[m];
-  let pctAnual = Math.min((totalAnual / teto) * 100, 100);
+  let pctAnual = teto > 0 ? Math.min((totalAnual / teto) * 100, 100) : 0;
 
   let html = `
     <div class="annual-summary">
@@ -653,7 +675,7 @@ function renderAcompanhamentoAnual() {
         <div class="annual-summary-value">${fmt(totalAnual)}</div>
       </div>
       <div class="annual-summary-right">
-        <div class="annual-summary-label">Teto ${monitorFilter}</div>
+        <div class="annual-summary-label">${tetoLabel}</div>
         <div class="annual-summary-value" style="color:var(--muted);">${fmt(teto)}</div>
       </div>
     </div>

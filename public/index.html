@@ -1555,9 +1555,14 @@
               ACOMPANHAMENTO ANUAL
               <div class="ind-card" style="display:inline-block;">
                 <span class="ind-info">i</span>
-                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Acompanhamento mensal do faturamento com barra de progresso em relação ao teto anual (DAC: R$ 2.500.000 / Pulse: R$ 750.000).</div>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Acompanhamento mensal do faturamento com barra de progresso em relação ao teto anual. Suporta filtro por Empresa (DAC: R$ 2.500.000 / Pulse: R$ 750.000 / Ambos: R$ 3.250.000).</div>
               </div>
             </div>
+            <select class="fs" id="monEmpresaFilterAnual" onchange="renderAcompanhamentoAnual()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Empresa">
+              <option value="DAC" selected>DAC</option>
+              <option value="PULSE">PULSE</option>
+              <option value="ambos">Ambos</option>
+            </select>
           </div>
           <div style="padding: 0 24px 24px; flex: 1; overflow-y: auto; min-height: 0;" id="monAnual">Carregando...</div>
         </div>
