@@ -212,10 +212,7 @@ function isNotaFiscal(entry) {
 
 function isPorPD(entry) {
   if (!entry) return false;
-  const modo = String(entry.modo_emissao || entry.nota_fiscal || '').trim().toUpperCase();
-  if (!modo) return true;
-  if (isNotaFiscal(entry)) return false;
-  return true;
+  return !isNotaFiscal(entry);
 }
 
 function getFilteredEntradasBlock1() {
