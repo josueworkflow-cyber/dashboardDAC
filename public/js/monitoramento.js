@@ -527,6 +527,21 @@ function renderEntradasPieChart() {
   const canvas = document.getElementById('monEntradasPieChart');
   if (!canvas) return;
 
+  const pieWrap = document.getElementById('monEntradasPieWrap') || canvas.parentElement;
+  const tipoFiltro = document.getElementById('monTipoFilterNF')?.value || 'ambos';
+
+  // O gráfico doughnut de teto só deve ser exibido quando o filtro de emissão for 'Com NF' ('nf')
+  if (tipoFiltro !== 'nf') {
+    if (pieWrap) pieWrap.style.display = 'none';
+    if (monEntradasPieChart) {
+      monEntradasPieChart.destroy();
+      monEntradasPieChart = null;
+    }
+    return;
+  }
+
+  if (pieWrap) pieWrap.style.display = 'block';
+
   const ctx = canvas.getContext('2d');
   const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
   const empFiltro = document.getElementById('monEmpresaFilterNF')?.value || monitorFilter || 'DAC';
