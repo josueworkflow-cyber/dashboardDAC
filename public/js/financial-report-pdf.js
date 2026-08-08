@@ -508,7 +508,7 @@
       { key: 'pagamento', header: 'PAGAMENTO', width: 19, align: 'center', value: row => cleanPdfText(row.data_pagamento) },
       { key: 'forma', header: 'FORMA PGTO', width: 22, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
       { key: 'status', header: 'STATUS', width: 20, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
-      { key: 'emissao', header: 'EMISSÃO', width: 15, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+      { key: 'emissao', header: 'NF / PEDIDO', width: 15, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
       { key: 'parcelas', header: 'PARCELAS', width: 15, align: 'center', value: row => row._parcelLabel || cleanParcelReference(row.parcela_ref) },
       { key: 'valor_pago', header: 'VALOR PAGO', width: 21, align: 'right', value: row => formatCurrency(row.valor_pago) }
     ];
