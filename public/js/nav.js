@@ -175,16 +175,18 @@ function toggleTvMode() {
   const btn = document.getElementById('tvModeBtn');
   const isTv = body.classList.toggle('tv-mode');
   
-  if (isTv) {
-    btn.classList.add('active');
-    btn.style.borderColor = 'var(--red)';
-    btn.style.color = '#fff';
-    btn.style.background = 'var(--red)';
-  } else {
-    btn.classList.remove('active');
-    btn.style.borderColor = 'var(--border)';
-    btn.style.color = 'var(--muted)';
-    btn.style.background = 'rgba(255,255,255,0.03)';
+  if (btn) {
+    if (isTv) {
+      btn.classList.add('active');
+      btn.style.borderColor = 'var(--red)';
+      btn.style.color = '#fff';
+      btn.style.background = 'var(--red)';
+    } else {
+      btn.classList.remove('active');
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--muted)';
+      btn.style.background = 'rgba(255,255,255,0.03)';
+    }
   }
   
   localStorage.setItem('dac_tv_mode', isTv ? 'on' : 'off');
