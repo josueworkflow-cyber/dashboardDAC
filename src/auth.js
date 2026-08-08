@@ -26,6 +26,11 @@ const USERS = [
     user: process.env.COMERCIAL_USER || 'comercial',
     pass: process.env.COMERCIAL_PASS || 'dac2026',
     role: 'comercial'
+  },
+  {
+    user: process.env.CAMILA_USER || 'camila_user',
+    pass: process.env.CAMILA_PASS || 'camila_pass',
+    role: 'camila'
   }
 ];
 

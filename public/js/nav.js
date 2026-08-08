@@ -162,6 +162,30 @@ function applyRoleRestrictions() {
       goPage('comercial', target);
     }
 
+  } else if (role === 'camila') {
+    // Perfil Camila: Monitoramento + Financeiro + Comercial
+    navLinks.forEach(link => {
+      const text = link.textContent.trim();
+      const pageAttr = link.getAttribute('onclick') || '';
+      if (pageAttr.includes("'monitoramento'") || pageAttr.includes("'main'") ||
+          text.includes('Movimentações Financeiras') || text.includes('Gestão de Dados') ||
+          text.includes('Funil') || text.includes('Histórico de Pedidos')) {
+        link.style.display = 'flex';
+      }
+    });
+    groups.forEach(g => {
+      const text = g.textContent.trim();
+      if (text === 'Monitoramento' || text === 'Financeiro' || text === 'Comercial') {
+        g.style.display = 'block';
+      }
+    });
+
+    const activeLink = document.querySelector('.nl.on');
+    if (!activeLink || activeLink.style.display === 'none') {
+      const target = [...navLinks].find(l => l.getAttribute('onclick')?.includes("'monitoramento'"));
+      goPage('monitoramento', target);
+    }
+
   } else {
     // Gestor: Tudo
     navLinks.forEach(link => link.style.display = 'flex');
