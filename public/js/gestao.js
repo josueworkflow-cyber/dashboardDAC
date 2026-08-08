@@ -485,22 +485,89 @@ function renderGestaoTable() {
 function renderGestaoBadges(rows) {
   if (!rows) return;
 
-  const validRows = rows.filter(r => {
-    const st = (r.status || '').trim().toLowerCase();
-    return st !== 'cancelado';
-  });
+  const label1 = document.getElementById('gb-ent-label');
+  const label2 = document.getElementById('gb-sai-label');
+  const label3 = document.getElementById('gb-total-label');
+  const val1 = document.getElementById('gb-ent');
+  const val2 = document.getElementById('gb-sai');
+  const val3 = document.getElementById('gb-total');
 
-  const entRows = validRows.filter(r => 
-    r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada')
-  );
-  const saiRows = validRows.filter(r => !entRows.includes(r));
+  if (gestaoTab === 'pendentes') {
+    if (label1) label1.textContent = 'Contas a Receber';
+    if (label2) label2.textContent = 'Contas a Pagar';
+    if (label3) label3.textContent = 'Vencidos';
 
-  const totalEnt = entRows.reduce((sum, r) => sum + getEffectiveValue(r), 0);
-  const totalSai = saiRows.reduce((sum, r) => sum + getEffectiveValue(r), 0);
+    // Pega todas as entradas/saídas pendentes/parciais da base completa para KPIs precisos
+    const allRows = [...(typeof ENT !== 'undefined' ? ENT : []), ...(typeof SAI !== 'undefined' ? SAI : [])];
+    const pendentes = allRows.filter(r => {
+      const st = (r.status || '').trim().toLowerCase();
+      return st === 'pendente' || st === 'parcial' || (st !== 'pago' && st !== 'cancelado');
+    });
 
-  document.getElementById('gb-total').textContent = fmt(totalEnt - totalSai);
-  document.getElementById('gb-ent').textContent = fmt(totalEnt);
-  document.getElementById('gb-sai').textContent = fmt(totalSai);
+    const entPend = pendentes.filter(r => 
+      r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada')
+    );
+    const saiPend = pendentes.filter(r => !entPend.includes(r));
+
+    const totalReceber = entPend.reduce((sum, r) => sum + Math.max(0, parseVal(r.valor) - parseVal(r.valor_pago)), 0);
+    const totalPagar = saiPend.reduce((sum, r) => sum + Math.max(0, parseVal(r.valor) - parseVal(r.valor_pago)), 0);
+
+    // Vencidos (vencimento estritamente anterior a hoje)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const totalVencidos = pendentes.filter(r => {
+      if (!r.data_vencimento) return false;
+      const venc = parseDate(r.data_vencimento);
+      if (!venc) return false;
+      venc.setHours(0, 0, 0, 0);
+      return venc < today;
+    }).reduce((sum, r) => sum + Math.max(0, parseVal(r.valor) - parseVal(r.valor_pago)), 0);
+
+    if (val1) {
+      val1.textContent = fmt(totalReceber);
+      val1.className = 'gbadge-val tg';
+    }
+    if (val2) {
+      val2.textContent = fmt(totalPagar);
+      val2.className = 'gbadge-val tr';
+    }
+    if (val3) {
+      val3.textContent = fmt(totalVencidos);
+      val3.className = 'gbadge-val ' + (totalVencidos > 0 ? 'tr' : 'tg');
+    }
+  } else {
+    if (label1) label1.textContent = 'Total Entradas';
+    if (label2) label2.textContent = 'Total Saídas';
+    if (label3) label3.textContent = 'Saldo Total';
+
+    const validRows = rows.filter(r => {
+      const st = (r.status || '').trim().toLowerCase();
+      return st !== 'cancelado';
+    });
+
+    const entRows = validRows.filter(r => 
+      r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada')
+    );
+    const saiRows = validRows.filter(r => !entRows.includes(r));
+
+    const totalEnt = entRows.reduce((sum, r) => sum + getEffectiveValue(r), 0);
+    const totalSai = saiRows.reduce((sum, r) => sum + getEffectiveValue(r), 0);
+    const saldo = totalEnt - totalSai;
+
+    if (val1) {
+      val1.textContent = fmt(totalEnt);
+      val1.className = 'gbadge-val tg';
+    }
+    if (val2) {
+      val2.textContent = fmt(totalSai);
+      val2.className = 'gbadge-val tr';
+    }
+    if (val3) {
+      val3.textContent = fmt(saldo);
+      val3.className = 'gbadge-val ' + (saldo >= 0 ? 'tg' : 'tr');
+    }
+  }
 }
 
 // ─── Trocar aba ───
@@ -541,11 +608,13 @@ function resetGestaoForm() {
   document.getElementById('gf-val').value = '';
   document.getElementById('gf-conta').value = '';
   document.getElementById('gf-forma').value = '';
+  if (document.getElementById('gf-demissao')) document.getElementById('gf-demissao').value = toIso(new Date());
   document.getElementById('gf-dvenc').value = toIso(new Date());
   document.getElementById('gf-dpag').value = toIso(new Date());
   document.getElementById('gf-status').value = 'Pago';
+  if (document.getElementById('gf-empresa')) document.getElementById('gf-empresa').value = 'DAC';
+  document.getElementById('gf-nf').value = '';
   document.getElementById('gf-obs').value = '';
-  document.getElementById('gf-nf').selectedIndex = 0;
   document.getElementById('gf-parcelas').value = '';
   document.getElementById('gf-parcelas-list').innerHTML = '';
   toggleParcelaFields();
@@ -731,6 +800,8 @@ async function submitGestao() {
   const status = document.getElementById('gf-status').value;
   const dpag = document.getElementById('gf-dpag').value;
 
+  const demissao = document.getElementById('gf-demissao')?.value;
+
   if (!mov || !cat || !val) {
     showGestaoToast('Preencha os campos obrigatórios: Movimentação, Categoria e Valor.', 'err');
     return;
@@ -777,7 +848,9 @@ async function submitGestao() {
       fornecedor: document.getElementById('gf-forn').value,
       conta_bancaria: document.getElementById('gf-conta').value,
       forma_pagamento: document.getElementById('gf-forma').value,
-      modo_emissao: mov === 'Entrada' ? (document.getElementById('gf-nf').value || '') : '',
+      empresa: document.getElementById('gf-empresa')?.value || 'DAC',
+      modo_emissao: document.getElementById('gf-nf').value || '',
+      data_emissao: demissao ? isoToBr(demissao) : '',
       parcelas: parcelasData
     };
     endpoint = `${API}/lancamento/parcelado`;
@@ -831,7 +904,9 @@ async function submitGestao() {
       fornecedor: document.getElementById('gf-forn').value,
       conta_bancaria: document.getElementById('gf-conta').value,
       forma_pagamento: document.getElementById('gf-forma').value,
-      modo_emissao: mov === 'Entrada' ? (document.getElementById('gf-nf').value || '') : '',
+      empresa: document.getElementById('gf-empresa')?.value || 'DAC',
+      modo_emissao: document.getElementById('gf-nf').value || '',
+      data_emissao: demissao ? isoToBr(demissao) : '',
       parcelas: parcelasData
     };
     endpoint = `${API}/lancamento/parcelado`;
@@ -853,7 +928,9 @@ async function submitGestao() {
       status: status,
       num_parcelas: 1,
       valor_pago: valorPagoFinal,
-      modo_emissao: mov === 'Entrada' ? (document.getElementById('gf-nf').value || '') : ''
+      empresa: document.getElementById('gf-empresa')?.value || 'DAC',
+      modo_emissao: document.getElementById('gf-nf').value || '',
+      data_emissao: demissao ? isoToBr(demissao) : ''
     };
   }
 
@@ -942,13 +1019,19 @@ function editLancamento(id) {
   const formaStr = r.forma_pagamento && r.forma_pagamento !== '—' ? r.forma_pagamento : '';
   setSelectByText('gf-forma', formaStr);
   
+  if (document.getElementById('gf-demissao')) document.getElementById('gf-demissao').value = parseBrToIso(r.data_emissao) || '';
   document.getElementById('gf-dvenc').value = parseBrToIso(r.data_vencimento) || '';
   document.getElementById('gf-dpag').value = parseBrToIso(r.data_pagamento) || '';
   setSelectByText('gf-status', r.status || 'Pendente');
   document.getElementById('gf-obs').value = r.observacoes || '';
   
-  if (isEntrada && r.modo_emissao) {
-    setSelectByText('gf-nf', r.modo_emissao);
+  if (r.modo_emissao) {
+    const nfEl = document.getElementById('gf-nf');
+    if (nfEl) nfEl.value = r.modo_emissao;
+  }
+  if (r.empresa) {
+    const empEl = document.getElementById('gf-empresa');
+    if (empEl) empEl.value = r.empresa;
   }
 
   // Parcelas

@@ -46,8 +46,8 @@ O sistema é um dashboard gerencial projetado para centralizar o controle de Ent
 ### 4.1. Mapeamento de Dados (Schema)
 O sistema trabalha com três abas principais, cada uma com um mapeamento rígido de colunas:
 
-- **Entradas**: `categoria`, `observacoes`, `valor`, `cliente`, `conta_bancaria`, `data_vencimento`, `data_pagamento`, `forma_pagamento`, `status`, `movimentacao`, `modo_emissao`, `num_parcelas`, `valor_pago`, `parcela_ref`.
-- **Saídas**: Mesma estrutura de Entradas, usando `fornecedor` em vez de `cliente`.
+- **Entradas**: `categoria`, `modo_emissao`, `valor`, `cliente`, `conta_bancaria`, `data_vencimento`, `data_pagamento`, `forma_pagamento`, `status`, `movimentacao`, `empresa`, `num_parcelas`, `valor_pago`, `parcela_ref`, `observacoes`, `data_emissao`.
+- **Saídas**: Estrutura idêntica à de Entradas (16 colunas A a P), usando `fornecedor` no lugar de `cliente`.
 - **Estoque**: `fornecedor`, `valor`, `data`, `pagamento`, `movimentacao`, `nota_fiscal`, `parcelas`, `empresa`, `forma_pagamento`, `modo_emissao`.
 
 ### 4.2. Mecanismo de Cache

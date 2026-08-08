@@ -7,7 +7,7 @@ function registerLancamentoRoutes(app) {
     try {
       const {
         movimentacao, categoria, observacoes, fornecedor, valor,
-        conta_bancaria, data_vencimento, data_pagamento, forma_pagamento, status,
+        conta_bancaria, data_vencimento, data_pagamento, data_emissao, forma_pagamento, status,
         num_parcelas, valor_pago, modo_emissao, nota_fiscal,
         isEstoque, data: dataEstoque, pagamento, parcelas, empresa
       } = req.body;
@@ -52,18 +52,21 @@ function registerLancamentoRoutes(app) {
         data = {
           movimentacao: movimentacao || 'Entrada',
           categoria: categoria || '',
-          observacoes: observacoes || '',
+          modo_emissao: modo_emissao || '',
           valor: parseFloat(valor) || 0,
-          fornecedor: fornecedor || '',
-          cliente: fornecedor || '',  // Na planilha, Entradas usa "Cliente" no lugar de "Fornecedor"
+          fornecedor: fornecedor || req.body.cliente || '',
+          cliente: fornecedor || req.body.cliente || '',
           conta_bancaria: conta_bancaria || '',
           data_vencimento: data_vencimento || '',
           data_pagamento: data_pagamento || '',
           forma_pagamento: forma_pagamento || '',
           status: status || 'Pendente',
+          empresa: empresa || '',
           num_parcelas: parseInt(num_parcelas, 10) || 0,
           valor_pago: parseFloat(valor_pago) || 0,
-          modo_emissao: modo_emissao || ''
+          parcela_ref: req.body.parcela_ref || '',
+          observacoes: observacoes || req.body.observacao || '',
+          data_emissao: data_emissao || ''
         };
       }
 
@@ -128,7 +131,7 @@ function registerLancamentoRoutes(app) {
       
       const allowedFields = [
         'movimentacao', 'categoria', 'observacoes', 'valor', 'fornecedor', 'cliente',
-        'conta_bancaria', 'data_vencimento', 'data_pagamento',
+        'conta_bancaria', 'data_vencimento', 'data_pagamento', 'data_emissao',
         'forma_pagamento', 'status', 'num_parcelas', 'valor_pago',
         'data', 'pagamento', 'parcelas', 'empresa', 'modo_emissao', 'parcela_ref', 'nota_fiscal',
         'observacao', 'ref_orcamento', 'vendedor'
@@ -196,7 +199,7 @@ function registerLancamentoRoutes(app) {
       const {
         movimentacao, categoria, observacoes, fornecedor,
         conta_bancaria, forma_pagamento,
-        modo_emissao,
+        modo_emissao, empresa, data_emissao,
         parcelas // Array: [{valor, data_vencimento, status, parcela_ref}]
       } = req.body;
 
@@ -208,19 +211,21 @@ function registerLancamentoRoutes(app) {
       const dataList = parcelas.map(p => ({
         movimentacao,
         categoria,
-        observacoes,
+        modo_emissao: modo_emissao || '',
+        observacoes: observacoes || '',
         fornecedor,
         cliente: fornecedor,
         conta_bancaria,
         forma_pagamento,
         status: p.status || 'Pendente',
-        modo_emissao,
+        empresa: empresa || '',
         num_parcelas: parcelas.length,
         valor: parseFloat(p.valor) || 0,
         data_vencimento: p.data_vencimento,
         data_pagamento: p.data_pagamento || '',
         valor_pago: parseFloat(p.valor_pago) || 0,
-        parcela_ref: p.parcela_ref
+        parcela_ref: p.parcela_ref,
+        data_emissao: data_emissao || ''
       }));
 
       const result = await sheets.appendMultipleRows(movimentacao, dataList);

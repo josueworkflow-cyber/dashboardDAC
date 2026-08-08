@@ -24,15 +24,15 @@ const DATA_START_ROW = 3;
 // ─── Mapeamento de colunas ───
 
 const COLS_ENTRADAS = [
-  'categoria', 'observacoes', 'valor', 'cliente', 'conta_bancaria', 
+  'categoria', 'modo_emissao', 'valor', 'cliente', 'conta_bancaria', 
   'data_vencimento', 'data_pagamento', 'forma_pagamento', 'status', 
-  'movimentacao', 'modo_emissao', 'num_parcelas', 'valor_pago', 'parcela_ref'
+  'movimentacao', 'empresa', 'num_parcelas', 'valor_pago', 'parcela_ref', 'observacoes', 'data_emissao'
 ];
 
 const COLS_SAIDAS = [
-  'categoria', 'observacoes', 'valor', 'fornecedor', 'conta_bancaria', 
+  'categoria', 'modo_emissao', 'valor', 'fornecedor', 'conta_bancaria', 
   'data_vencimento', 'data_pagamento', 'forma_pagamento', 'status', 
-  'movimentacao', 'modo_emissao', 'num_parcelas', 'valor_pago', 'parcela_ref'
+  'movimentacao', 'empresa', 'num_parcelas', 'valor_pago', 'parcela_ref', 'observacoes', 'data_emissao'
 ];
 const COLS_ESTOQUE = [
   'fornecedor', 'valor', 'data', 'pagamento', 'movimentacao',
@@ -152,7 +152,7 @@ async function readSheet(sheetName, columns) {
         }
 
         // Tratar datas: se vier como número serial do Sheets, converter para DD/MM/AAAA
-        if ((col === 'data_vencimento' || col === 'data_pagamento' || col === 'data') && typeof row[i] === 'number') {
+        if ((col === 'data_vencimento' || col === 'data_pagamento' || col === 'data' || col === 'data_emissao') && typeof row[i] === 'number') {
           val = serialDateToString(row[i]);
         }
 

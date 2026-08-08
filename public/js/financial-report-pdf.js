@@ -301,6 +301,7 @@
       case 'conta_bancaria': return normalizeText(row.conta_bancaria);
       case 'forma_pagamento': return normalizeText(row.forma_pagamento);
       case 'modo_emissao': return normalizeText(row.modo_emissao || row.nota_fiscal);
+      case 'empresa': return normalizeText(row.empresa);
       case 'parcelas': return normalizeText(row._parcelLabel || cleanParcelReference(row.parcela_ref));
       default: return '';
     }

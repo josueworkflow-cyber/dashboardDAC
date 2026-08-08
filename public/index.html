@@ -551,6 +551,10 @@
                 <option>Dinheiro</option>
               </select>
             </div>
+            <div class="gfield" id="gf-demissao-wrap">
+              <label>Data Emissão</label>
+              <input type="date" id="gf-demissao">
+            </div>
             <div class="gfield" id="gf-dvenc-wrap">
               <label>Data Vencimento *</label>
               <input type="date" id="gf-dvenc">
@@ -627,17 +631,20 @@
                 </div>
               </div>
             </div>
-            <div class="gfield">
-              <label>Observações</label>
-              <input type="text" id="gf-obs" placeholder="Opcional">
+            <div class="gfield" id="gf-empresa-wrap">
+              <label>Empresa</label>
+              <select id="gf-empresa">
+                <option value="DAC">DAC</option>
+                <option value="PULSE">PULSE</option>
+              </select>
             </div>
             <div class="gfield" id="gf-nf-wrap">
-              <label>Modo de Emissão</label>
-              <select id="gf-nf">
-                <option value="Emitida pela DAC">Emitida pela DAC</option>
-                <option value="Emitida pela PULSE">Emitida pela PULSE</option>
-                <option value="Por PD">Por PD</option>
-              </select>
+              <label>Modo de Emissão (NF / Pedido)</label>
+              <input type="text" id="gf-nf" placeholder="Ex: Nota Fiscal #1234, Por Pedido #567, Sem NF">
+            </div>
+            <div class="gfield">
+              <label>Observações</label>
+              <input type="text" id="gf-obs" placeholder="Observações adicionais">
             </div>
           </div>
           <div class="gestao-form-actions">
@@ -651,15 +658,15 @@
       <!-- BADGES DE RESUMO -->
       <div class="gestao-badges" id="gestaoBadges">
         <div class="gbadge">
-          <span class="gbadge-label">Total Entradas</span>
+          <span class="gbadge-label" id="gb-ent-label">Total Entradas</span>
           <span class="gbadge-val tg" id="gb-ent">—</span>
         </div>
         <div class="gbadge">
-          <span class="gbadge-label">Total Saídas</span>
+          <span class="gbadge-label" id="gb-sai-label">Total Saídas</span>
           <span class="gbadge-val tr" id="gb-sai">—</span>
         </div>
         <div class="gbadge">
-          <span class="gbadge-label">Saldo Total</span>
+          <span class="gbadge-label" id="gb-total-label">Saldo Total</span>
           <span class="gbadge-val" id="gb-total">—</span>
         </div>
       </div>

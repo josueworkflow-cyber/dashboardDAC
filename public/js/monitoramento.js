@@ -137,26 +137,42 @@ function setMonitorFilter(tipo, btn) {
   renderMonitoramento();
 }
 
-// ─── Classificação por modo_emissao ───
-// "Emitida pela DAC" → DAC
-// "Emitida pela Pulse" → Pulse
-// "Sem NF" / vazio → Sem NF
+// ─── Classificação por Empresa (DAC / PULSE) e Modo de Emissão ───
 
-function classifyNF(nfValue) {
-  const nf = String(nfValue || '').trim().toUpperCase();
-  if (nf.includes('DAC')) return 'DAC';
-  if (nf.includes('PULSE')) return 'PULSE';
-  return 'SEM_NF';
+function classifyEmpresa(entry) {
+  if (!entry) return 'OUTROS';
+  const emp = String(entry.empresa || '').trim().toUpperCase();
+  if (emp.includes('DAC')) return 'DAC';
+  if (emp.includes('PULSE')) return 'PULSE';
+
+  // Fallback para campos legados
+  const modo = String(entry.modo_emissao || entry.nota_fiscal || '').trim().toUpperCase();
+  if (modo.includes('DAC')) return 'DAC';
+  if (modo.includes('PULSE')) return 'PULSE';
+
+  return 'OUTROS';
 }
 
 function isDACEntry(entry) {
-  return classifyNF(entry.modo_emissao) === 'DAC';
+  return classifyEmpresa(entry) === 'DAC';
 }
 
 function isPulseEntry(entry) {
-  return classifyNF(entry.modo_emissao) === 'PULSE';
+  return classifyEmpresa(entry) === 'PULSE';
 }
 
+function isNotaFiscal(entry) {
+  if (!entry) return false;
+  const modo = String(entry.modo_emissao || '').trim().toUpperCase();
+  
+  // Se estiver em branco, "SEM NF" ou "PEDIDO", NÃO é nota fiscal
+  if (!modo || modo.includes('PEDIDO') || modo.includes('POR PD') || modo.includes('SEM NF')) {
+    return false;
+  }
+  
+  // Se possuir identificação de Nota Fiscal ("NOTA FISCAL", "NF", "EMITIDA" ou preenchimento de NF)
+  return modo.includes('NOTA FISCAL') || modo.includes('NF') || modo.includes('EMITIDA') || modo.length > 0;
+}
 
 function getFilteredEntradas() {
   if (typeof ENT === 'undefined' || ENT.length === 0) return [];
@@ -167,10 +183,17 @@ function getFilteredEntradas() {
   });
 }
 
+function getFilteredEntradasNF() {
+  return getFilteredEntradas().filter(isNotaFiscal);
+}
+
 function getFilteredSaidas() {
   if (typeof SAI === 'undefined' || SAI.length === 0) return [];
-  // Saídas não possuem nota_fiscal, retorna todas
-  return SAI;
+  return SAI.filter(s => {
+    if (monitorFilter === 'DAC') return isDACEntry(s);
+    if (monitorFilter === 'PULSE') return isPulseEntry(s);
+    return true;
+  });
 }
 
 // ─── Helpers de semanas ───
@@ -291,7 +314,7 @@ function renderTabelaSemanalNF() {
 
   const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
 
-  let entradas = getFilteredEntradas();
+  let entradas = getFilteredEntradasNF();
 
   if (mesFiltro !== '') {
     const targetMonth = parseInt(mesFiltro);
@@ -387,7 +410,7 @@ function renderEntradasNFChart() {
   if (!canvas) return;
 
   const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
-  let entradas = getFilteredEntradas();
+  let entradas = getFilteredEntradasNF();
   const anoAtual = new Date().getFullYear();
 
   if (mesFiltro !== '') {
@@ -465,7 +488,7 @@ function renderEntradasPieChart() {
   const tetoAnual = monitorFilterLocal === 'DAC' ? TETO_DAC : TETO_PULSE;
   const tetoMensal = tetoAnual / 12;
 
-  let entradas = getFilteredEntradas();
+  let entradas = getFilteredEntradasNF();
   const now = new Date();
   const anoAtual = now.getFullYear();
   const targetMonth = mesFiltro !== '' ? parseInt(mesFiltro) : now.getMonth();
@@ -532,7 +555,7 @@ function renderAcompanhamentoAnual() {
   if (!container) return;
 
   const teto = monitorFilter === 'DAC' ? TETO_DAC : TETO_PULSE;
-  const entradas = getFilteredEntradas();
+  const entradas = getFilteredEntradasNF();
   const now = new Date();
   const anoAtual = now.getFullYear();
 
@@ -623,7 +646,7 @@ function renderDesempenhoVendas() {
     SAI.forEach(s => {
       const d = parseDate(s.data_pagamento || s.data_vencimento);
       if (!d || d.getFullYear() !== anoAtual) return;
-      saiData[d.getMonth()] += getEffectiveValue(s);
+      if (filterEntry(s)) saiData[d.getMonth()] += getEffectiveValue(s);
     });
   } else {
     // Visão Mensal (por semanas)
@@ -648,7 +671,7 @@ function renderDesempenhoVendas() {
       
       const week = getWeekOfMonth(d);
       if (week >= 1 && week <= 5) {
-        saiData[week - 1] += getEffectiveValue(s);
+        if (filterEntry(s)) saiData[week - 1] += getEffectiveValue(s);
       }
     });
   }
