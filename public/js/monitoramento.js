@@ -233,6 +233,15 @@ function getFilteredEntradasBlock1() {
   });
 }
 
+function getFilteredEntradas() {
+  if (typeof ENT === 'undefined' || ENT.length === 0) return [];
+  return ENT.filter(e => {
+    if (monitorFilter === 'DAC') return isDACEntry(e);
+    if (monitorFilter === 'PULSE') return isPulseEntry(e);
+    return true;
+  });
+}
+
 function getFilteredEntradasNF() {
   return getFilteredEntradas().filter(isNotaFiscal);
 }
