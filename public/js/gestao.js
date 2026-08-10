@@ -394,17 +394,66 @@ function handleGestaoDataChange() {
 // ─── Renderiza tabela principal ───
 
 function renderGestaoTable() {
-  const search = (document.getElementById('gestaoSearch').value || '').toLowerCase();
+  const searchInput = (document.getElementById('gestaoSearch').value || '').trim();
   const catFiltro = document.getElementById('gestaoCatFiltro').value;
   const mesFiltro = document.getElementById('gestaoMesFiltro').value;
   const dateFiltro = document.getElementById('gestaoDataFiltro').value;
   let rows = getGestaoRows();
 
-  if (search) rows = rows.filter(r =>
-    (r.categoria || '').toLowerCase().includes(search) ||
-    (r.observacoes || '').toLowerCase().includes(search) ||
-    (r.cliente || r.fornecedor || '').toLowerCase().includes(search)
-  );
+  if (searchInput) {
+    const searchTerms = searchInput.split(/\s+/).map(t => normalizeString(t)).filter(Boolean);
+    rows = rows.filter(r => {
+      const isEnt = r._tipo === 'entrada' || (r.movimentacao || '').toLowerCase().includes('entrada');
+      const movStr = isEnt ? 'Entrada' : 'Saída';
+      const fornecedorStr = r.cliente || r.fornecedor || '';
+      const fmtVal = typeof fmt === 'function' ? fmt(r.valor) : String(r.valor || '');
+      const fmtValPago = typeof fmt === 'function' ? fmt(r.valor_pago || 0) : String(r.valor_pago || '');
+      const statusText = r.status || 'Pendente';
+
+      const searchables = [
+        r.id,
+        r.empresa,
+        r._tipo,
+        r.movimentacao,
+        movStr,
+        r.categoria,
+        r.modo_emissao,
+        r.ref_orcamento,
+        r.nf,
+        r.nota_fiscal,
+        r.cliente,
+        r.fornecedor,
+        fornecedorStr,
+        r.conta_bancaria,
+        r.conta,
+        r.forma_pagamento,
+        r.forma,
+        r.status,
+        statusText,
+        r.data_vencimento,
+        r.data_pagamento,
+        r.data_emissao,
+        r.observacoes,
+        r.obs,
+        r.parcela_str,
+        r.parcela,
+        r.num_parcela,
+        r.valor != null ? String(r.valor) : '',
+        fmtVal,
+        r.valor_pago != null ? String(r.valor_pago) : '',
+        fmtValPago,
+      ];
+
+      for (const key in r) {
+        if (r[key] != null && typeof r[key] !== 'object' && typeof r[key] !== 'function') {
+          searchables.push(String(r[key]));
+        }
+      }
+
+      const combinedText = normalizeString(searchables.join(' '));
+      return searchTerms.every(term => combinedText.includes(term));
+    });
+  }
   if (catFiltro) rows = rows.filter(r => normalizeString(r.categoria) === catFiltro);
 
   // Salva filtros atuais
