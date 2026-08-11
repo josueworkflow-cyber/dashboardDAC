@@ -135,9 +135,10 @@ async function abrirModalGrupo(grupoId, tipo, e) {
       
       body.innerHTML = p.map(row => {
         const val = parseFloat(row.valor) || 0;
-        const pago = parseFloat(row.valor_pago) || 0;
         totalGeral += val;
-        if (row.status === 'Pago') totalPago += val;
+        totalPago += typeof getEffectiveValue === 'function'
+          ? getEffectiveValue(row)
+          : (parseFloat(row.valor_pago) || 0);
 
         const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(row) : `<span class="stag sn">${row.status}</span>`;
         const btnPagar = row.status !== 'Pago'
@@ -156,7 +157,7 @@ async function abrirModalGrupo(grupoId, tipo, e) {
         `;
       }).join('');
 
-      const pct = Math.round((totalPago / totalGeral) * 100) || 0;
+      const pct = Math.min(100, Math.max(0, Math.round((totalPago / totalGeral) * 100) || 0));
       progressWrap.innerHTML = `
         <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:4px; color:var(--muted);">
           <span>Progresso: ${pct}%</span>
@@ -285,9 +286,14 @@ function populateGestaoCatFiltro() {
 function getGestaoRows() {
   const entradas = ENT.map(e => ({ ...e, movimentacao: e.movimentacao || 'Entrada', _tipo: 'entrada' }));
   const saidas = SAI.map(s => ({ ...s, movimentacao: s.movimentacao || 'Saída', _tipo: 'saida' }));
-  let rows = [...entradas, ...saidas];
-  if (gestaoTab === 'entradas') rows = entradas;
-  else if (gestaoTab === 'saidas') rows = saidas;
+  const consolidar = sourceRows => typeof DacFinancialReport !== 'undefined'
+    ? DacFinancialReport.consolidateRows(sourceRows)
+    : sourceRows;
+  const entradasConsolidadas = consolidar(entradas);
+  const saidasConsolidadas = consolidar(saidas);
+  let rows = [...entradasConsolidadas, ...saidasConsolidadas];
+  if (gestaoTab === 'entradas') rows = entradasConsolidadas;
+  else if (gestaoTab === 'saidas') rows = saidasConsolidadas;
   else if (gestaoTab === 'pendentes') rows = rows.filter(r => {
     const status = String(r.status || '').trim().toLowerCase();
     return status && status !== 'pago' && status !== 'cancelado';

@@ -143,6 +143,7 @@ function getFilteredMfRows(filters, now) {
     saidas: Array.isArray(SAI) ? SAI : [],
     filters: filters || getMfFilterState(),
     kpiFilter: currentMfKpiFilter,
+    consolidateAll: true,
     sortColumn: currentMfSortCol,
     sortDirection: currentMfSortDir,
     now: now || new Date()
@@ -256,8 +257,7 @@ function renderMovimentacoesFinanceiras() {
 
       if (variant === 'receber') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
-        const valPago = DacFinancialReport.parseMoney(r.valor_pago);
-        const aReceber = Math.max(0, valTotal - valPago);
+        const aReceber = DacFinancialReport.getRemainingValue(r);
         return `<tr>
           <td>${movTag}</td>
           <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
@@ -274,8 +274,7 @@ function renderMovimentacoesFinanceiras() {
         </tr>`;
       } else if (variant === 'pagar') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
-        const valPago = DacFinancialReport.parseMoney(r.valor_pago);
-        const aPagar = Math.max(0, valTotal - valPago);
+        const aPagar = DacFinancialReport.getRemainingValue(r);
         return `<tr>
           <td>${movTag}</td>
           <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>

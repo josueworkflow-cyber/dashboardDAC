@@ -317,6 +317,10 @@
         .map(item => ({ iso: dateToIso(item.data_vencimento), display: item.data_vencimento }))
         .filter(item => item.iso)
         .sort((a, b) => a.iso.localeCompare(b.iso));
+      const paymentDates = activeItems
+        .map(item => ({ iso: dateToIso(item.data_pagamento), display: item.data_pagamento }))
+        .filter(item => item.iso)
+        .sort((a, b) => b.iso.localeCompare(a.iso));
 
       // Pagamentos acima do valor original não viram crédito implícito para as
       // parcelas futuras. O saldo do grupo é a soma apenas dos itens em aberto.
@@ -336,6 +340,8 @@
         valor_pago: totalPaid,
         status: consolidatedStatus,
         data_vencimento: pendingDates.length ? pendingDates[0].display : (baseItem.data_vencimento || ''),
+        data_pagamento: paymentDates.length ? paymentDates[0].display : '',
+        num_parcelas: items.length,
         _parcelGroupId: groupId,
         _parcelLabel: `${paidItemsCount}/${totalItemsCount}`,
         _consolidatedCount: items.length,
@@ -474,9 +480,13 @@
         ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean)
         : filterByStatus(rows);
     } else if (kpiFilter === 'entradas') {
-      rows = filterByStatus(rows.filter(row => row._tipo === 'entrada'));
+      const entryRows = rows.filter(row => row._tipo === 'entrada');
+      rows = filterByStatus(settings.consolidateAll ? consolidateRows(entryRows) : entryRows);
     } else if (kpiFilter === 'saidas') {
-      rows = filterByStatus(rows.filter(row => row._tipo === 'saída'));
+      const exitRows = rows.filter(row => row._tipo === 'saída');
+      rows = filterByStatus(settings.consolidateAll ? consolidateRows(exitRows) : exitRows);
+    } else if (settings.consolidateAll) {
+      rows = filterByStatus(consolidateRows(rows));
     } else {
       rows = filterByStatus(rows);
     }

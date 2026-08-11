@@ -180,6 +180,43 @@ test('consolidação preserva parcelas pagas do período e identifica o agrupame
   assert.equal(report.getRemainingValue(rows[0]), 200);
 });
 
+test('visões de tela exibem somente o lançamento principal de grupos parcelados', () => {
+  const parcelas = Array.from({ length: 5 }, (_, index) => entry({
+    cliente: 'Cliente Parcelado',
+    valor: '100,00',
+    valor_pago: index === 0 ? '100,00' : '0',
+    status: index === 0 ? 'Pago' : 'Pendente',
+    data_pagamento: index === 0 ? '02/08/2026' : '',
+    data_vencimento: `${String(5 + index).padStart(2, '0')}/08/2026`,
+    parcela_ref: `${index + 1}/5 [PRC-TELA]`
+  }));
+  const commonOptions = {
+    entradas: [...parcelas, entry({ cliente: 'Cliente Avulso', valor: '50,00' })],
+    saidas: [],
+    filters: {},
+    consolidateAll: true,
+    now: FIXED_NOW
+  };
+  const rows = report.filterRows(commonOptions);
+  const group = rows.find(row => row._parcelGroupId === 'PRC-TELA');
+
+  assert.equal(rows.length, 2);
+  assert.equal(group.valor, 500);
+  assert.equal(group.valor_pago, 100);
+  assert.equal(group.status, 'Parcial');
+  assert.equal(group.num_parcelas, 5);
+  assert.equal(group._parcelLabel, '1/5');
+  assert.equal(group.data_pagamento, '02/08/2026');
+  assert.equal(report.getRemainingValue(group), 400);
+
+  const partialRows = report.filterRows({
+    ...commonOptions,
+    filters: { status: 'parcial' }
+  });
+  assert.equal(partialRows.length, 1);
+  assert.equal(partialRows[0]._parcelGroupId, 'PRC-TELA');
+});
+
 test('contas a receber separam parcelas vencidas das parcelas futuras do mesmo grupo', () => {
   const parcelas = [
     entry({ valor: '100,00', valor_pago: '100,00', status: 'Pago', data_vencimento: '01/08/2026', parcela_ref: '1/3 [PRC-PRAZO]' }),

@@ -125,17 +125,16 @@ function applyRoleRestrictions() {
     }
 
   } else if (role === 'estoque') {
-    // Perfil Estoque: Funil + Movimentação de Estoque + Gestão de Estoque
+    // Perfil Estoque: apenas Funil enquanto as telas de estoque estão ocultas.
     navLinks.forEach(link => {
       const text = link.textContent.trim();
-      if (text.includes('Movimentação de Estoque') || text.includes('Gestão de Estoque') ||
-          text.includes('Funil')) {
+      if (text.includes('Funil')) {
         link.style.display = 'flex';
       }
     });
-    // Mostrar apenas grupo Estoque
+    // O Funil pertence ao grupo Comercial.
     groups.forEach(g => {
-      if (g.textContent.trim() === 'Estoque') g.style.display = 'block';
+      if (g.textContent.trim() === 'Comercial') g.style.display = 'block';
     });
 
     const activeLink = document.querySelector('.nl.on');
