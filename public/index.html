@@ -1582,7 +1582,7 @@
   <div id="modalPagarParcela" class="modal-overlay" style="display:none; z-index:10050;">
     <div class="modal-card">
       <div class="modal-header">
-        <div class="modal-title">Pagar Parcela</div>
+        <div class="modal-title" id="mpp-title">Pagar Parcela</div>
         <button class="modal-close" onclick="fecharModalPagar()">×</button>
       </div>
       <div class="modal-body">
@@ -1603,9 +1603,9 @@
             <label>Data Pagamento</label>
             <input type="date" id="mpp-data-pag">
           </div>
-          <div class="gfield" style="display:flex; align-items:center; padding-top:20px;">
+          <div class="gfield" id="mpp-recalcular-wrap" style="display:flex; align-items:center; padding-top:20px;">
             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:11px; color:var(--accent2);">
-              <input type="checkbox" id="mpp-recalcular" checked> Recalcular restantes
+              <input type="checkbox" id="mpp-recalcular"> Redistribuir diferença nas pendentes
             </label>
           </div>
         </div>

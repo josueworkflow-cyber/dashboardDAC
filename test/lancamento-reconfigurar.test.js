@@ -39,8 +39,10 @@ registerLancamentoRoutes(app);
 
 const reconfigure = routes.get('PUT /api/lancamento/reconfigurar/:tipo/:id');
 const createInstallments = routes.get('POST /api/lancamento/parcelado');
+const payInstallment = routes.get('PUT /api/lancamento/pagar-parcela/:tipo/:id');
 assert.equal(typeof reconfigure, 'function', 'a rota de reconfiguração deve estar registrada');
 assert.equal(typeof createInstallments, 'function', 'a rota de criação parcelada deve estar registrada');
+assert.equal(typeof payInstallment, 'function', 'a rota de pagamento rápido deve estar registrada');
 
 test.after(() => {
   db.getSheetsModule = previousGetSheetsModule;
@@ -156,6 +158,24 @@ function useCreateSheets({ entradas = [], saidas = [] } = {}) {
     }
   };
   return calls;
+}
+
+function usePaymentSheets({ entradas = [], saidas = [] } = {}) {
+  const state = structuredClone({ entradas, saidas });
+  const calls = [];
+  activeSheets = {
+    getCacheData() {
+      return structuredClone(state);
+    },
+    async updateRow(sheetName, id, updates) {
+      calls.push({ sheetName, id, updates: structuredClone(updates) });
+      const rows = sheetName === 'Entradas' ? state.entradas : state.saidas;
+      const row = rows.find(item => String(item.id) === String(id));
+      if (row) Object.assign(row, updates);
+      return true;
+    }
+  };
+  return { calls, state };
 }
 
 async function invokeRoute(handler, body, params = {}) {
@@ -562,4 +582,70 @@ test('criação parcelada mantém compatibilidade sem modalidade e valor_total',
     `1/2 [${response.payload.grupo_id}]`,
     `2/2 [${response.payload.grupo_id}]`
   ]);
+});
+
+test('pagamento rápido preserva valor acima da parcela sem alterar as futuras por padrão', async () => {
+  const { calls, state } = usePaymentSheets({
+    entradas: [
+      paidEntry({ id: 1, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '1/3 [PRC-PAGAR]' }),
+      paidEntry({ id: 2, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '2/3 [PRC-PAGAR]' }),
+      paidEntry({ id: 3, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '3/3 [PRC-PAGAR]' })
+    ]
+  });
+
+  const response = await invokeRoute(payInstallment, {
+    valor_pago: 10000,
+    data_pagamento: '11/08/2026',
+    recalcular: false
+  }, { tipo: 'entrada', id: '1' });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.payload.valor_pago, 10000);
+  assert.equal(response.payload.pagamento_ajustado, false);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].updates, {
+    status: 'Pago',
+    valor_pago: 10000,
+    data_pagamento: '11/08/2026'
+  });
+  assert.equal(state.entradas[1].valor, 100);
+  assert.equal(state.entradas[2].valor, 100);
+});
+
+test('edição rápida de parcela paga corrige valor e data sem redistribuir o grupo', async () => {
+  const { calls, state } = usePaymentSheets({
+    entradas: [
+      paidEntry({ id: 1, valor: 100, valor_pago: 10000, status: 'Pago', parcela_ref: '1/3 [PRC-AJUSTE]' }),
+      paidEntry({ id: 2, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '2/3 [PRC-AJUSTE]' }),
+      paidEntry({ id: 3, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '3/3 [PRC-AJUSTE]' })
+    ]
+  });
+
+  const response = await invokeRoute(payInstallment, {
+    valor_pago: '100,00',
+    data_pagamento: '12/08/2026',
+    recalcular: true
+  }, { tipo: 'entrada', id: '1' });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.payload.pagamento_ajustado, true);
+  assert.equal(response.payload.valor_pago, 100);
+  assert.equal(calls.length, 1);
+  assert.equal(state.entradas[0].valor_pago, 100);
+  assert.equal(state.entradas[0].data_pagamento, '12/08/2026');
+  assert.equal(state.entradas[1].valor, 100);
+  assert.equal(state.entradas[2].valor, 100);
+});
+
+test('pagamento rápido rejeita valor inválido antes de tocar no Sheets', async () => {
+  const { calls } = usePaymentSheets({ entradas: [paidEntry({ id: 1 })] });
+  const response = await invokeRoute(payInstallment, {
+    valor_pago: 0,
+    data_pagamento: '11/08/2026',
+    recalcular: false
+  }, { tipo: 'entrada', id: '1' });
+
+  assert.equal(response.statusCode, 400);
+  assert.match(response.payload.error, /maior que zero/i);
+  assert.equal(calls.length, 0);
 });

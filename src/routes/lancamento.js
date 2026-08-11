@@ -728,44 +728,53 @@ function registerLancamentoRoutes(app) {
   // Pagamento rápido de parcela
   app.put('/api/lancamento/pagar-parcela/:tipo/:id', auth, async (req, res) => {
     try {
-      const { tipo, id } = req.params;
+      const tipo = normalizeTipo(req.params.tipo);
+      const id = Number.parseInt(req.params.id, 10);
+      if (!Number.isInteger(id) || id <= 0) {
+        throw httpError(400, 'ID da parcela inválido.');
+      }
       const { valor_pago, data_pagamento, recalcular } = req.body;
       const sheets = getSheetsModule();
       const sheetName = tipo === 'entrada' ? 'Entradas' : 'Saídas';
+      const cache = sheets.getCacheData();
+      const rows = tipo === 'entrada' ? cache.entradas : cache.saidas;
+      const current = rows.find(row => String(row.id) === String(id));
+      if (!current) throw httpError(404, 'Parcela não encontrada.');
+
+      const paidValue = parseMoneyToCents(valor_pago, 'valor_pago') / 100;
+      const paymentDate = normalizeDate(data_pagamento, 'data_pagamento');
+      const wasPaid = normalizeComparable(current.status) === 'pago';
 
       // 1. Atualiza a parcela atual
-      await sheets.updateRow(sheetName, parseInt(id, 10), {
+      await sheets.updateRow(sheetName, id, {
         status: 'Pago',
-        valor_pago: parseFloat(valor_pago),
-        data_pagamento
+        valor_pago: paidValue,
+        data_pagamento: paymentDate
       });
 
-      // 2. Lógica de recálculo (se solicitado e houver diferença)
-      if (recalcular) {
-        const cache = sheets.getCacheData();
-        const rows = tipo === 'entrada' ? cache.entradas : cache.saidas;
-        const current = rows.find(r => String(r.id) === String(id));
-
-        if (current && current.parcela_ref && current.parcela_ref.includes('[PRC-')) {
+      // Ao corrigir uma parcela já paga, altera somente o pagamento. Isso evita
+      // reescrever novamente o cronograma por causa de um erro de digitação.
+      if (recalcular && !wasPaid) {
+        if (current.parcela_ref && current.parcela_ref.includes('[PRC-')) {
           const groupMatch = current.parcela_ref.match(/\[(PRC-[^\]]+)\]/);
           if (groupMatch) {
             const grupoId = groupMatch[1];
-            const valorOriginal = parseFloat(current.valor) || 0;
-            const pagoEfetivo = parseFloat(valor_pago) || 0;
+            const valorOriginal = Number(current.valor) || 0;
+            const pagoEfetivo = paidValue;
             const diff = pagoEfetivo - valorOriginal;
 
             if (diff !== 0) {
               const pendentes = rows.filter(r => 
                 r.parcela_ref && 
                 extractParcelGroupId(r.parcela_ref) === grupoId &&
-                r.status === 'Pendente' &&
+                normalizeComparable(r.status) === 'pendente' &&
                 String(r.id) !== String(id)
               );
 
               if (pendentes.length > 0) {
                 const ajustePorParcela = diff / pendentes.length;
                 for (const p of pendentes) {
-                  const novoValor = Math.max(0, (parseFloat(p.valor) || 0) - ajustePorParcela);
+                  const novoValor = Math.max(0, (Number(p.valor) || 0) - ajustePorParcela);
                   await sheets.updateRow(sheetName, p.id, { valor: novoValor });
                 }
               }
@@ -774,10 +783,17 @@ function registerLancamentoRoutes(app) {
         }
       }
 
-      return res.json({ success: true, message: 'Parcela paga com sucesso!' });
+      return res.json({
+        success: true,
+        message: wasPaid ? 'Pagamento da parcela ajustado com sucesso!' : 'Parcela paga com sucesso!',
+        valor_pago: paidValue,
+        data_pagamento: paymentDate,
+        pagamento_ajustado: wasPaid
+      });
     } catch (err) {
-      console.error('❌ Erro ao pagar parcela:', err.message);
-      res.status(500).json({ error: err.message });
+      const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : 500;
+      if (statusCode >= 500) console.error('❌ Erro ao pagar parcela:', err.message);
+      res.status(statusCode).json({ error: err.message });
     }
   });
 

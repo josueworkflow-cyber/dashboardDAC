@@ -37,6 +37,7 @@ function renderParcelaBadge(r) {
 
 let currentPayId = null;
 let currentPayTipo = null;
+let currentPayWasPaid = false;
 let currentActiveGrupoId = null;
 let currentActiveGrupoTipo = null;
 
@@ -48,13 +49,21 @@ function abrirModalPagar(id, tipo, e) {
 
   currentPayId = id;
   currentPayTipo = tipo;
+  currentPayWasPaid = String(r.status || '').trim().toLowerCase() === 'pago';
 
   document.getElementById('mpp-info-desc').textContent = r.categoria || 'Sem categoria';
   document.getElementById('mpp-info-ref').textContent = r.parcela_ref || 'Parcela Única';
   document.getElementById('mpp-valor-orig').value = fmt(r.valor);
-  document.getElementById('mpp-valor-pago').value = fmt(r.valor);
-  document.getElementById('mpp-data-pag').value = toIso(new Date());
-  document.getElementById('mpp-recalcular').checked = true;
+  document.getElementById('mpp-valor-pago').value = fmt(
+    currentPayWasPaid ? getEffectiveValue(r) : r.valor
+  );
+  document.getElementById('mpp-data-pag').value = currentPayWasPaid
+    ? (parseBrToIso(r.data_pagamento) || toIso(new Date()))
+    : toIso(new Date());
+  document.getElementById('mpp-recalcular').checked = false;
+  document.getElementById('mpp-recalcular-wrap').style.display = currentPayWasPaid ? 'none' : 'flex';
+  document.getElementById('mpp-title').textContent = currentPayWasPaid ? 'Editar Pagamento da Parcela' : 'Pagar Parcela';
+  document.getElementById('mpp-submit').textContent = currentPayWasPaid ? 'Salvar Ajuste' : 'Confirmar Pagamento';
 
   document.getElementById('modalPagarParcela').style.display = 'flex';
 }
@@ -70,6 +79,7 @@ async function confirmarPagamentoParcela() {
   const recalcular = document.getElementById('mpp-recalcular').checked;
 
   if (!data) return alert('Informe a data do pagamento.');
+  if (!(valor > 0)) return alert('Informe um valor pago maior que zero.');
 
   btn.disabled = true;
   btn.textContent = 'Processando...';
@@ -81,12 +91,12 @@ async function confirmarPagamentoParcela() {
       body: JSON.stringify({
         valor_pago: valor,
         data_pagamento: isoToBr(data),
-        recalcular
+        recalcular: currentPayWasPaid ? false : recalcular
       })
     });
 
     if (r.ok) {
-      showGestaoToast('✓ Pagamento registrado!', 'ok');
+      showGestaoToast(currentPayWasPaid ? '✓ Pagamento ajustado!' : '✓ Pagamento registrado!', 'ok');
       fecharModalPagar();
       await loadData();
       if (currentActiveGrupoId && currentActiveGrupoTipo) {
@@ -100,7 +110,7 @@ async function confirmarPagamentoParcela() {
     alert('Erro de conexão.');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Confirmar Pagamento';
+    btn.textContent = currentPayWasPaid ? 'Salvar Ajuste' : 'Confirmar Pagamento';
   }
 }
 
@@ -134,16 +144,19 @@ async function abrirModalGrupo(grupoId, tipo, e) {
       let totalPago = 0;
       
       body.innerHTML = p.map(row => {
-        const val = parseFloat(row.valor) || 0;
+        const val = parseVal(row.valor) || 0;
         totalGeral += val;
         totalPago += typeof getEffectiveValue === 'function'
           ? getEffectiveValue(row)
           : (parseFloat(row.valor_pago) || 0);
 
         const statusBadge = typeof renderStatusBadge === 'function' ? renderStatusBadge(row) : `<span class="stag sn">${row.status}</span>`;
-        const btnPagar = row.status !== 'Pago'
-          ? `<button onclick="abrirModalPagar('${row.id}', '${tipo}', event)" class="gbtn gbtn-submit" style="padding:3px 8px; font-size:10px; border-radius:5px; white-space:nowrap;">💰 Pagar</button>`
-          : `<span style="color:#4ADE80; font-size:11px; font-weight:600;">✓ Pago</span>`;
+        const statusNormalizado = String(row.status || '').trim().toLowerCase();
+        const btnPagar = statusNormalizado === 'pago'
+          ? `<button onclick="abrirModalPagar('${row.id}', '${tipo}', event)" class="gbtn gbtn-cancel" style="padding:3px 8px; font-size:10px; border-radius:5px; white-space:nowrap;">✏️ Editar</button>`
+          : statusNormalizado === 'cancelado'
+            ? '<span style="color:var(--muted); font-size:11px;">—</span>'
+            : `<button onclick="abrirModalPagar('${row.id}', '${tipo}', event)" class="gbtn gbtn-submit" style="padding:3px 8px; font-size:10px; border-radius:5px; white-space:nowrap;">💰 Pagar</button>`;
 
         return `
           <tr>
@@ -161,7 +174,7 @@ async function abrirModalGrupo(grupoId, tipo, e) {
       progressWrap.innerHTML = `
         <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:4px; color:var(--muted);">
           <span>Progresso: ${pct}%</span>
-          <span>${fmt(totalPago)} de ${fmt(totalGeral)}</span>
+          <span>Pago: ${fmt(totalPago)} • Lançado: ${fmt(totalGeral)}</span>
         </div>
         <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">
           <div style="width:${pct}%; height:100%; background:var(--accent); border-radius:3px; transition:width 0.5s;"></div>
