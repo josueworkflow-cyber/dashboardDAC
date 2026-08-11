@@ -327,28 +327,30 @@ function updateMfKpis(referenceDate) {
   // Os cards respeitam os filtros da página, mas ignoram somente o KPI clicado.
   // Isso mantém os totais dos cards alinhados ao conteúdo exibido e ao PDF.
   const referenceNow = referenceDate instanceof Date ? referenceDate : new Date();
-  const allRows = DacFinancialReport.filterRows({
+  const baseReportOptions = {
     entradas: Array.isArray(ENT) ? ENT : [],
     saidas: Array.isArray(SAI) ? SAI : [],
     filters: getMfFilterState(),
-    kpiFilter: null,
     sortColumn: '',
     sortDirection: 'desc',
     now: referenceNow
-  });
+  };
+  const allRows = DacFinancialReport.filterRows({ ...baseReportOptions, kpiFilter: null });
+  // Receber/Pagar passam pela mesma consolidação de parcelas usada no PDF.
+  // Assim, um lançamento parcelado conta uma vez e o saldo não diverge da tela.
+  const pendReceber = DacFinancialReport.filterRows({ ...baseReportOptions, kpiFilter: 'receber' });
+  const pendPagar = DacFinancialReport.filterRows({ ...baseReportOptions, kpiFilter: 'pagar' });
 
   const totalEnt = allRows.filter(r => r._tipo === 'entrada').reduce((acc, r) => acc + DacFinancialReport.getEffectiveValue(r), 0);
   const totalSai = allRows.filter(r => r._tipo === 'saída').reduce((acc, r) => acc + DacFinancialReport.getEffectiveValue(r), 0);
   const saldo = totalEnt - totalSai;
 
-  const pendReceber = allRows.filter(r => r._tipo === 'entrada' && !DacFinancialReport.getStatusInfo(r, referenceNow).isClosed);
   const totalReceber = pendReceber.reduce((s, r) => s + DacFinancialReport.getRemainingValue(r), 0);
   const receberSub = pendReceber.length > 0 
     ? `● ${pendReceber.length} pendente${pendReceber.length > 1 ? 's' : ''}` 
     : '✓ Nenhum pendente';
   const receberSubClass = pendReceber.length === 0 ? 'sub-g' : 'sub-y';
 
-  const pendPagar = allRows.filter(r => r._tipo === 'saída' && !DacFinancialReport.getStatusInfo(r, referenceNow).isClosed);
   const totalPagar = pendPagar.reduce((s, r) => s + DacFinancialReport.getRemainingValue(r), 0);
   
   let pagarSub = '✓ Tudo em dia';

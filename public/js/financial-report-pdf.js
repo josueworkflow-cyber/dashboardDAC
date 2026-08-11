@@ -22,6 +22,11 @@
   const REPORT_TIME_ZONE = 'America/Sao_Paulo';
   const PLACEHOLDER = '-';
   const TOTAL_PAGES_TOKEN = '{total_pages_count_string}';
+  const MAX_REPORT_PAGES = 15;
+  // Mantém a geração previsível mesmo com milhares de linhas vindas do Sheets.
+  // Com o layout atual, 360 linhas ocupam no máximo 15 páginas; há ainda uma
+  // proteção final que nunca deixa o documento ultrapassar esse teto.
+  const MAX_REPORT_ROWS = 360;
   const COLORS = {
     red: [196, 18, 48],
     darkRed: [161, 14, 39],
@@ -206,11 +211,63 @@
     const status = normalizedStatus(row);
     if (status === 'cancelado' || status === 'pendente') return 0;
     if (status === 'parcial') return parseMoney(row && row.valor_pago);
+    if (status === 'pago') {
+      const paid = parseMoney(row && row.valor_pago);
+      return paid > 0 ? paid : parseMoney(row && row.valor);
+    }
     return parseMoney(row && row.valor);
   }
 
   function getRemainingValue(row) {
+    if (row && Object.prototype.hasOwnProperty.call(row, '_remainingValue')) {
+      return Math.max(0, parseMoney(row._remainingValue));
+    }
+    const status = normalizedStatus(row);
+    if (status === 'pago' || status === 'cancelado') return 0;
     return Math.max(0, parseMoney(row && row.valor) - parseMoney(row && row.valor_pago));
+  }
+
+  function getOpenDueBreakdown(row, referenceIso) {
+    if (row && row._dueBreakdown) {
+      return {
+        overdue: Math.max(0, parseMoney(row._dueBreakdown.overdue)),
+        future: Math.max(0, parseMoney(row._dueBreakdown.future))
+      };
+    }
+
+    const items = Array.isArray(row && row._groupItems) && row._groupItems.length
+      ? row._groupItems
+      : [row];
+
+    return items.reduce((totals, item) => {
+      if (!item || !isOpenRow(item)) return totals;
+      const remaining = getRemainingValue(item);
+      const dueIso = dateToIso(item.data_vencimento);
+      if (dueIso && dueIso < referenceIso) totals.overdue += remaining;
+      else totals.future += remaining;
+      return totals;
+    }, { overdue: 0, future: 0 });
+  }
+
+  function projectOverdueSlice(row, referenceIso) {
+    const breakdown = getOpenDueBreakdown(row, referenceIso);
+    if (breakdown.overdue <= 0.005) return null;
+
+    const items = Array.isArray(row && row._groupItems) && row._groupItems.length
+      ? row._groupItems
+      : [row];
+    const earliestOverdue = items
+      .filter(item => item && isOpenRow(item))
+      .map(item => ({ item, iso: dateToIso(item.data_vencimento) }))
+      .filter(entry => entry.iso && entry.iso < referenceIso)
+      .sort((left, right) => left.iso.localeCompare(right.iso))[0];
+
+    return {
+      ...row,
+      data_vencimento: earliestOverdue ? earliestOverdue.item.data_vencimento : row.data_vencimento,
+      _remainingValue: breakdown.overdue,
+      _dueBreakdown: { overdue: breakdown.overdue, future: 0 }
+    };
   }
 
   function getParcelGroupId(row) {
@@ -261,7 +318,9 @@
         .filter(item => item.iso)
         .sort((a, b) => a.iso.localeCompare(b.iso));
 
-      const remaining = Math.max(0, totalValue - totalPaid);
+      // Pagamentos acima do valor original não viram crédito implícito para as
+      // parcelas futuras. O saldo do grupo é a soma apenas dos itens em aberto.
+      const remaining = openItems.reduce((sum, item) => sum + getRemainingValue(item), 0);
       const consolidatedStatus = activeItems.length === 0
         ? 'Cancelado'
         : remaining <= 0.005
@@ -281,6 +340,7 @@
         _parcelLabel: `${paidItemsCount}/${totalItemsCount}`,
         _consolidatedCount: items.length,
         _consolidatedOpenCount: openItems.length,
+        _remainingValue: remaining,
         _groupItems: items
       });
     });
@@ -390,7 +450,10 @@
 
     if (dateFrom || dateTo) {
       rows = rows.filter(row => {
-        const rowDate = dateToIso(row.data_pagamento || row.data_vencimento || row.data);
+        const usesDueDate = kpiFilter === 'receber' || kpiFilter === 'pagar';
+        const rowDate = dateToIso(usesDueDate
+          ? (row.data_vencimento || row.data_pagamento || row.data)
+          : (row.data_pagamento || row.data_vencimento || row.data));
         if (!rowDate) return false;
         if (dateFrom && rowDate < dateFrom) return false;
         if (dateTo && rowDate > dateTo) return false;
@@ -401,11 +464,15 @@
     if (kpiFilter === 'receber') {
       rows = consolidateRows(rows.filter(row => row._tipo === 'entrada'))
         .filter(row => isOpenRow(row));
-      rows = filterByStatus(rows);
+      rows = statusFilter === 'vencido'
+        ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean)
+        : filterByStatus(rows);
     } else if (kpiFilter === 'pagar') {
       rows = consolidateRows(rows.filter(row => row._tipo === 'saída'))
         .filter(row => isOpenRow(row));
-      rows = filterByStatus(rows);
+      rows = statusFilter === 'vencido'
+        ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean)
+        : filterByStatus(rows);
     } else if (kpiFilter === 'entradas') {
       rows = filterByStatus(rows.filter(row => row._tipo === 'entrada'));
     } else if (kpiFilter === 'saidas') {
@@ -519,7 +586,7 @@
       { key: 'status', header: 'STATUS', width: 18, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
       { key: 'vencimento', header: 'VENCIMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
       { key: 'conta', header: 'CONTA BANCÁRIA', width: 22, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
-      { key: 'valor_pago', header: 'VALOR PAGO', width: 20, align: 'right', value: row => formatCurrency(row.valor_pago) },
+      { key: 'valor_pago', header: 'VALOR PAGO', width: 20, align: 'right', value: row => formatCurrency(getEffectiveValue(row)) },
       { key: 'parcelas', header: 'PARCELAS', width: 14, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
       { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 24, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
       { key: 'pagamento', header: 'PAGAMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_pagamento) },
@@ -529,17 +596,35 @@
 
   function getSummary(rows, variant, referenceIso) {
     if (variant === 'receber' || variant === 'pagar') {
-      const total = rows.reduce((sum, row) => sum + getRemainingValue(row), 0);
-      const overdue = rows
-        .filter(row => getStatusInfo(row, referenceIso).isOverdue)
-        .reduce((sum, row) => sum + getRemainingValue(row), 0);
-      const future = Math.max(0, total - overdue);
+      const breakdown = rows.reduce((totals, row) => {
+        const item = getOpenDueBreakdown(row, referenceIso);
+        totals.overdue += item.overdue;
+        totals.future += item.future;
+        return totals;
+      }, { overdue: 0, future: 0 });
+      const overdue = breakdown.overdue;
+      const future = breakdown.future;
+      const total = overdue + future;
       const noun = variant === 'receber' ? 'A RECEBER' : 'A PAGAR';
       return [
         { label: 'QUANTIDADE', value: `${rows.length} lançamento(s)`, color: COLORS.slate },
         { label: `TOTAL ${noun}`, value: formatCurrency(total), color: variant === 'receber' ? COLORS.green : COLORS.red },
         { label: 'VALORES ATRASADOS', value: formatCurrency(overdue), color: COLORS.red },
         { label: 'VALORES NÃO VENCIDOS', value: formatCurrency(future), color: COLORS.amber }
+      ];
+    }
+
+    if (variant === 'entradas' || variant === 'saidas') {
+      const activeRows = rows.filter(row => normalizedStatus(row) !== 'cancelado');
+      const activeValue = activeRows.reduce((sum, row) => sum + parseMoney(row.valor), 0);
+      const effectiveValue = activeRows.reduce((sum, row) => sum + getEffectiveValue(row), 0);
+      const openValue = activeRows.reduce((sum, row) => sum + getRemainingValue(row), 0);
+      const isEntries = variant === 'entradas';
+      return [
+        { label: 'QUANTIDADE', value: `${rows.length} lançamento(s)`, color: COLORS.slate },
+        { label: 'VALOR ATIVO', value: formatCurrency(activeValue), color: COLORS.slate },
+        { label: isEntries ? 'ENTRADAS EFETIVAS' : 'SAÍDAS EFETIVAS', value: formatCurrency(effectiveValue), color: isEntries ? COLORS.green : COLORS.red },
+        { label: isEntries ? 'A RECEBER' : 'A PAGAR', value: formatCurrency(openValue), color: isEntries ? COLORS.amber : COLORS.red }
       ];
     }
 
@@ -695,7 +780,7 @@
     });
   }
 
-  function drawFooter(doc, pageNumber) {
+  function drawFooter(doc, pageNumber, reportLimit) {
     const width = doc.internal.pageSize.getWidth();
     const height = doc.internal.pageSize.getHeight();
     doc.setDrawColor(...COLORS.border);
@@ -704,7 +789,10 @@
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.2);
     doc.setTextColor(...COLORS.muted);
-    doc.text('DAC Hospitalar - Gestão Financeira', 9, height - 4.8);
+    const leftText = reportLimit && reportLimit.isLimited
+      ? `DAC Hospitalar - Exibindo até ${reportLimit.displayedRows} de ${reportLimit.totalRows} lançamentos (limite de ${MAX_REPORT_PAGES} páginas)`
+      : 'DAC Hospitalar - Gestão Financeira';
+    doc.text(fitSingleLine(doc, leftText, width - 58), 9, height - 4.8);
     doc.text(`Página ${pageNumber} de ${TOTAL_PAGES_TOKEN}`, width - 9, height - 4.8, { align: 'right' });
   }
 
@@ -752,8 +840,14 @@
           targetDoc.autoTable(options);
         };
 
+    const printableRows = model.rows.slice(0, MAX_REPORT_ROWS);
+    const reportLimit = {
+      totalRows: model.rows.length,
+      displayedRows: printableRows.length,
+      isLimited: model.rows.length > printableRows.length
+    };
     const head = [model.columns.map(column => column.header)];
-    const body = model.rows.map(row => model.columns.map(column => cleanPdfText(column.value(row))));
+    const body = printableRows.map(row => model.columns.map(column => cleanPdfText(column.value(row))));
     const columnStyles = {};
     const tableFontSize = model.variant === 'geral' || model.variant === 'entradas' || model.variant === 'saidas' ? 5.5 : 6.2;
     model.columns.forEach((column, index) => {
@@ -798,11 +892,11 @@
       columnStyles,
       didDrawPage: data => {
         drawHeader(doc, model, deps.logoDataUrl, data.pageNumber === 1);
-        drawFooter(doc, data.pageNumber);
+        drawFooter(doc, data.pageNumber, reportLimit);
       },
       didParseCell: data => {
         if (data.section !== 'body') return;
-        const row = model.rows[data.row.index];
+        const row = printableRows[data.row.index];
         const column = model.columns[data.column.index];
         if (!row || !column) return;
 
@@ -818,7 +912,10 @@
           if (measuredWidth > availableWidth) {
             data.cell.styles.fontSize = Math.max(4, tableFontSize * (availableWidth / measuredWidth));
           }
-          data.cell.styles.overflow = 'linebreak';
+          // Evita que valores excepcionalmente longos dobrem a altura de todas
+          // as linhas e estourem o teto de páginas; valores usuais são reduzidos
+          // até 4 pt e permanecem completos.
+          data.cell.styles.overflow = 'ellipsize';
         }
 
         if (column.key === 'tipo') {
@@ -839,6 +936,13 @@
       }
     });
 
+    // Segunda barreira de segurança: alterações futuras de layout nunca podem
+    // produzir um arquivo acima do limite combinado com o usuário.
+    while (doc.getNumberOfPages() > MAX_REPORT_PAGES) {
+      doc.deletePage(doc.getNumberOfPages());
+      reportLimit.isLimited = true;
+    }
+
     if (typeof doc.putTotalPages === 'function') {
       doc.putTotalPages(TOTAL_PAGES_TOKEN);
     }
@@ -848,11 +952,13 @@
       throw new Error('O PDF gerado ficou vazio. Recarregue a página e tente novamente.');
     }
 
-    return { doc, blob, filename: model.filename, model };
+    return { doc, blob, filename: model.filename, model, reportLimit };
   }
 
   return {
     REPORT_TIME_ZONE,
+    MAX_REPORT_PAGES,
+    MAX_REPORT_ROWS,
     cleanParcelReference,
     cleanPdfText,
     consolidateRows,

@@ -32,7 +32,7 @@ const COLS_ENTRADAS = [
 const COLS_SAIDAS = [
   'categoria', 'modo_emissao', 'valor', 'fornecedor', 'conta_bancaria', 
   'data_vencimento', 'data_pagamento', 'forma_pagamento', 'status', 
-  'movimentacao', 'empresa', 'num_parcelas', 'valor_pago', 'parcela_ref', 'observacoes'
+  'movimentacao', 'empresa', 'num_parcelas', 'valor_pago', 'parcela_ref', 'observacoes', 'data_emissao'
 ];
 const COLS_ESTOQUE = [
   'fornecedor', 'valor', 'data', 'pagamento', 'movimentacao',
@@ -136,9 +136,12 @@ async function readSheet(sheetName, columns) {
   const rows = response.data.values || [];
 
   return rows
-    .filter(row => row.some(cell => cell !== '' && cell !== null && cell !== undefined))
-    .map((row, index) => {
-      const obj = { id: index + 1 };
+    // O ID representa a posição física relativa à primeira linha de dados.
+    // Atribuí-lo antes do filtro evita comprimir IDs quando há linhas vazias.
+    .map((row, index) => ({ row, id: index + 1 }))
+    .filter(({ row }) => row.some(cell => cell !== '' && cell !== null && cell !== undefined))
+    .map(({ row, id }) => {
+      const obj = { id };
       columns.forEach((col, i) => {
         let val = row[i] !== undefined ? row[i] : '';
 
@@ -370,6 +373,193 @@ async function updateRow(sheetName, id, updates) {
   }
 }
 
+/**
+ * Substitui uma ou mais linhas financeiras por um novo conjunto de linhas em
+ * uma única chamada spreadsheets.batchUpdate. Como todas as requisições do
+ * lote são validadas antes de serem aplicadas pelo Google Sheets, a operação
+ * não deixa o lançamento parcialmente removido ou inserido.
+ *
+ * sourceIds e targetStartId usam o mesmo identificador 1-based exposto pelo
+ * cache (id 1 = primeira linha de dados, fisicamente na linha 3 da planilha).
+ */
+async function replaceRowsAtomic({
+  sourceSheetName,
+  sourceIds,
+  targetSheetName,
+  targetStartId,
+  rows
+}) {
+  if (!sheetsApi) throw new Error('Google Sheets não está conectado.');
+
+  const normalizedSourceIds = [...new Set((sourceIds || []).map(id => Number(id)))]
+    .filter(id => Number.isInteger(id) && id > 0)
+    .sort((a, b) => b - a);
+
+  if (normalizedSourceIds.length === 0) {
+    throw new Error('Nenhuma linha de origem válida foi informada para substituição.');
+  }
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error('Nenhuma nova linha foi informada para substituição.');
+  }
+
+  const normalizedTargetStartId = Number(targetStartId);
+  if (!Number.isInteger(normalizedTargetStartId) || normalizedTargetStartId <= 0) {
+    throw new Error('Posição de inserção inválida para substituição.');
+  }
+
+  const columnsForSheet = sheetName => {
+    if (sheetName === SHEET_ENTRADAS) return COLS_ENTRADAS;
+    if (sheetName === SHEET_SAIDAS) return COLS_SAIDAS;
+    throw new Error(`A substituição atômica não suporta a planilha "${sheetName}".`);
+  };
+
+  const targetColumns = columnsForSheet(targetSheetName);
+  columnsForSheet(sourceSheetName);
+
+  const meta = await sheetsApi.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    fields: 'sheets.properties(sheetId,title)'
+  });
+  const sourceSheet = meta.data.sheets.find(s => s.properties.title === sourceSheetName);
+  const targetSheet = meta.data.sheets.find(s => s.properties.title === targetSheetName);
+  if (!sourceSheet) throw new Error(`Planilha de origem "${sourceSheetName}" não encontrada.`);
+  if (!targetSheet) throw new Error(`Planilha de destino "${targetSheetName}" não encontrada.`);
+
+  const sourceSheetId = sourceSheet.properties.sheetId;
+  const targetSheetId = targetSheet.properties.sheetId;
+  const requests = normalizedSourceIds.map(id => {
+    const rowIndex = DATA_START_ROW - 1 + (id - 1);
+    return {
+      deleteDimension: {
+        range: {
+          sheetId: sourceSheetId,
+          dimension: 'ROWS',
+          startIndex: rowIndex,
+          endIndex: rowIndex + 1
+        }
+      }
+    };
+  });
+
+  const insertRowIndex = DATA_START_ROW - 1 + (normalizedTargetStartId - 1);
+  requests.push({
+    insertDimension: {
+      range: {
+        sheetId: targetSheetId,
+        dimension: 'ROWS',
+        startIndex: insertRowIndex,
+        endIndex: insertRowIndex + rows.length
+      },
+      // Na primeira linha de dados, herdar de cima copiaria a formatação do cabeçalho.
+      inheritFromBefore: normalizedTargetStartId > 1
+    }
+  });
+
+  const dateColumns = new Set(['data_vencimento', 'data_pagamento', 'data_emissao']);
+  const dateToSerial = value => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+    const text = String(value).trim();
+    let day, month, year;
+    let match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (match) {
+      [, day, month, year] = match.map(Number);
+    } else {
+      match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) throw new Error(`Data inválida ao montar as linhas: "${text}".`);
+      year = Number(match[1]);
+      month = Number(match[2]);
+      day = Number(match[3]);
+    }
+
+    const utc = Date.UTC(year, month - 1, day);
+    const parsed = new Date(utc);
+    if (
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      throw new Error(`Data inválida ao montar as linhas: "${text}".`);
+    }
+
+    return (utc - Date.UTC(1899, 11, 30)) / 86400000;
+  };
+
+  const toCellData = (value, column) => {
+    if (value === undefined || value === null || value === '') return {};
+    if (dateColumns.has(column)) {
+      return { userEnteredValue: { numberValue: dateToSerial(value) } };
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) throw new Error('Valor numérico inválido ao montar as linhas.');
+      return { userEnteredValue: { numberValue: value } };
+    }
+    if (typeof value === 'boolean') {
+      return { userEnteredValue: { boolValue: value } };
+    }
+    return { userEnteredValue: { stringValue: String(value) } };
+  };
+
+  const rowData = rows.map(row => ({
+    values: targetColumns.map(column => toCellData(row[column], column))
+  }));
+
+  requests.push({
+    updateCells: {
+      start: {
+        sheetId: targetSheetId,
+        rowIndex: insertRowIndex,
+        columnIndex: 0
+      },
+      rows: rowData,
+      fields: 'userEnteredValue'
+    }
+  });
+
+  for (const dateColumn of dateColumns) {
+    const columnIndex = targetColumns.indexOf(dateColumn);
+    if (columnIndex === -1) continue;
+    requests.push({
+      repeatCell: {
+        range: {
+          sheetId: targetSheetId,
+          startRowIndex: insertRowIndex,
+          endRowIndex: insertRowIndex + rows.length,
+          startColumnIndex: columnIndex,
+          endColumnIndex: columnIndex + 1
+        },
+        cell: {
+          userEnteredFormat: {
+            numberFormat: {
+              type: 'DATE',
+              pattern: 'dd/mm/yyyy'
+            }
+          }
+        },
+        fields: 'userEnteredFormat.numberFormat'
+      }
+    });
+  }
+
+  const response = await sheetsApi.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: { requests }
+  });
+
+  if (!response || !response.data) {
+    throw new Error('O Google Sheets não confirmou a substituição das linhas.');
+  }
+
+  await refreshCache();
+  return {
+    sourceSheetName,
+    targetSheetName,
+    deletedCount: normalizedSourceIds.length,
+    insertedCount: rows.length,
+    startId: normalizedTargetStartId
+  };
+}
+
 // ─── Exports ───
 
 function getCacheData() {
@@ -416,6 +606,7 @@ module.exports = {
   deleteRow,
   deleteMultipleRows,
   updateRow,
+  replaceRowsAtomic,
   refreshCache,
   isConnected,
   getNextOrcamentoNumber,

@@ -1,5 +1,316 @@
 const { auth } = require('../auth');
 const { getSheetsModule } = require('../db');
+const crypto = require('crypto');
+
+const FINANCIAL_STATUSES = new Map([
+  ['pago', 'Pago'],
+  ['pendente', 'Pendente'],
+  ['cancelado', 'Cancelado']
+]);
+
+const FINANCIAL_MODALITIES = new Map([
+  ['pago', 'Pago'],
+  ['pendente', 'Pendente'],
+  ['cancelado', 'Cancelado'],
+  ['parcial', 'Parcial'],
+  ['parcelado', 'Parcelado']
+]);
+
+function httpError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+function normalizeComparable(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizeTipo(value) {
+  const normalized = normalizeComparable(value);
+  if (normalized === 'entrada') return 'entrada';
+  if (normalized === 'saida') return 'saida';
+  throw httpError(400, 'Tipo inválido. Use "entrada" ou "saida".');
+}
+
+function normalizeMovimentacao(value, fallbackTipo) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return fallbackTipo === 'entrada'
+      ? { tipo: 'entrada', label: 'Entrada' }
+      : { tipo: 'saida', label: 'Saída' };
+  }
+
+  const normalized = normalizeComparable(value);
+  if (normalized === 'entrada') return { tipo: 'entrada', label: 'Entrada' };
+  if (normalized === 'saida') return { tipo: 'saida', label: 'Saída' };
+  throw httpError(400, 'Movimentação inválida. Use "Entrada" ou "Saída".');
+}
+
+function parseMoneyToCents(value, fieldName, { allowZero = false } = {}) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    throw httpError(400, `${fieldName} é obrigatório.`);
+  }
+
+  let parsed;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else {
+    let text = String(value)
+      .replace(/R\$\s*/gi, '')
+      .replace(/\s/g, '')
+      .trim();
+
+    if (text.includes(',') && text.includes('.')) {
+      if (text.lastIndexOf(',') > text.lastIndexOf('.')) {
+        text = text.replace(/\./g, '').replace(',', '.');
+      } else {
+        text = text.replace(/,/g, '');
+      }
+    } else if (text.includes(',')) {
+      text = text.replace(/\./g, '').replace(',', '.');
+    }
+    parsed = Number(text);
+  }
+
+  const rawCents = parsed * 100;
+  const cents = Math.round(rawCents);
+  if (
+    !Number.isFinite(parsed) ||
+    !Number.isSafeInteger(cents) ||
+    Math.abs(rawCents - cents) > 1e-6
+  ) {
+    throw httpError(400, `${fieldName} deve ser um valor monetário válido.`);
+  }
+  if (allowZero ? cents < 0 : cents <= 0) {
+    throw httpError(400, `${fieldName} deve ser ${allowZero ? 'maior ou igual a zero' : 'maior que zero'}.`);
+  }
+  return cents;
+}
+
+function normalizeDate(value, fieldName, { required = true } = {}) {
+  const text = value === undefined || value === null ? '' : String(value).trim();
+  if (!text) {
+    if (required) throw httpError(400, `${fieldName} é obrigatória.`);
+    return '';
+  }
+
+  let day, month, year;
+  let match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) {
+    day = Number(match[1]);
+    month = Number(match[2]);
+    year = Number(match[3]);
+  } else {
+    match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+      throw httpError(400, `${fieldName} deve estar no formato DD/MM/AAAA ou AAAA-MM-DD.`);
+    }
+    year = Number(match[1]);
+    month = Number(match[2]);
+    day = Number(match[3]);
+  }
+
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    throw httpError(400, `${fieldName} contém uma data inválida.`);
+  }
+
+  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+}
+
+function normalizeStatus(value, index) {
+  const status = FINANCIAL_STATUSES.get(normalizeComparable(value));
+  if (!status) {
+    throw httpError(
+      400,
+      `Status inválido no item ${index + 1}. Use Pago, Pendente ou Cancelado.`
+    );
+  }
+  return status;
+}
+
+function normalizeModality(value) {
+  const modality = FINANCIAL_MODALITIES.get(normalizeComparable(value));
+  if (!modality) {
+    throw httpError(
+      400,
+      'Modalidade inválida. Use Pago, Pendente, Cancelado, Parcial ou Parcelado.'
+    );
+  }
+  return modality;
+}
+
+function inferModalityFromItems(rawItems) {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    throw httpError(400, 'itens deve ser um array não vazio.');
+  }
+
+  const statuses = rawItems.map((item, index) => normalizeStatus(item && item.status, index));
+  if (statuses.every(status => status === 'Pago')) return 'Pago';
+  if (statuses.every(status => status === 'Pendente')) {
+    return statuses.length > 1 ? 'Parcelado' : 'Pendente';
+  }
+  if (statuses.every(status => status === 'Cancelado')) return 'Cancelado';
+
+  const onlyPaidAndPending = statuses.every(status => status === 'Pago' || status === 'Pendente');
+  const hasPaid = statuses.includes('Pago');
+  const hasPending = statuses.includes('Pendente');
+  if (onlyPaidAndPending && hasPaid && hasPending) return 'Parcial';
+
+  throw httpError(400, 'Não foi possível inferir a modalidade a partir dos status dos itens.');
+}
+
+function extractParcelGroupId(parcelaRef) {
+  const match = String(parcelaRef || '').match(/\[(PRC-[^\]]+)\]/i);
+  return match ? match[1] : null;
+}
+
+function belongsToParcelGroup(parcelaRef, groupId) {
+  const extracted = extractParcelGroupId(parcelaRef);
+  return Boolean(
+    extracted &&
+    groupId &&
+    extracted.toUpperCase() === String(groupId).toUpperCase()
+  );
+}
+
+function generateParcelGroupId(cache) {
+  const existing = new Set(
+    [...(cache.entradas || []), ...(cache.saidas || [])]
+      .map(row => extractParcelGroupId(row.parcela_ref))
+      .filter(Boolean)
+      .map(value => value.toUpperCase())
+  );
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const timestamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+    const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const candidate = `PRC-${timestamp}-${suffix}`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  throw httpError(500, 'Não foi possível gerar um identificador único para o parcelamento.');
+}
+
+function validateModalityItems(modality, items) {
+  if (modality === 'Pago' || modality === 'Pendente' || modality === 'Cancelado') {
+    if (!items.every(item => item.status === modality)) {
+      throw httpError(
+        400,
+        `A modalidade ${modality} exige que todos os itens tenham status ${modality}.`
+      );
+    }
+    return;
+  }
+
+  if (items.length < 2) {
+    throw httpError(400, `A modalidade ${modality} exige pelo menos dois itens.`);
+  }
+
+  if (modality === 'Parcelado') {
+    if (!items.every(item => item.status === 'Pendente')) {
+      throw httpError(400, 'A modalidade Parcelado exige que todos os itens estejam Pendentes.');
+    }
+    return;
+  }
+
+  if (modality === 'Parcial') {
+    if (items.some(item => item.status === 'Cancelado')) {
+      throw httpError(400, 'A modalidade Parcial aceita somente itens Pagos e Pendentes.');
+    }
+    const hasPaid = items.some(item => item.status === 'Pago');
+    const hasPending = items.some(item => item.status === 'Pendente');
+    if (!hasPaid || !hasPending) {
+      throw httpError(400, 'A modalidade Parcial exige ao menos um item Pago e um Pendente.');
+    }
+  }
+}
+
+function normalizeReconfigurationItems(rawItems, valorTotalCents, modality) {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    throw httpError(400, 'itens deve ser um array não vazio.');
+  }
+  if (rawItems.length > 48) {
+    throw httpError(400, 'O lançamento não pode ter mais de 48 itens.');
+  }
+
+  const items = rawItems.map((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) {
+      throw httpError(400, `Item ${index + 1} inválido.`);
+    }
+
+    const valorCents = parseMoneyToCents(rawItem.valor, `valor do item ${index + 1}`);
+    const status = normalizeStatus(rawItem.status, index);
+    const valorPagoCents = parseMoneyToCents(
+      rawItem.valor_pago === undefined || rawItem.valor_pago === null || rawItem.valor_pago === ''
+        ? 0
+        : rawItem.valor_pago,
+      `valor_pago do item ${index + 1}`,
+      { allowZero: true }
+    );
+    const dataVencimento = normalizeDate(
+      rawItem.data_vencimento,
+      `data_vencimento do item ${index + 1}`
+    );
+    const hasPaymentDate = rawItem.data_pagamento !== undefined &&
+      rawItem.data_pagamento !== null &&
+      String(rawItem.data_pagamento).trim() !== '';
+
+    let dataPagamento = '';
+    if (status === 'Pago') {
+      if (valorPagoCents <= 0) {
+        throw httpError(
+          400,
+          `Item ${index + 1} Pago deve ter valor_pago maior que zero.`
+        );
+      }
+      dataPagamento = normalizeDate(
+        rawItem.data_pagamento,
+        `data_pagamento do item ${index + 1}`
+      );
+    } else {
+      if (valorPagoCents !== 0) {
+        throw httpError(
+          400,
+          `Item ${index + 1} ${status} deve ter valor_pago igual a zero.`
+        );
+      }
+      if (hasPaymentDate) {
+        throw httpError(
+          400,
+          `Item ${index + 1} ${status} não pode ter data_pagamento.`
+        );
+      }
+    }
+
+    return {
+      valor: valorCents / 100,
+      valorCents,
+      data_vencimento: dataVencimento,
+      status,
+      valor_pago: valorPagoCents / 100,
+      data_pagamento: dataPagamento
+    };
+  });
+
+  const sumCents = items.reduce((sum, item) => sum + item.valorCents, 0);
+  if (sumCents !== valorTotalCents) {
+    throw httpError(
+      400,
+      `A soma dos itens (${(sumCents / 100).toFixed(2)}) deve ser igual a valor_total (${(valorTotalCents / 100).toFixed(2)}).`
+    );
+  }
+
+  validateModalityItems(modality, items);
+  return items;
+}
 
 function registerLancamentoRoutes(app) {
   // Envia um novo lançamento direto no Google Sheets
@@ -83,6 +394,156 @@ function registerLancamentoRoutes(app) {
     }
   });
 
+  // Reconfigura um lançamento simples ou um grupo de parcelas de forma atômica.
+  // O array `itens` é autoritativo: a linha/grupo anterior é integralmente
+  // substituído pelo novo cronograma, inclusive em troca Entrada <-> Saída.
+  app.put('/api/lancamento/reconfigurar/:tipo/:id', auth, async (req, res) => {
+    try {
+      const payload = req.body && typeof req.body === 'object' ? req.body : {};
+      const sourceTipo = normalizeTipo(req.params.tipo);
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        throw httpError(400, 'ID de lançamento inválido.');
+      }
+
+      const sheets = getSheetsModule();
+      const cache = sheets.getCacheData();
+      const sourceRows = sourceTipo === 'entrada' ? cache.entradas : cache.saidas;
+      const current = sourceRows.find(row => Number(row.id) === id);
+      if (!current) {
+        throw httpError(404, 'Lançamento não encontrado.');
+      }
+
+      const modality = normalizeModality(payload.modalidade);
+      const valorTotalCents = parseMoneyToCents(payload.valor_total, 'valor_total');
+      const items = normalizeReconfigurationItems(
+        payload.itens,
+        valorTotalCents,
+        modality
+      );
+
+      const movement = normalizeMovimentacao(payload.movimentacao, sourceTipo);
+      const targetTipo = movement.tipo;
+      const targetRows = targetTipo === 'entrada' ? cache.entradas : cache.saidas;
+      const sourceSheetName = sourceTipo === 'entrada' ? 'Entradas' : 'Saídas';
+      const targetSheetName = targetTipo === 'entrada' ? 'Entradas' : 'Saídas';
+
+      const existingGroupId = extractParcelGroupId(current.parcela_ref);
+      const existingGroupKey = existingGroupId ? existingGroupId.toUpperCase() : null;
+      const rowsToReplace = existingGroupId
+        ? sourceRows.filter(row => {
+          const rowGroupId = extractParcelGroupId(row.parcela_ref);
+          return rowGroupId && rowGroupId.toUpperCase() === existingGroupKey;
+        })
+        : [current];
+      const sourceIds = rowsToReplace
+        .map(row => Number(row.id))
+        .filter(rowId => Number.isInteger(rowId) && rowId > 0);
+
+      if (sourceIds.length === 0) {
+        throw httpError(409, 'O lançamento não possui linhas válidas para substituição.');
+      }
+
+      const readCommon = (field, fallback = '') => {
+        if (payload[field] !== undefined && payload[field] !== null) {
+          return String(payload[field]).trim();
+        }
+        return fallback === undefined || fallback === null ? '' : String(fallback).trim();
+      };
+
+      const categoria = readCommon('categoria', current.categoria);
+      if (!categoria) throw httpError(400, 'categoria é obrigatória.');
+
+      const personFromRequest = payload.fornecedor !== undefined
+        ? payload.fornecedor
+        : payload.cliente;
+      const person = personFromRequest !== undefined && personFromRequest !== null
+        ? String(personFromRequest).trim()
+        : String(current.cliente || current.fornecedor || '').trim();
+
+      const observacoes = payload.observacoes !== undefined
+        ? readCommon('observacoes')
+        : payload.observacao !== undefined
+          ? readCommon('observacao')
+          : String(current.observacoes || '').trim();
+      const dataEmissaoRaw = payload.data_emissao !== undefined
+        ? payload.data_emissao
+        : current.data_emissao;
+      const dataEmissao = normalizeDate(dataEmissaoRaw, 'data_emissao', { required: false });
+
+      const totalItems = items.length;
+      const groupId = totalItems > 1
+        ? (existingGroupId || generateParcelGroupId(cache))
+        : null;
+
+      const commonData = {
+        movimentacao: movement.label,
+        categoria,
+        modo_emissao: readCommon('modo_emissao', current.modo_emissao),
+        cliente: person,
+        fornecedor: person,
+        conta_bancaria: readCommon('conta_bancaria', current.conta_bancaria),
+        forma_pagamento: readCommon('forma_pagamento', current.forma_pagamento),
+        empresa: readCommon('empresa', current.empresa),
+        observacoes,
+        data_emissao: dataEmissao
+      };
+
+      const newRows = items.map((item, index) => ({
+        ...commonData,
+        valor: item.valor,
+        data_vencimento: item.data_vencimento,
+        data_pagamento: item.data_pagamento,
+        status: item.status,
+        num_parcelas: totalItems,
+        valor_pago: item.valor_pago,
+        parcela_ref: groupId ? `${index + 1}/${totalItems} [${groupId}]` : ''
+      }));
+
+      const lastTargetId = targetRows.reduce((maxId, row) => {
+        const rowId = Number(row.id);
+        return Number.isInteger(rowId) && rowId > maxId ? rowId : maxId;
+      }, 0);
+      const targetStartId = sourceTipo === targetTipo
+        ? Math.min(...sourceIds)
+        : lastTargetId + 1;
+
+      const result = await sheets.replaceRowsAtomic({
+        sourceSheetName,
+        sourceIds,
+        targetSheetName,
+        targetStartId,
+        rows: newRows
+      });
+
+      if (
+        !result ||
+        result.deletedCount !== sourceIds.length ||
+        result.insertedCount !== newRows.length
+      ) {
+        throw httpError(500, 'O Google Sheets não confirmou todas as linhas da reconfiguração.');
+      }
+
+      return res.json({
+        success: true,
+        message: totalItems > 1
+          ? `Lançamento reconfigurado em ${totalItems} parcelas com sucesso!`
+          : 'Lançamento reconfigurado com sucesso!',
+        modalidade: modality,
+        movimentacao: movement.label,
+        grupo_id: groupId,
+        linhas_removidas: result.deletedCount,
+        linhas_criadas: result.insertedCount
+      });
+    } catch (err) {
+      const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : 500;
+      if (statusCode >= 500) {
+        console.error('❌ Erro ao reconfigurar lançamento:', err.message);
+      }
+      return res.status(statusCode).json({ error: err.message });
+    }
+  });
+
   // Exclui um lançamento
   app.delete('/api/lancamento/:tipo/:id', auth, async (req, res) => {
     try {
@@ -97,12 +558,10 @@ function registerLancamentoRoutes(app) {
       const rows = tipo === 'entrada' ? cache.entradas : cache.saidas;
       const target = rows.find(r => String(r.id) === String(id));
 
-      if (target && target.parcela_ref && target.parcela_ref.includes('[PRC-')) {
-        const groupMatch = target.parcela_ref.match(/\[(PRC-[^\]]+)\]/);
-        if (groupMatch) {
-          const grupoId = groupMatch[1];
+      const targetGroupId = target ? extractParcelGroupId(target.parcela_ref) : null;
+      if (targetGroupId) {
           const idsToDelete = rows
-            .filter(r => r.parcela_ref && r.parcela_ref.includes(grupoId))
+            .filter(r => belongsToParcelGroup(r.parcela_ref, targetGroupId))
             .map(r => r.id);
 
           if (idsToDelete.length > 1) {
@@ -112,7 +571,6 @@ function registerLancamentoRoutes(app) {
               message: `Todas as ${idsToDelete.length} parcelas do grupo foram excluídas!` 
             });
           }
-        }
       }
 
       // Deleção normal se não for grupo
@@ -196,46 +654,74 @@ function registerLancamentoRoutes(app) {
   // Novo endpoint para lançamentos parcelados (batch)
   app.post('/api/lancamento/parcelado', auth, async (req, res) => {
     try {
-      const {
-        movimentacao, categoria, observacoes, fornecedor,
-        conta_bancaria, forma_pagamento,
-        modo_emissao, empresa, data_emissao,
-        parcelas // Array: [{valor, data_vencimento, status, parcela_ref}]
-      } = req.body;
-
-      if (!movimentacao || !categoria || !parcelas || parcelas.length === 0) {
-        return res.status(400).json({ error: 'Dados incompletos para parcelamento.' });
+      const payload = req.body && typeof req.body === 'object' ? req.body : {};
+      const rawItems = Array.isArray(payload.parcelas) ? payload.parcelas : payload.itens;
+      const movimentacao = String(payload.movimentacao || '').trim();
+      const categoria = String(payload.categoria || '').trim();
+      if (!movimentacao || !categoria) {
+        throw httpError(400, 'Campos obrigatórios: movimentacao e categoria.');
       }
 
+      const movement = normalizeMovimentacao(movimentacao, 'entrada');
+      const modality = payload.modalidade === undefined || payload.modalidade === null ||
+        String(payload.modalidade).trim() === ''
+        ? inferModalityFromItems(rawItems)
+        : normalizeModality(payload.modalidade);
+
+      const valorTotalCents = payload.valor_total === undefined || payload.valor_total === null ||
+        String(payload.valor_total).trim() === ''
+        ? (rawItems || []).reduce(
+          (sum, item, index) => sum + parseMoneyToCents(item && item.valor, `valor do item ${index + 1}`),
+          0
+        )
+        : parseMoneyToCents(payload.valor_total, 'valor_total');
+      const items = normalizeReconfigurationItems(rawItems, valorTotalCents, modality);
       const sheets = getSheetsModule();
-      const dataList = parcelas.map(p => ({
-        movimentacao,
+      const cache = sheets.getCacheData();
+      const totalItems = items.length;
+      const groupId = totalItems > 1 ? generateParcelGroupId(cache) : null;
+      const person = String(payload.fornecedor ?? payload.cliente ?? '').trim();
+      const dataEmissao = normalizeDate(payload.data_emissao, 'data_emissao', { required: false });
+      const observacoes = String(payload.observacoes ?? payload.observacao ?? '').trim();
+
+      const dataList = items.map((item, index) => ({
+        movimentacao: movement.label,
         categoria,
-        modo_emissao: modo_emissao || '',
-        observacoes: observacoes || '',
-        fornecedor,
-        cliente: fornecedor,
-        conta_bancaria,
-        forma_pagamento,
-        status: p.status || 'Pendente',
-        empresa: empresa || '',
-        num_parcelas: parcelas.length,
-        valor: parseFloat(p.valor) || 0,
-        data_vencimento: p.data_vencimento,
-        data_pagamento: p.data_pagamento || '',
-        valor_pago: parseFloat(p.valor_pago) || 0,
-        parcela_ref: p.parcela_ref,
-        data_emissao: data_emissao || ''
+        modo_emissao: String(payload.modo_emissao || '').trim(),
+        observacoes,
+        fornecedor: person,
+        cliente: person,
+        conta_bancaria: String(payload.conta_bancaria || '').trim(),
+        forma_pagamento: String(payload.forma_pagamento || '').trim(),
+        status: item.status,
+        empresa: String(payload.empresa || '').trim(),
+        num_parcelas: totalItems,
+        valor: item.valor,
+        data_vencimento: item.data_vencimento,
+        data_pagamento: item.data_pagamento,
+        valor_pago: item.valor_pago,
+        parcela_ref: groupId ? `${index + 1}/${totalItems} [${groupId}]` : '',
+        data_emissao: dataEmissao
       }));
 
-      const result = await sheets.appendMultipleRows(movimentacao, dataList);
+      const result = await sheets.appendMultipleRows(movement.label, dataList);
+      if (!result || result.count !== dataList.length) {
+        throw httpError(500, 'O Google Sheets não confirmou todas as parcelas criadas.');
+      }
       return res.json({
         success: true,
-        message: `${parcelas.length} parcelas registradas com sucesso na planilha "${result.sheetName}"!`
+        message: `${dataList.length} parcelas registradas com sucesso na planilha "${result.sheetName}"!`,
+        modalidade: modality,
+        valor_total: valorTotalCents / 100,
+        grupo_id: groupId,
+        linhas_criadas: dataList.length
       });
     } catch (err) {
-      console.error('❌ Erro ao criar parcelamento:', err.message);
-      res.status(500).json({ error: err.message });
+      const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : 500;
+      if (statusCode >= 500) {
+        console.error('❌ Erro ao criar parcelamento:', err.message);
+      }
+      return res.status(statusCode).json({ error: err.message });
     }
   });
 
@@ -271,7 +757,7 @@ function registerLancamentoRoutes(app) {
             if (diff !== 0) {
               const pendentes = rows.filter(r => 
                 r.parcela_ref && 
-                r.parcela_ref.includes(grupoId) && 
+                extractParcelGroupId(r.parcela_ref) === grupoId &&
                 r.status === 'Pendente' &&
                 String(r.id) !== String(id)
               );
@@ -303,7 +789,7 @@ function registerLancamentoRoutes(app) {
       const cache = sheets.getCacheData();
       const rows = tipo === 'entrada' ? cache.entradas : cache.saidas;
       
-      const grupo = rows.filter(r => r.parcela_ref && r.parcela_ref.includes(grupoId));
+      const grupo = rows.filter(r => extractParcelGroupId(r.parcela_ref) === grupoId);
       // Ordenar por referência (1/3, 2/3...)
       grupo.sort((a, b) => {
         const numA = parseInt(a.parcela_ref) || 0;

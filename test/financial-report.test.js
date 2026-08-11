@@ -67,6 +67,36 @@ test('parseMoney aceita números e formatos monetários BR/US', () => {
   assert.equal(report.parseMoney('inválido'), 0);
 });
 
+test('valor efetivo usa o pagamento real mesmo quando supera o valor original', () => {
+  const overpaid = entry({ valor: '100,00', valor_pago: '130,00', status: 'Pago' });
+  const legacyPaid = entry({ valor: '100,00', valor_pago: '0', status: 'Pago' });
+
+  assert.equal(report.getEffectiveValue(overpaid), 130);
+  assert.equal(report.getEffectiveValue(legacyPaid), 100);
+
+  const [group] = report.consolidateRows([
+    entry({ valor: '60,00', valor_pago: '75,00', status: 'Pago', parcela_ref: '1/2 [PRC-OVERPAID]' }),
+    entry({ valor: '40,00', valor_pago: '55,00', status: 'Pago', parcela_ref: '2/2 [PRC-OVERPAID]' })
+  ]);
+  assert.equal(group.valor, 100);
+  assert.equal(group.valor_pago, 130);
+  assert.equal(group.status, 'Pago');
+  assert.equal(report.getEffectiveValue(group), 130);
+});
+
+test('saldo em aberto considera somente itens realmente pendentes', () => {
+  assert.equal(report.getRemainingValue(entry({ valor: '100,00', valor_pago: '0', status: 'Pago' })), 0);
+  assert.equal(report.getRemainingValue(entry({ valor: '100,00', valor_pago: '130,00', status: 'Pago' })), 0);
+  assert.equal(report.getRemainingValue(entry({ valor: '100,00', valor_pago: '0', status: 'Cancelado' })), 0);
+
+  const [group] = report.consolidateRows([
+    entry({ valor: '100,00', valor_pago: '130,00', status: 'Pago', parcela_ref: '1/2 [PRC-CREDITO]' }),
+    entry({ valor: '100,00', valor_pago: '0', status: 'Pendente', parcela_ref: '2/2 [PRC-CREDITO]' })
+  ]);
+  assert.equal(report.getRemainingValue(group), 100);
+  assert.equal(group.status, 'Parcial');
+});
+
 test('filtros de busca, tipo, categoria, período e status usam uma única regra', () => {
   const rows = report.filterRows({
     entradas: [
@@ -150,6 +180,61 @@ test('consolidação preserva parcelas pagas do período e identifica o agrupame
   assert.equal(report.getRemainingValue(rows[0]), 200);
 });
 
+test('contas a receber separam parcelas vencidas das parcelas futuras do mesmo grupo', () => {
+  const parcelas = [
+    entry({ valor: '100,00', valor_pago: '100,00', status: 'Pago', data_vencimento: '01/08/2026', parcela_ref: '1/3 [PRC-PRAZO]' }),
+    entry({ valor: '100,00', status: 'Pendente', data_vencimento: '05/08/2026', parcela_ref: '2/3 [PRC-PRAZO]' }),
+    entry({ valor: '100,00', status: 'Pendente', data_vencimento: '20/08/2026', parcela_ref: '3/3 [PRC-PRAZO]' })
+  ];
+  const model = report.createModel({ entradas: parcelas, saidas: [], filters: {}, kpiFilter: 'receber', now: FIXED_NOW });
+  const summary = Object.fromEntries(model.summary.map(item => [item.label, item.value]));
+
+  assert.equal(model.rows.length, 1);
+  assert.equal(summary['TOTAL A RECEBER'], 'R$ 200,00');
+  assert.equal(summary['VALORES ATRASADOS'], 'R$ 100,00');
+  assert.equal(summary['VALORES NÃO VENCIDOS'], 'R$ 100,00');
+});
+
+test('filtro Vencido em Receber inclui somente o saldo das parcelas vencidas', () => {
+  const parcelas = [
+    entry({ valor: '100,00', status: 'Pendente', data_vencimento: '05/08/2026', parcela_ref: '1/2 [PRC-VENCIDO]' }),
+    entry({ valor: '100,00', status: 'Pendente', data_vencimento: '20/08/2026', parcela_ref: '2/2 [PRC-VENCIDO]' })
+  ];
+  const model = report.createModel({
+    entradas: parcelas,
+    saidas: [],
+    filters: { status: 'vencido' },
+    kpiFilter: 'receber',
+    now: FIXED_NOW
+  });
+  const summary = Object.fromEntries(model.summary.map(item => [item.label, item.value]));
+
+  assert.equal(model.rows.length, 1);
+  assert.equal(report.getRemainingValue(model.rows[0]), 100);
+  assert.equal(summary['TOTAL A RECEBER'], 'R$ 100,00');
+  assert.equal(summary['VALORES ATRASADOS'], 'R$ 100,00');
+  assert.equal(summary['VALORES NÃO VENCIDOS'], 'R$ 0,00');
+});
+
+test('período de Receber usa vencimento mesmo quando há pagamento parcial antigo', () => {
+  const rows = report.filterRows({
+    entradas: [entry({
+      valor: '300,00',
+      valor_pago: '100,00',
+      status: 'Parcial',
+      data_pagamento: '01/08/2026',
+      data_vencimento: '20/08/2026'
+    })],
+    saidas: [],
+    filters: { dateFrom: '2026-08-15', dateTo: '2026-08-31' },
+    kpiFilter: 'receber',
+    now: FIXED_NOW
+  });
+
+  assert.equal(rows.length, 1);
+  assert.equal(report.getRemainingValue(rows[0]), 200);
+});
+
 test('ordenação monetária interpreta valores brasileiros corretamente', () => {
   const rows = report.filterRows({
     entradas: [
@@ -214,6 +299,47 @@ test('modelos geral, receber, pagar, entradas e saídas têm títulos e colunas 
   assert.equal(emissionColumn.value(general.rows.find(row => row._tipo === 'saída')), 'Recibo');
 });
 
+test('relatórios de Entradas e Saídas usam KPIs próprios e mostram pagamento legado efetivo', () => {
+  const entries = report.createModel({
+    entradas: [
+      entry({ valor: '100,00', valor_pago: '0', status: 'Pago' }),
+      entry({ valor: '200,00', valor_pago: '0', status: 'Pendente' }),
+      entry({ valor: '500,00', valor_pago: '0', status: 'Cancelado' })
+    ],
+    saidas: [],
+    filters: {},
+    kpiFilter: 'entradas',
+    now: FIXED_NOW
+  });
+  const exits = report.createModel({
+    entradas: [],
+    saidas: [
+      exit({ valor: '80,00', valor_pago: '95,00', status: 'Pago' }),
+      exit({ valor: '120,00', status: 'Pendente' })
+    ],
+    filters: {},
+    kpiFilter: 'saidas',
+    now: FIXED_NOW
+  });
+  const entrySummary = Object.fromEntries(entries.summary.map(item => [item.label, item.value]));
+  const exitSummary = Object.fromEntries(exits.summary.map(item => [item.label, item.value]));
+  const paidColumn = entries.columns.find(column => column.key === 'valor_pago');
+
+  assert.deepEqual(entrySummary, {
+    QUANTIDADE: '3 lançamento(s)',
+    'VALOR ATIVO': 'R$ 300,00',
+    'ENTRADAS EFETIVAS': 'R$ 100,00',
+    'A RECEBER': 'R$ 200,00'
+  });
+  assert.deepEqual(exitSummary, {
+    QUANTIDADE: '2 lançamento(s)',
+    'VALOR ATIVO': 'R$ 200,00',
+    'SAÍDAS EFETIVAS': 'R$ 95,00',
+    'A PAGAR': 'R$ 120,00'
+  });
+  assert.equal(paidColumn.value(entries.rows[0]), 'R$ 100,00');
+});
+
 test('o modelo é independente de metadados de viewport mobile ou desktop', () => {
   const common = {
     entradas: [entry(), entry({ cliente: 'Clínica Norte', valor: '500,00' })],
@@ -250,6 +376,22 @@ test('gerador cria PDF A4 paisagem multipágina sem canvas ou DOM', () => {
   assert.ok(Math.abs(result.doc.internal.pageSize.getWidth() - 297) < 0.2);
   assert.ok(Math.abs(result.doc.internal.pageSize.getHeight() - 210) < 0.2);
   assert.match(result.filename, /^Relatorio_de_Movimentacoes_Financeiras_2026-08-06\.pdf$/);
+});
+
+test('gerador limita relatórios extensos a no máximo 15 páginas', () => {
+  const entradas = Array.from({ length: 2000 }, (_, index) => entry({
+    cliente: `Hospital ${index + 1}`,
+    observacoes: `Lançamento ${index + 1}`,
+    data_vencimento: `${String((index % 28) + 1).padStart(2, '0')}/08/2026`
+  }));
+  const model = report.createModel({ entradas, saidas: [], filters: {}, now: FIXED_NOW });
+  const result = report.generatePdf(model, { jsPDF, autoTable });
+
+  assert.equal(model.rows.length, 2000);
+  assert.ok(result.doc.getNumberOfPages() <= 15);
+  assert.equal(result.reportLimit.isLimited, true);
+  assert.equal(result.reportLimit.totalRows, 2000);
+  assert.equal(result.reportLimit.displayedRows, report.MAX_REPORT_ROWS);
 });
 
 test('todas as variações executam o gerador vetorial', () => {

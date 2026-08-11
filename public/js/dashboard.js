@@ -439,7 +439,11 @@ function renderSmartNewsFeed() {
     return venc.getTime() === today.getTime();
   });
   if (pagarHoje.length > 0) {
-    const totalPagarHoje = pagarHoje.reduce((acc, s) => acc + getEffectiveValue(s), 0);
+    const totalPagarHoje = pagarHoje.reduce((acc, s) => {
+      const valor = parseVal(s.valor);
+      const valorPago = parseVal(s.valor_pago);
+      return acc + Math.max(0, valor - valorPago);
+    }, 0);
     news.push({
       icon: '🔔',
       title: 'Vencimentos de Hoje',

@@ -8,94 +8,8 @@ let gestaoTab = 'todos';
 let gestaoConfig = { webhookConfigured: false, devMode: true };
 let currentEditId = null;
 let currentEditTipo = null;
-
-// ─── Toggle campos de parcela conforme status ───
-
-function toggleParcelaFields() {
-  const status = document.getElementById('gf-status').value;
-  const show = status === 'Parcial';
-  document.querySelectorAll('.gf-parcela-field').forEach(el => {
-    el.style.display = show ? '' : 'none';
-  });
-  if (show) {
-    // Se estiver abrindo agora e o campo de parcelas estiver vazio, limpa a lista
-    if (!document.getElementById('gf-parcelas').value) {
-      document.getElementById('gf-parcelas-list').innerHTML = '';
-    } else {
-      gerarParcelasCards();
-    }
-  }
-}
-
-function gerarParcelasCards() {
-  const num = parseInt(document.getElementById('gf-parcelas').value, 10) || 0;
-  const list = document.getElementById('gf-parcelas-list');
-  const interval = document.querySelector('input[name="gf-intervalo"]:checked').value;
-  const baseDate = document.getElementById('gf-dvenc').value;
-  const baseVal = parseVal(document.getElementById('gf-val').value) || 0;
-
-  if (num <= 0) {
-    list.innerHTML = '';
-    return;
-  }
-
-  // Se o número de parcelas mudou ou é a primeira vez, gera os campos
-  const currentCount = list.querySelectorAll('.parcela-card').length;
-  
-  // Para simplificar, sempre regeramos se for "Auto" (não custom) ou se o número mudou
-  if (num !== currentCount || interval !== 'custom') {
-    let html = '';
-    const valorSugerido = (baseVal / num).toFixed(2);
-    
-    for (let i = 1; i <= num; i++) {
-      let dataVenc = baseDate;
-      if (baseDate && interval !== 'custom') {
-        const d = new Date(baseDate + 'T12:00:00');
-        if (interval === '30') d.setMonth(d.getMonth() + (i - 1));
-        else if (interval === '15') d.setDate(d.getDate() + ((i - 1) * 15));
-        else if (interval === '7') d.setDate(d.getDate() + ((i - 1) * 7));
-        dataVenc = toIso(d);
-      }
-
-      html += `
-        <div class="parcela-card" data-index="${i}">
-          <div class="pc-head">Parcela ${i}/${num}</div>
-          <div class="pc-body">
-            <input type="text" class="pc-val" value="${fmt(valorSugerido)}" oninput="this.value = fmtInput(this.value)" placeholder="Valor">
-            <input type="date" class="pc-date" value="${dataVenc}">
-          </div>
-        </div>
-      `;
-    }
-    list.innerHTML = html;
-  }
-}
-
-function distribuirIgual() {
-  const baseVal = parseVal(document.getElementById('gf-val').value) || 0;
-  const cards = document.querySelectorAll('.parcela-card');
-  if (cards.length === 0 || baseVal <= 0) return;
-
-  const valorBase = Math.floor((baseVal / cards.length) * 100) / 100;
-  const sobra = Math.round((baseVal - (valorBase * cards.length)) * 100) / 100;
-
-  cards.forEach((card, i) => {
-    const input = card.querySelector('.pc-val');
-    const valor = i === cards.length - 1 ? (valorBase + sobra) : valorBase;
-    input.value = fmt(valor);
-  });
-}
-
-function fmtInput(v) {
-  return fmt(parseVal(v));
-}
-
-function calcValorRestante() {
-  const valTotal = parseVal(document.getElementById('gf-val').value);
-  const valPago = parseVal(document.getElementById('gf-valorpago').value);
-  const restante = Math.max(0, valTotal - valPago);
-  document.getElementById('gf-valorrestante').value = fmt(restante);
-}
+let currentEditContext = null;
+let currentFormModalidade = 'Pago';
 
 // ─── Helper: gera badge de parcela para tabelas ───
 
@@ -289,7 +203,12 @@ async function initGestao() {
     alertEl.style.borderColor = 'rgba(74,222,128,.15)';
   }
 
-  document.getElementById('gf-dvenc').value = toIso(new Date());
+  const hoje = toIso(new Date());
+  document.getElementById('gf-dvenc').value = hoje;
+  const dataPagamentoInicial = document.getElementById('gf-dpag');
+  if (dataPagamentoInicial && !dataPagamentoInicial.value) dataPagamentoInicial.value = hoje;
+  currentFormModalidade = document.getElementById('gf-status').value;
+  toggleParcelaFields({ skipCards: true });
 
   const gbSync = document.getElementById('gb-sync');
   if (gbSync) gbSync.textContent = document.getElementById('lsync').textContent || '—';
@@ -369,7 +288,10 @@ function getGestaoRows() {
   let rows = [...entradas, ...saidas];
   if (gestaoTab === 'entradas') rows = entradas;
   else if (gestaoTab === 'saidas') rows = saidas;
-  else if (gestaoTab === 'pendentes') rows = rows.filter(r => r.status && r.status !== 'Pago');
+  else if (gestaoTab === 'pendentes') rows = rows.filter(r => {
+    const status = String(r.status || '').trim().toLowerCase();
+    return status && status !== 'pago' && status !== 'cancelado';
+  });
   return rows;
 }
 
@@ -506,7 +428,7 @@ function renderGestaoTable() {
 
     return `<tr>
       <td>
-        <button onclick="editLancamento('${r.id}')" style="background:transparent;border:none;color:var(--accent);cursor:pointer;font-size:16px;" title="Editar Lançamento">✎</button>
+        <button onclick="editLancamento('${r.id}', '${r._tipo}')" style="background:transparent;border:none;color:var(--accent);cursor:pointer;font-size:16px;" title="Editar Lançamento">✎</button>
       </td>
       <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
       <td>${movTag}</td>
@@ -642,6 +564,8 @@ function setGestaoTab(tab, el) {
 function resetGestaoForm() {
   currentEditId = null;
   currentEditTipo = null;
+  currentEditContext = null;
+  currentFormModalidade = 'Pago';
 
   const title = document.getElementById('gf-title');
   if (title) {
@@ -650,6 +574,7 @@ function resetGestaoForm() {
   
   document.getElementById('gf-submit').textContent = 'Confirmar e Sincronizar';
   document.getElementById('gf-delete').style.display = 'none';
+  document.querySelectorAll('option[data-gestao-temporaria="true"]').forEach(option => option.remove());
 
   document.getElementById('gf-mov').value = 'Entrada';
   updateGestaoCategorias();
@@ -666,34 +591,49 @@ function resetGestaoForm() {
   document.getElementById('gf-obs').value = '';
   document.getElementById('gf-parcelas').value = '';
   document.getElementById('gf-parcelas-list').innerHTML = '';
-  toggleParcelaFields();
+  document.getElementById('gf-valorpago').value = '';
+  document.getElementById('gf-valorrestante').value = '';
+  const intervaloPadrao = document.querySelector('input[name="gf-intervalo"][value="30"]');
+  if (intervaloPadrao) intervaloPadrao.checked = true;
+  toggleParcelaFields({ skipCards: true });
 }
 
-function toggleParcelaFields() {
+function toggleParcelaFields(options = {}) {
   const status = document.getElementById('gf-status').value;
+  if (!options.skipCards && currentEditContext?.grupoMistoComCancelado) {
+    currentEditContext.modalidadeEscolhidaExplicitamente = true;
+  }
   const isParcial = status === 'Parcial';
   const isPendente = status === 'Pendente';
   const isPago = status === 'Pago';
   const isParcelado = status === 'Parcelado';
+  const isCancelado = status === 'Cancelado';
+  const modalidadeMudou = status !== currentFormModalidade;
 
   const dvencWrap = document.getElementById('gf-dvenc-wrap');
   const dpagWrap = document.getElementById('gf-dpag-wrap');
   const valorPagoWrap = document.getElementById('gf-valorpago-wrap');
   const valorRestanteWrap = document.getElementById('gf-valorrestante-wrap');
   const dpagInput = document.getElementById('gf-dpag');
+  const valorPagoInput = document.getElementById('gf-valorpago');
 
   if (dvencWrap) dvencWrap.style.display = (isParcial || isParcelado) ? 'none' : 'block';
-  if (dpagWrap) dpagWrap.style.display = (isPendente || isParcelado) ? 'none' : 'block';
-  if (valorPagoWrap) valorPagoWrap.style.display = isParcial ? 'block' : 'none';
+  if (dpagWrap) dpagWrap.style.display = (isPendente || isParcelado || isCancelado) ? 'none' : 'block';
+  if (valorPagoWrap) valorPagoWrap.style.display = (isPago || isParcial) ? 'block' : 'none';
   if (valorRestanteWrap) valorRestanteWrap.style.display = isParcial ? 'block' : 'none';
 
   if (isParcial) {
-    calcValorRestante();
-    if (dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
-  } else if (isPendente) {
+    if (!options.skipCards && dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
+    calcValorRestante(!options.skipCards);
+  } else if (isPendente || isParcelado || isCancelado) {
     if (dpagInput) dpagInput.value = '';
   } else if (isPago) {
-    if (dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
+    if (!options.skipCards && dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
+    if (!options.skipCards && valorPagoInput && (modalidadeMudou || parseVal(valorPagoInput.value) <= 0)) {
+      const valorTotal = parseVal(document.getElementById('gf-val').value) || 0;
+      valorPagoInput.value = valorTotal > 0 ? fmt(valorTotal) : '';
+    }
+    calcValorRestante(false);
   }
 
   // Exibe o configurador de parcelas no Parcial e no Parcelado
@@ -701,19 +641,36 @@ function toggleParcelaFields() {
     el.style.display = (isParcial || isParcelado) ? 'block' : 'none';
   });
 
-  if (isParcial || isParcelado) {
-    gerarParcelasCards();
+  if ((isParcial || isParcelado) && !options.skipCards) {
+    const cardsAtuais = document.querySelectorAll('#gf-parcelas-list .parcela-card').length;
+    const parcelasInput = document.getElementById('gf-parcelas');
+    const maximoParcelas = isParcial ? 47 : 48;
+    parcelasInput.max = String(maximoParcelas);
+    let quantidade = parseInt(parcelasInput.value, 10) || cardsAtuais;
+    quantidade = isParcelado ? Math.max(2, quantidade) : Math.max(1, quantidade);
+    quantidade = Math.min(maximoParcelas, quantidade);
+    parcelasInput.value = quantidade;
+
+    if (modalidadeMudou || cardsAtuais === 0 || cardsAtuais !== quantidade) {
+      gerarParcelasCards({ forceRedistribute: modalidadeMudou });
+    }
   }
+
+  currentFormModalidade = status;
 }
 
-function gerarParcelasCards() {
-  const num = parseInt(document.getElementById('gf-parcelas').value, 10) || 0;
+function gerarParcelasCards(options = {}) {
+  const parcelasInput = document.getElementById('gf-parcelas');
   const list = document.getElementById('gf-parcelas-list');
-  if (!list) return;
+  if (!list || !parcelasInput) return;
 
   const intervalEl = document.querySelector('input[name="gf-intervalo"]:checked');
   const interval = intervalEl ? intervalEl.value : '30';
   const status = document.getElementById('gf-status').value;
+  const maximoParcelas = status === 'Parcial' ? 47 : 48;
+  const num = Math.min(maximoParcelas, parseInt(parcelasInput.value, 10) || 0);
+  parcelasInput.max = String(maximoParcelas);
+  if (num > 0) parcelasInput.value = String(num);
   const dpag = document.getElementById('gf-dpag').value || toIso(new Date());
   const baseDate = status === 'Parcial' ? dpag : (document.getElementById('gf-dvenc').value || toIso(new Date()));
   
@@ -731,35 +688,68 @@ function gerarParcelasCards() {
     return;
   }
 
-  const currentCount = list.querySelectorAll('.parcela-card').length;
-  if (num !== currentCount || interval !== 'custom') {
-    let html = '';
-    const valorSugerido = (baseVal / num).toFixed(2);
-    
-    for (let i = 1; i <= num; i++) {
-      let dataVenc = baseDate;
-      if (baseDate && interval !== 'custom') {
-        const d = new Date(baseDate + 'T12:00:00');
-        if (interval === '30') d.setMonth(d.getMonth() + (status === 'Parcial' ? i : i - 1));
-        else if (interval === '15') d.setDate(d.getDate() + ((status === 'Parcial' ? i : i - 1) * 15));
-        else if (interval === '7') d.setDate(d.getDate() + ((status === 'Parcial' ? i : i - 1) * 7));
-        dataVenc = toIso(d);
-      }
+  const existentes = Array.from(list.querySelectorAll('.parcela-card')).map(card => ({
+    valor: parseVal(card.querySelector('.pc-val')?.value) || 0,
+    data_vencimento: card.querySelector('.pc-date')?.value || ''
+  }));
+  const valores = dividirValorEmParcelas(baseVal, num);
+  const redistribuirValores = Boolean(options.forceRedistribute) || interval !== 'custom' || existentes.length !== num;
+  const itens = [];
 
-      const rotuloParcela = status === 'Parcial' ? `Parcela Futura ${i}/${num}` : `Parcela ${i}/${num}`;
-
-      html += `
-        <div class="parcela-card" data-index="${i}">
-          <div class="pc-head">${rotuloParcela}</div>
-          <div class="pc-body">
-            <input type="text" class="pc-val" value="${fmt(valorSugerido)}" oninput="this.value = fmtInput(this.value)" placeholder="Valor">
-            <input type="date" class="pc-date" value="${dataVenc}" title="Data de Vencimento da Parcela">
-          </div>
-        </div>
-      `;
+  for (let i = 0; i < num; i++) {
+    let dataVenc = baseDate;
+    if (interval === 'custom' && existentes[i]) {
+      dataVenc = existentes[i].data_vencimento || baseDate;
+    } else if (baseDate && interval !== 'custom') {
+      const d = new Date(baseDate + 'T12:00:00');
+      const passo = status === 'Parcial' ? i + 1 : i;
+      if (interval === '30') d.setDate(d.getDate() + (passo * 30));
+      else if (interval === '15') d.setDate(d.getDate() + (passo * 15));
+      else if (interval === '7') d.setDate(d.getDate() + (passo * 7));
+      dataVenc = toIso(d);
     }
-    list.innerHTML = html;
+
+    itens.push({
+      valor: !redistribuirValores && existentes[i] ? existentes[i].valor : valores[i],
+      data_vencimento: dataVenc
+    });
   }
+
+  hidratarParcelasCards(itens, status);
+}
+
+function dividirValorEmParcelas(valor, quantidade) {
+  if (!quantidade || quantidade <= 0) return [];
+  const totalCentavos = Math.max(0, Math.round((Number(valor) || 0) * 100));
+  const baseCentavos = Math.floor(totalCentavos / quantidade);
+  const sobraCentavos = totalCentavos - (baseCentavos * quantidade);
+  return Array.from({ length: quantidade }, (_, index) =>
+    (baseCentavos + (index === quantidade - 1 ? sobraCentavos : 0)) / 100
+  );
+}
+
+function hidratarParcelasCards(itens, modalidade) {
+  const list = document.getElementById('gf-parcelas-list');
+  const parcelasInput = document.getElementById('gf-parcelas');
+  if (!list || !parcelasInput) return;
+
+  const parcelas = Array.isArray(itens) ? itens : [];
+  parcelasInput.value = parcelas.length || '';
+  list.innerHTML = parcelas.map((item, index) => {
+    const numero = index + 1;
+    const rotulo = modalidade === 'Parcial'
+      ? `Parcela Futura ${numero}/${parcelas.length}`
+      : `Parcela ${numero}/${parcelas.length}`;
+    return `
+      <div class="parcela-card" data-index="${numero}">
+        <div class="pc-head">${rotulo}</div>
+        <div class="pc-body">
+          <input type="text" class="pc-val" value="${fmt(item.valor || 0)}" oninput="this.value = fmtInput(this.value)" placeholder="Valor">
+          <input type="date" class="pc-date" value="${item.data_vencimento || ''}" title="Data de Vencimento da Parcela">
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function recalcularDatasSubsequentes() {
@@ -776,7 +766,7 @@ function recalcularDatasSubsequentes() {
   cards.forEach((card, i) => {
     if (i === 0) return;
     const d = new Date(card1Date + 'T12:00:00');
-    if (interval === '30') d.setMonth(d.getMonth() + i);
+    if (interval === '30') d.setDate(d.getDate() + (i * 30));
     else if (interval === '15') d.setDate(d.getDate() + (i * 15));
     else if (interval === '7') d.setDate(d.getDate() + (i * 7));
     card.querySelector('.pc-date').value = toIso(d);
@@ -794,16 +784,13 @@ function distribuirIgual() {
     baseVal = parseVal(document.getElementById('gf-val').value) || 0;
   }
 
-  const cards = document.querySelectorAll('.parcela-card');
-  if (cards.length === 0 || baseVal <= 0) return;
-
-  const valorBase = Math.floor((baseVal / cards.length) * 100) / 100;
-  const sobra = Math.round((baseVal - (valorBase * cards.length)) * 100) / 100;
+  const cards = document.querySelectorAll('#gf-parcelas-list .parcela-card');
+  if (cards.length === 0) return;
+  const valores = dividirValorEmParcelas(baseVal, cards.length);
 
   cards.forEach((card, i) => {
     const input = card.querySelector('.pc-val');
-    const valor = i === cards.length - 1 ? (valorBase + sobra) : valorBase;
-    input.value = fmt(valor);
+    input.value = fmt(valores[i]);
   });
 
   recalcularDatasSubsequentes();
@@ -813,7 +800,7 @@ function fmtInput(v) {
   return fmt(parseVal(v));
 }
 
-function calcValorRestante() {
+function calcValorRestante(redistribuir = true) {
   const valTotalEl = document.getElementById('gf-val');
   const valPagoEl = document.getElementById('gf-valorpago');
   const restanteEl = document.getElementById('gf-valorrestante');
@@ -826,187 +813,355 @@ function calcValorRestante() {
 
   // Recalcular sugestão das parcelas se estiver em modo Parcial
   const status = document.getElementById('gf-status').value;
-  if (status === 'Parcial') {
-    const cards = document.querySelectorAll('.parcela-card');
-    if (cards.length > 0) {
-      const valorBase = Math.floor((restante / cards.length) * 100) / 100;
-      const sobra = Math.round((restante - (valorBase * cards.length)) * 100) / 100;
-      cards.forEach((card, i) => {
-        const input = card.querySelector('.pc-val');
-        if (input) input.value = fmt(i === cards.length - 1 ? (valorBase + sobra) : valorBase);
-      });
+  if (status === 'Parcial' && redistribuir) {
+    distribuirIgual();
+  }
+}
+
+function onValorTotalChange() {
+  const status = document.getElementById('gf-status').value;
+  if (status === 'Parcial') calcValorRestante(true);
+  else if (status === 'Parcelado') distribuirIgual();
+  else if (status === 'Pago') {
+    const valorPagoInput = document.getElementById('gf-valorpago');
+    if (valorPagoInput && parseVal(valorPagoInput.value) <= 0) {
+      const valorTotal = parseVal(document.getElementById('gf-val').value) || 0;
+      valorPagoInput.value = valorTotal > 0 ? fmt(valorTotal) : '';
     }
+    calcValorRestante(false);
   }
 }
 
 // ─── Submeter lançamento ───
 
+function valorEmCentavos(valor) {
+  return Math.round((Number(valor) || 0) * 100);
+}
+
+function dataIsoValida(valor) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor || '')) return false;
+  const data = new Date(`${valor}T12:00:00`);
+  return !Number.isNaN(data.getTime()) && toIso(data) === valor;
+}
+
+function lerCamposComunsGestao() {
+  const dataEmissao = document.getElementById('gf-demissao')?.value || '';
+  return {
+    movimentacao: document.getElementById('gf-mov').value,
+    categoria: document.getElementById('gf-cat').value,
+    observacoes: document.getElementById('gf-obs').value,
+    fornecedor: document.getElementById('gf-forn').value,
+    conta_bancaria: document.getElementById('gf-conta').value,
+    forma_pagamento: document.getElementById('gf-forma').value,
+    empresa: document.getElementById('gf-empresa')?.value || 'DAC',
+    modo_emissao: document.getElementById('gf-nf').value || '',
+    data_emissao: dataEmissao ? isoToBr(dataEmissao) : ''
+  };
+}
+
+function lerParcelasPendentesDoForm() {
+  return Array.from(document.querySelectorAll('#gf-parcelas-list .parcela-card')).map(card => ({
+    valor: parseVal(card.querySelector('.pc-val')?.value) || 0,
+    valor_pago: 0,
+    status: 'Pendente',
+    data_vencimento: card.querySelector('.pc-date')?.value || '',
+    data_pagamento: ''
+  }));
+}
+
+function copiarItemPagoExistente(item) {
+  return {
+    valor: item.valor,
+    valor_pago: item.valor_pago > 0 ? item.valor_pago : item.valor,
+    status: 'Pago',
+    data_vencimento: item.data_vencimento,
+    data_pagamento: item.data_pagamento
+  };
+}
+
+function copiarItemCanceladoExistente(item) {
+  return {
+    valor: item.valor,
+    valor_pago: 0,
+    status: 'Cancelado',
+    data_vencimento: item.data_vencimento,
+    data_pagamento: ''
+  };
+}
+
+function montarConfiguracaoFinanceira() {
+  const modalidade = document.getElementById('gf-status').value;
+  const valorTotal = parseVal(document.getElementById('gf-val').value) || 0;
+  const dataVencimento = document.getElementById('gf-dvenc').value;
+  const dataPagamento = document.getElementById('gf-dpag').value;
+  const valorPagoInformado = parseVal(document.getElementById('gf-valorpago').value) || 0;
+  const contexto = currentEditContext;
+  let itens = [];
+  let preservaHistoricoPago = false;
+  let preservaHistoricoCancelado = false;
+
+  if (modalidade === 'Pago') {
+    preservaHistoricoPago = Boolean(
+      contexto?.groupId &&
+      contexto.modalidadeOriginal === 'Pago' &&
+      valorEmCentavos(contexto.valorTotalOriginal) === valorEmCentavos(valorTotal) &&
+      valorEmCentavos(contexto.valorPagoOriginal) === valorEmCentavos(valorPagoInformado) &&
+      contexto.dataVencimentoOriginal === dataVencimento &&
+      contexto.dataPagamentoOriginal === dataPagamento
+    );
+
+    if (preservaHistoricoPago) {
+      itens = contexto.itens.map(copiarItemPagoExistente);
+    } else {
+      itens = [{
+        valor: valorTotal,
+        valor_pago: valorPagoInformado,
+        status: 'Pago',
+        data_vencimento: dataVencimento,
+        data_pagamento: dataPagamento
+      }];
+    }
+  } else if (modalidade === 'Pendente') {
+    itens = [{
+      valor: valorTotal,
+      valor_pago: 0,
+      status: modalidade,
+      data_vencimento: dataVencimento,
+      data_pagamento: ''
+    }];
+  } else if (modalidade === 'Cancelado') {
+    preservaHistoricoCancelado = Boolean(
+      contexto?.groupId &&
+      contexto.todosCancelados &&
+      contexto.modalidadeOriginal === 'Cancelado' &&
+      valorEmCentavos(contexto.valorTotalOriginal) === valorEmCentavos(valorTotal) &&
+      contexto.dataVencimentoOriginal === dataVencimento
+    );
+    itens = preservaHistoricoCancelado
+      ? contexto.itens.map(copiarItemCanceladoExistente)
+      : [{
+          valor: valorTotal,
+          valor_pago: 0,
+          status: 'Cancelado',
+          data_vencimento: dataVencimento,
+          data_pagamento: ''
+        }];
+  } else if (modalidade === 'Parcelado') {
+    itens = lerParcelasPendentesDoForm();
+  } else if (modalidade === 'Parcial') {
+    const valorPagoNaoMudou = Boolean(
+      contexto?.itensPagos?.length &&
+      valorEmCentavos(contexto.valorPagoOriginal) === valorEmCentavos(valorPagoInformado) &&
+      contexto.dataPagamentoOriginal === dataPagamento
+    );
+    const itensPagos = valorPagoNaoMudou
+      ? contexto.itensPagos.map(copiarItemPagoExistente)
+      : [{
+          valor: valorPagoInformado,
+          valor_pago: valorPagoInformado,
+          status: 'Pago',
+          data_vencimento: dataPagamento,
+          data_pagamento: dataPagamento
+        }];
+    itens = [...itensPagos, ...lerParcelasPendentesDoForm()];
+  }
+
+  return {
+    modalidade,
+    valorTotal,
+    valorPagoInformado,
+    itens,
+    preservaHistoricoPago,
+    preservaHistoricoCancelado
+  };
+}
+
+function validarConfiguracaoFinanceira(configuracao) {
+  const {
+    modalidade,
+    valorTotal,
+    valorPagoInformado,
+    itens,
+    preservaHistoricoPago,
+    preservaHistoricoCancelado
+  } = configuracao;
+  const modalidadesValidas = ['Pago', 'Pendente', 'Parcial', 'Parcelado', 'Cancelado'];
+  if (!modalidadesValidas.includes(modalidade)) return 'Selecione uma modalidade válida.';
+  if (valorEmCentavos(valorTotal) <= 0) return 'O valor total deve ser positivo.';
+  if (!Array.isArray(itens) || itens.length === 0) return 'Configure ao menos um item financeiro.';
+  if (currentEditContext?.grupoMistoComCancelado && !currentEditContext.modalidadeEscolhidaExplicitamente) {
+    return 'Este grupo possui itens cancelados misturados com outros status. Selecione explicitamente a modalidade desejada antes de salvar.';
+  }
+
+  if (modalidade === 'Parcelado' && itens.length < 2) {
+    return 'Um lançamento parcelado precisa ter pelo menos 2 parcelas pendentes.';
+  }
+  if (modalidade === 'Parcelado' && itens.length > 48) {
+    return 'Um lançamento parcelado pode ter no máximo 48 parcelas.';
+  }
+  if (modalidade === 'Parcial' && itens.filter(item => item.status === 'Pendente').length > 47) {
+    return 'Um lançamento parcial pode ter no máximo 47 parcelas futuras.';
+  }
+  if (modalidade === 'Parcial' && itens.length > 48) {
+    return 'Um lançamento parcial pode ter no máximo 48 itens no total.';
+  }
+  if (modalidade === 'Parcial' && (
+    valorEmCentavos(valorPagoInformado) <= 0 ||
+    valorEmCentavos(valorPagoInformado) >= valorEmCentavos(valorTotal)
+  )) {
+    return 'No modo Parcial, o valor pago deve ser maior que zero e menor que o total.';
+  }
+
+  let somaCentavos = 0;
+  let quantidadePagos = 0;
+  let quantidadePendentes = 0;
+
+  for (let index = 0; index < itens.length; index++) {
+    const item = itens[index];
+    const numero = index + 1;
+    const valorCentavos = valorEmCentavos(item.valor);
+    const valorPagoCentavos = valorEmCentavos(item.valor_pago);
+    somaCentavos += valorCentavos;
+
+    if (valorCentavos <= 0) return `O valor do item ${numero} deve ser positivo.`;
+    if (!dataIsoValida(item.data_vencimento)) return `Informe um vencimento válido para o item ${numero}.`;
+    if (!['Pago', 'Pendente', 'Cancelado'].includes(item.status)) {
+      return `O item ${numero} possui um status inválido.`;
+    }
+
+    if (item.status === 'Pago') {
+      quantidadePagos++;
+      if (valorPagoCentavos <= 0) return `Informe um valor pago positivo para o item ${numero}.`;
+      if (!dataIsoValida(item.data_pagamento)) return `Informe uma data de pagamento válida para o item ${numero}.`;
+    } else {
+      if (item.status === 'Pendente') quantidadePendentes++;
+      if (valorPagoCentavos !== 0 || item.data_pagamento) {
+        return `O item ${numero} não pago não pode ter valor ou data de pagamento.`;
+      }
+    }
+  }
+
+  if (somaCentavos !== valorEmCentavos(valorTotal)) {
+    return `A soma dos itens (${fmt(somaCentavos / 100)}) deve ser igual ao total (${fmt(valorTotal)}).`;
+  }
+  if (modalidade === 'Parcelado' && quantidadePendentes !== itens.length) {
+    return 'Todas as parcelas de um lançamento Parcelado devem estar pendentes.';
+  }
+  if (modalidade === 'Parcial' && (quantidadePagos === 0 || quantidadePendentes === 0)) {
+    return 'O modo Parcial precisa ter ao menos um item pago e um pendente.';
+  }
+  if (modalidade === 'Parcial') {
+    const totalPago = itens
+      .filter(item => item.status === 'Pago')
+      .reduce((soma, item) => soma + valorEmCentavos(item.valor_pago), 0);
+    if (totalPago !== valorEmCentavos(valorPagoInformado)) {
+      return 'Os itens pagos não correspondem ao valor pago informado.';
+    }
+  }
+  if (modalidade === 'Pago') {
+    const totalPago = itens.reduce((soma, item) => soma + valorEmCentavos(item.valor_pago), 0);
+    if (totalPago !== valorEmCentavos(valorPagoInformado)) {
+      return 'Os itens pagos não correspondem ao valor pago informado.';
+    }
+  }
+  if (modalidade === 'Pago' && !preservaHistoricoPago && (itens.length !== 1 || quantidadePagos !== 1)) {
+    return 'O modo Pago deve gerar um único item quitado.';
+  }
+  if (modalidade === 'Pendente' && itens.length !== 1) {
+    return `O modo ${modalidade} deve gerar um único item.`;
+  }
+  if (modalidade === 'Cancelado' && !preservaHistoricoCancelado && itens.length !== 1) {
+    return 'O modo Cancelado deve gerar um único item.';
+  }
+
+  return '';
+}
+
+function serializarItemFinanceiro(item) {
+  return {
+    valor: Math.round(item.valor * 100) / 100,
+    data_vencimento: isoToBr(item.data_vencimento),
+    status: item.status,
+    valor_pago: Math.round(item.valor_pago * 100) / 100,
+    data_pagamento: item.data_pagamento ? isoToBr(item.data_pagamento) : ''
+  };
+}
+
 async function submitGestao() {
-  const mov = document.getElementById('gf-mov').value;
-  const cat = document.getElementById('gf-cat').value;
-  const val = document.getElementById('gf-val').value;
-  const dvenc = document.getElementById('gf-dvenc').value;
-  const status = document.getElementById('gf-status').value;
-  const dpag = document.getElementById('gf-dpag').value;
+  const btn = document.getElementById('gf-submit');
+  if (!btn || btn.disabled) return;
 
-  const demissao = document.getElementById('gf-demissao')?.value;
-
-  if (!mov || !cat || !val) {
+  const camposComuns = lerCamposComunsGestao();
+  if (!camposComuns.movimentacao || !camposComuns.categoria || !document.getElementById('gf-val').value) {
     showGestaoToast('Preencha os campos obrigatórios: Movimentação, Categoria e Valor.', 'err');
     return;
   }
 
-  // Se o status exigir vencimento geral (Pendente ou Pago)
-  if ((status === 'Pendente' || status === 'Pago') && !dvenc) {
-    showGestaoToast('Preencha a Data de Vencimento.', 'err');
+  const configuracao = montarConfiguracaoFinanceira();
+  const erroValidacao = validarConfiguracaoFinanceira(configuracao);
+  if (erroValidacao) {
+    showGestaoToast('❌ ' + erroValidacao, 'err');
     return;
   }
 
-  // Validação do valor monetário
-  const valorNum = parseVal(val);
-  if (valorNum <= 0) {
-    showGestaoToast('O valor deve ser um número positivo.', 'err');
-    return;
-  }
-
-  const cards = document.querySelectorAll('.parcela-card');
-  const grupoId = `PRC-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-
-  let body;
+  const itens = configuracao.itens.map(serializarItemFinanceiro);
+  const isEdit = Boolean(currentEditId);
   let endpoint = `${API}/lancamento`;
+  let method = 'POST';
+  let body;
 
-  if (status === 'Parcelado' && cards.length > 0) {
-    const numParcelas = cards.length;
-    const parcelasData = Array.from(cards).map((card, idx) => {
-      const valorParcela = parseVal(card.querySelector('.pc-val').value);
-      const dataVenc = card.querySelector('.pc-date').value;
-      return {
-        valor: valorParcela,
-        data_vencimento: isoToBr(dataVenc),
-        data_pagamento: '',
-        valor_pago: 0,
-        parcela_ref: `${idx + 1}/${numParcelas} [${grupoId}]`,
-        status: 'Pendente'
-      };
-    });
-
+  if (isEdit) {
+    endpoint = `${API}/lancamento/reconfigurar/${currentEditTipo}/${currentEditId}`;
+    method = 'PUT';
     body = {
-      movimentacao: mov,
-      categoria: cat,
-      observacoes: document.getElementById('gf-obs').value,
-      fornecedor: document.getElementById('gf-forn').value,
-      conta_bancaria: document.getElementById('gf-conta').value,
-      forma_pagamento: document.getElementById('gf-forma').value,
-      empresa: document.getElementById('gf-empresa')?.value || 'DAC',
-      modo_emissao: document.getElementById('gf-nf').value || '',
-      data_emissao: demissao ? isoToBr(demissao) : '',
-      parcelas: parcelasData
+      ...camposComuns,
+      modalidade: configuracao.modalidade,
+      valor_total: Math.round(configuracao.valorTotal * 100) / 100,
+      itens
     };
+  } else if (configuracao.modalidade === 'Parcelado' || configuracao.modalidade === 'Parcial') {
     endpoint = `${API}/lancamento/parcelado`;
-  } else if (status === 'Parcial') {
-    const valPago = parseVal(document.getElementById('gf-valorpago').value) || 0;
-    const restante = Math.max(0, valorNum - valPago);
-    const totalItens = cards.length > 0 ? (cards.length + 1) : 2;
-
-    const parcelasData = [];
-
-    // 1. Entrada de Hoje (Quitada)
-    parcelasData.push({
-      valor: valPago,
-      valor_pago: valPago,
-      status: 'Pago',
-      data_vencimento: isoToBr(dpag || toIso(new Date())),
-      data_pagamento: isoToBr(dpag || toIso(new Date())),
-      parcela_ref: `1/${totalItens} [${grupoId}]`
-    });
-
-    // 2. Parcelas Futuras Pendentes (com vencimentos individuais)
-    if (cards.length > 0) {
-      cards.forEach((card, idx) => {
-        const vParc = parseVal(card.querySelector('.pc-val').value);
-        const dVencParc = card.querySelector('.pc-date').value;
-        parcelasData.push({
-          valor: vParc,
-          valor_pago: 0,
-          status: 'Pendente',
-          data_vencimento: isoToBr(dVencParc),
-          data_pagamento: '',
-          parcela_ref: `${idx + 2}/${totalItens} [${grupoId}]`
-        });
-      });
-    } else if (restante > 0) {
-      // Se não gerou cards, grava 1 parcela pendente para o saldo restante
-      parcelasData.push({
-        valor: restante,
-        valor_pago: 0,
-        status: 'Pendente',
-        data_vencimento: isoToBr(dpag || toIso(new Date())),
-        data_pagamento: '',
-        parcela_ref: `2/2 [${grupoId}]`
-      });
-    }
-
     body = {
-      movimentacao: mov,
-      categoria: cat,
-      observacoes: document.getElementById('gf-obs').value,
-      fornecedor: document.getElementById('gf-forn').value,
-      conta_bancaria: document.getElementById('gf-conta').value,
-      forma_pagamento: document.getElementById('gf-forma').value,
-      empresa: document.getElementById('gf-empresa')?.value || 'DAC',
-      modo_emissao: document.getElementById('gf-nf').value || '',
-      data_emissao: demissao ? isoToBr(demissao) : '',
-      parcelas: parcelasData
+      ...camposComuns,
+      modalidade: configuracao.modalidade,
+      valor_total: Math.round(configuracao.valorTotal * 100) / 100,
+      parcelas: itens
     };
-    endpoint = `${API}/lancamento/parcelado`;
   } else {
-    // Modo simples: Pendente ou Pago
-    let valorPagoFinal = status === 'Pago' ? valorNum : 0;
-    let dataPagamentoFinal = status === 'Pago' && dpag ? isoToBr(dpag) : '';
-
     body = {
-      movimentacao: mov,
-      categoria: cat,
-      observacoes: document.getElementById('gf-obs').value,
-      fornecedor: document.getElementById('gf-forn').value,
-      valor: valorNum,
-      conta_bancaria: document.getElementById('gf-conta').value,
-      data_vencimento: isoToBr(dvenc),
-      data_pagamento: dataPagamentoFinal,
-      forma_pagamento: document.getElementById('gf-forma').value,
-      status: status,
-      num_parcelas: 1,
-      valor_pago: valorPagoFinal,
-      empresa: document.getElementById('gf-empresa')?.value || 'DAC',
-      modo_emissao: document.getElementById('gf-nf').value || '',
-      data_emissao: demissao ? isoToBr(demissao) : ''
+      ...camposComuns,
+      ...itens[0],
+      num_parcelas: 1
     };
   }
+
+  const textoOriginal = btn.textContent;
+  let concluido = false;
+  btn.disabled = true;
+  btn.textContent = isEdit ? 'Salvando Alterações...' : 'Sincronizando...';
 
   try {
-    const isEdit = !!currentEditId;
-    const url = isEdit ? `${API}/lancamento/${currentEditTipo}/${currentEditId}` : endpoint;
-    const method = isEdit ? 'PUT' : 'POST';
-
-    const r = await fetch(url, {
-      method: method,
+    const response = await fetch(endpoint, {
+      method,
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH_TOKEN },
       body: JSON.stringify(body)
     });
-    const data = await r.json();
-    if (r.ok && data.success) {
-      showGestaoToast('✓ ' + data.message, 'ok');
+    const data = await response.json();
+    if (response.ok && data.success) {
+      concluido = true;
+      showGestaoToast('✓ ' + (data.message || 'Lançamento salvo com sucesso.'), 'ok');
       resetGestaoForm();
-      setTimeout(loadData, 1500);
+      setTimeout(loadData, 500);
     } else {
       showGestaoToast('❌ ' + (data.error || 'Erro ao enviar lançamento.'), 'err');
     }
   } catch (e) {
+    console.error('Erro ao salvar lançamento:', e);
     showGestaoToast('❌ Erro de conexão com o servidor.', 'err');
+  } finally {
+    btn.disabled = false;
+    if (!concluido) btn.textContent = textoOriginal;
   }
-
-  btn.disabled = false;
-  btn.textContent = 'Confirmar e Sincronizar';
 }
 
 // ─── Toast de feedback ───
@@ -1029,9 +1184,51 @@ function showGestaoToast(msg, type) {
 
 // ─── Edição no Formulário e Exclusão ───
 
-function editLancamento(id) {
-  const rows = getGestaoRows();
-  const r = rows.find(x => String(x.id) === String(id));
+function obterGrupoIdLancamento(row) {
+  const match = String(row?.parcela_ref || '').match(/\[(PRC-[^\]]+)\]/i);
+  return row?._parcelGroupId || (match ? match[1] : null);
+}
+
+function obterOrdemParcela(row) {
+  const match = String(row?.parcela_ref || '').trim().match(/^(\d+)\//);
+  return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+function normalizarModalidadeFinanceira(valor, fallback = 'Pendente') {
+  const mapa = {
+    pago: 'Pago',
+    pendente: 'Pendente',
+    parcial: 'Parcial',
+    parcelado: 'Parcelado',
+    cancelado: 'Cancelado'
+  };
+  const chave = String(valor || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return mapa[chave] || fallback;
+}
+
+function normalizarItemParaEdicao(row) {
+  return {
+    id: row.id,
+    valor: parseVal(row.valor) || 0,
+    valor_pago: parseVal(row.valor_pago) || 0,
+    status: normalizarModalidadeFinanceira(row.status),
+    data_vencimento: parseBrToIso(row.data_vencimento) || '',
+    data_pagamento: parseBrToIso(row.data_pagamento) || '',
+    parcela_ref: row.parcela_ref || ''
+  };
+}
+
+function editLancamento(id, tipo) {
+  const todasEntradas = ENT.map(item => ({ ...item, movimentacao: item.movimentacao || 'Entrada', _tipo: 'entrada' }));
+  const todasSaidas = SAI.map(item => ({ ...item, movimentacao: item.movimentacao || 'Saída', _tipo: 'saida' }));
+  const rows = [...todasEntradas, ...todasSaidas];
+  const r = rows.find(x =>
+    String(x.id) === String(id) && (!tipo || x._tipo === tipo)
+  );
   if (!r) {
     console.warn("Lançamento não encontrado: ", id);
     return;
@@ -1040,9 +1237,59 @@ function editLancamento(id) {
   currentEditId = r.id;
   currentEditTipo = r._tipo;
 
+  const grupoId = obterGrupoIdLancamento(r);
+  const rowsDoTipo = currentEditTipo === 'entrada' ? todasEntradas : todasSaidas;
+  const rowsDoGrupo = grupoId
+    ? rowsDoTipo
+        .filter(item => obterGrupoIdLancamento(item) === grupoId)
+        .sort((a, b) => obterOrdemParcela(a) - obterOrdemParcela(b))
+    : [r];
+  const itens = rowsDoGrupo.map(normalizarItemParaEdicao);
+  const itensPagos = itens.filter(item => item.status.toLowerCase() === 'pago');
+  const itensCancelados = itens.filter(item => item.status.toLowerCase() === 'cancelado');
+  const todosCancelados = itensCancelados.length === itens.length;
+  const possuiCancelado = itensCancelados.length > 0;
+  const valorTotal = itens.reduce((soma, item) => soma + item.valor, 0);
+  const valorPagoGrupo = itensPagos.reduce(
+    (soma, item) => soma + (item.valor_pago > 0 ? item.valor_pago : item.valor),
+    0
+  );
+
+  let modalidade = normalizarModalidadeFinanceira(r.status);
+  if (grupoId) {
+    if (possuiCancelado) modalidade = 'Cancelado';
+    else if (itensPagos.length === 0) modalidade = 'Parcelado';
+    else if (itensPagos.length === itens.length) modalidade = 'Pago';
+    else modalidade = 'Parcial';
+  }
+  const ultimoPagoComData = [...itensPagos].reverse().find(item => item.data_pagamento);
+  const dataPagamentoRepresentativa = ultimoPagoComData?.data_pagamento || parseBrToIso(r.data_pagamento) || '';
+  const dataVencimentoRepresentativa = parseBrToIso(r.data_vencimento) || itens[0]?.data_vencimento || '';
+  const valorPagoOriginal = grupoId
+    ? valorPagoGrupo
+    : (modalidade === 'Pago' ? (parseVal(r.valor_pago) || valorTotal) : (parseVal(r.valor_pago) || 0));
+
+  currentEditContext = {
+    groupId: grupoId,
+    itens,
+    itensPagos,
+    todosCancelados,
+    grupoMistoComCancelado: possuiCancelado && !todosCancelados,
+    modalidadeEscolhidaExplicitamente: false,
+    modalidadeOriginal: modalidade,
+    valorTotalOriginal: valorTotal,
+    valorPagoOriginal,
+    dataVencimentoOriginal: dataVencimentoRepresentativa,
+    dataPagamentoOriginal: dataPagamentoRepresentativa
+  };
+
   const title = document.getElementById('gf-title');
   if (title) {
-    title.innerHTML = '<span style="color:#FACC15;">✏️ Editando Lançamento</span>\n            <span style="margin-left:auto;font-family:\'DM Sans\',sans-serif;font-size:11px;font-weight:400;letter-spacing:0;color:var(--muted);">Modo de edição rápida habilitado</span>';
+    const detalhe = possuiCancelado && !todosCancelados
+      ? 'Grupo com status mistos · escolha uma modalidade'
+      : (grupoId ? `Grupo parcelado · ${itens.length} itens` : 'Lançamento individual');
+    title.innerHTML = `<span style="color:#FACC15;">✏️ Editando Lançamento</span>
+            <span style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;letter-spacing:0;color:var(--muted);">${detalhe}</span>`;
   }
 
   document.getElementById('gf-submit').textContent = 'Salvar Alterações';
@@ -1051,9 +1298,22 @@ function editLancamento(id) {
   // Helper para select
   const setSelectByText = (id, val) => {
     const el = document.getElementById(id);
-    const opts = Array.from(el.options).map(o => o.value);
-    const match = opts.find(o => o.toLowerCase() === (val || '').toLowerCase());
-    if (match) el.value = match;
+    if (!el) return;
+    el.querySelectorAll('option[data-gestao-temporaria="true"]').forEach(option => option.remove());
+    const valor = String(val || '').trim();
+    const match = Array.from(el.options).find(option => option.value.toLowerCase() === valor.toLowerCase());
+    if (match) {
+      el.value = match.value;
+    } else if (valor) {
+      const option = document.createElement('option');
+      option.value = valor;
+      option.textContent = valor;
+      option.dataset.gestaoTemporaria = 'true';
+      el.appendChild(option);
+      el.value = valor;
+    } else if (Array.from(el.options).some(option => option.value === '')) {
+      el.value = '';
+    }
   };
 
   const isEntrada = (r.movimentacao || (r._tipo === 'entrada' ? 'Entrada' : 'Saída')).toLowerCase().includes('entrada');
@@ -1062,31 +1322,53 @@ function editLancamento(id) {
   
   setSelectByText('gf-cat', r.categoria);
   document.getElementById('gf-forn').value = r.cliente || r.fornecedor || '';
-  document.getElementById('gf-val').value = r.valor || '';
+  document.getElementById('gf-val').value = valorTotal || '';
   setSelectByText('gf-conta', r.conta_bancaria);
   
   const formaStr = r.forma_pagamento && r.forma_pagamento !== '—' ? r.forma_pagamento : '';
   setSelectByText('gf-forma', formaStr);
   
   if (document.getElementById('gf-demissao')) document.getElementById('gf-demissao').value = parseBrToIso(r.data_emissao) || '';
-  document.getElementById('gf-dvenc').value = parseBrToIso(r.data_vencimento) || '';
-  document.getElementById('gf-dpag').value = parseBrToIso(r.data_pagamento) || '';
-  setSelectByText('gf-status', r.status || 'Pendente');
+  document.getElementById('gf-dvenc').value = dataVencimentoRepresentativa;
+  document.getElementById('gf-dpag').value = dataPagamentoRepresentativa;
+  setSelectByText('gf-status', modalidade);
   document.getElementById('gf-obs').value = r.observacoes || '';
-  
-  if (r.modo_emissao) {
-    const nfEl = document.getElementById('gf-nf');
-    if (nfEl) nfEl.value = r.modo_emissao;
-  }
-  if (r.empresa) {
-    const empEl = document.getElementById('gf-empresa');
-    if (empEl) empEl.value = r.empresa;
-  }
 
-  // Parcelas
-  document.getElementById('gf-parcelas').value = r.num_parcelas || '';
-  document.getElementById('gf-valorpago').value = r.valor_pago || '';
-  toggleParcelaFields();
+  const nfEl = document.getElementById('gf-nf');
+  if (nfEl) nfEl.value = r.modo_emissao || '';
+  const empEl = document.getElementById('gf-empresa');
+  if (empEl) setSelectByText('gf-empresa', r.empresa || 'DAC');
+
+  document.getElementById('gf-parcelas-list').innerHTML = '';
+  document.getElementById('gf-parcelas').value = '';
+  document.getElementById('gf-valorpago').value = valorPagoOriginal || '';
+  document.getElementById('gf-valorrestante').value = fmt(Math.max(0, valorTotal - valorPagoOriginal));
+  const intervaloEdicao = document.querySelector(
+    `input[name="gf-intervalo"][value="${grupoId && (modalidade === 'Parcial' || modalidade === 'Parcelado') ? 'custom' : '30'}"]`
+  );
+  if (intervaloEdicao) intervaloEdicao.checked = true;
+  currentFormModalidade = modalidade;
+  toggleParcelaFields({ skipCards: true });
+
+  if (modalidade === 'Parcial') {
+    let itensPendentes;
+    if (grupoId) {
+      itensPendentes = itens.filter(item => item.status.toLowerCase() !== 'pago');
+    } else {
+      itensPendentes = [{
+        valor: Math.max(0, valorTotal - valorPagoOriginal),
+        data_vencimento: dataVencimentoRepresentativa || toIso(new Date())
+      }];
+    }
+    hidratarParcelasCards(itensPendentes, modalidade);
+  } else if (modalidade === 'Parcelado') {
+    if (grupoId && itens.length >= 2) {
+      hidratarParcelasCards(itens, modalidade);
+    } else {
+      document.getElementById('gf-parcelas').value = 2;
+      gerarParcelasCards();
+    }
+  }
 
   const wrap = document.querySelector('.gestao-form-wrap');
   if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1094,7 +1376,10 @@ function editLancamento(id) {
 
 async function deleteGestaoLancamento() {
   if (!currentEditId || !currentEditTipo) return;
-  const isOk = confirm('⚠️ Tem certeza que deseja excluir este lançamento permanentemente?');
+  const mensagem = currentEditContext?.groupId
+    ? `⚠️ Este lançamento pertence a um grupo com ${currentEditContext.itens.length} itens. A exclusão removerá permanentemente todo o grupo. Deseja continuar?`
+    : '⚠️ Tem certeza que deseja excluir este lançamento permanentemente?';
+  const isOk = confirm(mensagem);
   if (!isOk) return;
 
   try {

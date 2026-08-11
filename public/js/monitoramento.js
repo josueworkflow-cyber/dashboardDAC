@@ -428,7 +428,7 @@ function renderTabelaSemanalNF() {
               <thead>
                 <tr>
                   <th style="padding:6px 8px;">Cliente</th>
-                  <th style="padding:6px 8px;">Valor</th>
+                  <th style="padding:6px 8px;">Valor Pago</th>
                   <th style="padding:6px 8px;">Status</th>
                 </tr>
               </thead>
@@ -436,7 +436,7 @@ function renderTabelaSemanalNF() {
                 ${group.items.map(e => `
                   <tr>
                     <td style="font-size:10px; padding:5px 8px;">${e.cliente || '—'}</td>
-                    <td class="tg" style="padding:5px 8px; font-size:11px;">${fmt(parseVal(e.valor || e.valor_pago) || getPaidValue(e))}</td>
+                    <td class="tg" style="padding:5px 8px; font-size:11px;">${fmt(getPaidValue(e))}</td>
                     <td style="padding:5px 8px;"><span class="st ${(e.status || '').toLowerCase() === 'pago' ? 'sg' : 'sp'}">${e.status || '—'}</span></td>
                   </tr>
                 `).join('')}
@@ -806,9 +806,12 @@ function getValOrEffective(s) {
   if (!s) return 0;
   const status = String(s.status || '').trim().toLowerCase();
   if (status === 'cancelado') return 0;
-  const eff = typeof getEffectiveValue === 'function' ? getEffectiveValue(s) : 0;
-  if (eff > 0) return eff;
-  return typeof parseVal === 'function' ? parseVal(s.valor || s.valor_pago) : (parseFloat(s.valor) || 0);
+  if (typeof getEffectiveValue === 'function') return getEffectiveValue(s);
+  const valor = typeof parseVal === 'function' ? parseVal(s.valor) : (parseFloat(s.valor) || 0);
+  const valorPago = typeof parseVal === 'function' ? parseVal(s.valor_pago) : (parseFloat(s.valor_pago) || 0);
+  if (status === 'pago') return valorPago > 0 ? valorPago : valor;
+  if (status === 'parcial') return valorPago;
+  return 0;
 }
 
 // ─── Helper de Categoria para Transporte Terceirizado / Logística ───

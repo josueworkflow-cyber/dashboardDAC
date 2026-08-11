@@ -160,7 +160,7 @@ function registerWhatsAppRoutes(app) {
           const dtPgto = parseDate(e.data_pagamento);
           return {
             cliente: e.cliente,
-            valor: e.valor || e.valor_pago || 0,
+            valor: e.valor_pago || e.valor || 0,
             data_pagamento_raw: String(e.data_pagamento || ''),
             data_pagamento_type: typeof e.data_pagamento,
             data_vencimento: e.data_vencimento,
