@@ -20,7 +20,7 @@ function goPage(id, el) {
     'movimentacoes-financeiras': 'MOVIMENTAÇÕES FINANCEIRAS',
     gestao: 'GESTÃO DE DADOS',
     'movimentacao-estoque': 'MOVIMENTAÇÃO DE ESTOQUE',
-    estoque: 'GESTÃO DE ESTOQUE',
+    estoque: 'GESTÃO COMERCIAL',
     messenger: 'MESSENGER',
     comercial: 'FUNIL DE PEDIDOS',
     'historico-pedidos': 'HISTÓRICO DE PEDIDOS'
@@ -125,14 +125,14 @@ function applyRoleRestrictions() {
     }
 
   } else if (role === 'estoque') {
-    // Perfil Estoque: apenas Funil enquanto as telas de estoque estão ocultas.
+    // Perfil Estoque: Funil + Gestão Comercial
     navLinks.forEach(link => {
       const text = link.textContent.trim();
-      if (text.includes('Funil')) {
+      if (text.includes('Funil') || text.includes('Gestão Comercial')) {
         link.style.display = 'flex';
       }
     });
-    // O Funil pertence ao grupo Comercial.
+    // O Funil e a Gestão Comercial pertencem ao grupo Comercial.
     groups.forEach(g => {
       if (g.textContent.trim() === 'Comercial') g.style.display = 'block';
     });
@@ -144,10 +144,10 @@ function applyRoleRestrictions() {
     }
 
   } else if (role === 'comercial') {
-    // Perfil Comercial: Funil + Histórico
+    // Perfil Comercial: Funil + Histórico + Gestão Comercial
     navLinks.forEach(link => {
       const text = link.textContent.trim();
-      if (text.includes('Funil') || text.includes('Histórico de Pedidos')) {
+      if (text.includes('Funil') || text.includes('Histórico de Pedidos') || text.includes('Gestão Comercial')) {
         link.style.display = 'flex';
       }
     });
@@ -168,7 +168,7 @@ function applyRoleRestrictions() {
       const pageAttr = link.getAttribute('onclick') || '';
       if (pageAttr.includes("'monitoramento'") || pageAttr.includes("'main'") ||
           text.includes('Movimentações Financeiras') || text.includes('Gestão de Dados') ||
-          text.includes('Funil') || text.includes('Histórico de Pedidos')) {
+          text.includes('Funil') || text.includes('Histórico de Pedidos') || text.includes('Gestão Comercial')) {
         link.style.display = 'flex';
       }
     });
