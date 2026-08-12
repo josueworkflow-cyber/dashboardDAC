@@ -187,7 +187,7 @@ function resetEstoqueForm() {
   currentEstoqueEditId = null;
 
   const title = document.getElementById('ef-title');
-  if (title) title.innerHTML = '<span style="color:var(--red);">＋</span> Novo Lançamento de Estoque';
+  if (title) title.innerHTML = '<span style="color:var(--red);">＋</span> Novo Lançamento Comercial';
   
   document.getElementById('ef-submit').textContent = 'Confirmar e Sincronizar';
   document.getElementById('ef-delete').style.display = 'none';
@@ -321,7 +321,7 @@ function editEstoqueLancamento(id) {
   currentEstoqueEditId = r.id;
 
   const title = document.getElementById('ef-title');
-  if (title) title.innerHTML = '<span style="color:#FACC15;">✏️ Editando Lançamento de Estoque</span>';
+  if (title) title.innerHTML = '<span style="color:#FACC15;">✏️ Editando Lançamento Comercial</span>';
 
   document.getElementById('ef-submit').textContent = 'Salvar Alterações';
   document.getElementById('ef-delete').style.display = 'inline-block';
@@ -361,7 +361,7 @@ function editEstoqueLancamento(id) {
 
 async function deleteEstoqueLancamento() {
   if (!currentEstoqueEditId) return;
-  const isOk = confirm('⚠️ Tem certeza que deseja excluir este lançamento de estoque permanentemente?');
+  const isOk = confirm('⚠️ Tem certeza que deseja excluir este lançamento comercial permanentemente?');
   if (!isOk) return;
 
   try {
