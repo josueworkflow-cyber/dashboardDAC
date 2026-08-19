@@ -197,7 +197,7 @@ function renderMovimentacoesFinanceiras() {
           <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcela ${getSortIconHtml('parcelas')}</th>
           <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
           <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor ${getSortIconHtml('valor')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')" style="width:24%;">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
       } else if (variant === 'pagar') {
         thead.innerHTML = `<tr>
@@ -206,7 +206,7 @@ function renderMovimentacoesFinanceiras() {
           <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcela ${getSortIconHtml('parcelas')}</th>
           <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
           <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor ${getSortIconHtml('valor')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')" style="width:24%;">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
       } else {
         const personHeader = variant === 'entradas' ? 'Cliente' : (variant === 'saidas' ? 'Fornecedor' : 'Fornecedor/Cliente');
@@ -256,7 +256,7 @@ function renderMovimentacoesFinanceiras() {
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
           <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
           <td class="mono" style="color:#4ADE80;font-weight:700;">${fmt(valTotal)}</td>
-          <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
+          <td style="font-size:10px;opacity:0.8;width:24%;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
         </tr>`;
       } else if (variant === 'pagar') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
@@ -266,7 +266,7 @@ function renderMovimentacoesFinanceiras() {
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
           <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
           <td class="mono" style="color:var(--red);font-weight:700;">${fmt(valTotal)}</td>
-          <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
+          <td style="font-size:10px;opacity:0.8;width:24%;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
         </tr>`;
       }
 

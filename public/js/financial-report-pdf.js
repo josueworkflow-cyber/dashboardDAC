@@ -566,23 +566,23 @@
 
     if (variant === 'receber') {
       return [
-        { key: 'cliente', header: 'CLIENTE', width: 46, align: 'left', value: row => cleanPdfText(row.cliente || row.fornecedor) },
-        { key: 'modo_emissao', header: 'NOTA FISCAL', width: 34, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
+        { key: 'cliente', header: 'CLIENTE', width: 70, align: 'left', value: row => cleanPdfText(row.cliente || row.fornecedor) },
+        { key: 'modo_emissao', header: 'NOTA FISCAL', width: 48, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
         { key: 'parcelas', header: 'PARCELA', width: 24, align: 'center', value: row => cleanPdfText(row._parcelLabel || cleanParcelReference(row.parcela_ref)) },
         { key: 'vencimento', header: 'VENCIMENTO', width: 32, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
         { key: 'valor', header: 'VALOR', width: 36, align: 'right', value: row => formatCurrency(row.valor) },
-        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 107, align: 'left', value: row => cleanPdfText(row.observacoes) }
+        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 69, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
     }
 
     if (variant === 'pagar') {
       return [
-        { key: 'fornecedor', header: 'FORNECEDOR', width: 46, align: 'left', value: row => cleanPdfText(row.fornecedor || row.cliente) },
-        { key: 'modo_emissao', header: 'NOTA FISCAL', width: 34, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
+        { key: 'fornecedor', header: 'FORNECEDOR', width: 70, align: 'left', value: row => cleanPdfText(row.fornecedor || row.cliente) },
+        { key: 'modo_emissao', header: 'NOTA FISCAL', width: 48, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
         { key: 'parcelas', header: 'PARCELA', width: 24, align: 'center', value: row => cleanPdfText(row._parcelLabel || cleanParcelReference(row.parcela_ref)) },
         { key: 'vencimento', header: 'VENCIMENTO', width: 32, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
         { key: 'valor', header: 'VALOR', width: 36, align: 'right', value: row => formatCurrency(row.valor) },
-        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 107, align: 'left', value: row => cleanPdfText(row.observacoes) }
+        { key: 'observacoes', header: 'OBSERVAÇÕES', width: 69, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
     }
 
