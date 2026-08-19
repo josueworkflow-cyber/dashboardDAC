@@ -246,7 +246,7 @@ function renderMovimentacoesFinanceiras() {
     if (rows.length === 0) {
       tbody.innerHTML = '';
       document.getElementById('mfVazio').style.display = 'block';
-      updateMfKpis(referenceNow);
+      updateMfKpis(referenceNow, 0);
       return;
     }
     document.getElementById('mfVazio').style.display = 'none';
@@ -316,15 +316,15 @@ function renderMovimentacoesFinanceiras() {
       </tr>`;
     }).join('');
 
-    // Atualizar KPIs
-    updateMfKpis(referenceNow);
+    // Atualizar KPIs com a quantidade de lançamentos renderizados
+    updateMfKpis(referenceNow, rows.length);
 
   } catch (err) {
     console.error('❌ Erro ao renderizar Movimentações Financeiras:', err);
   }
 }
 
-function updateMfKpis(referenceDate) {
+function updateMfKpis(referenceDate, renderedCount) {
   const kpiWrap = document.getElementById('mfKpis');
   if (!kpiWrap) return;
 
@@ -341,8 +341,6 @@ function updateMfKpis(referenceDate) {
     now: referenceNow
   };
   const allRows = DacFinancialReport.filterRows({ ...baseReportOptions, kpiFilter: null });
-  // Receber/Pagar passam pela mesma consolidação de parcelas usada no PDF.
-  // Assim, um lançamento parcelado conta uma vez e o saldo não diverge da tela.
   const pendReceber = DacFinancialReport.filterRows({ ...baseReportOptions, kpiFilter: 'receber' });
   const pendPagar = DacFinancialReport.filterRows({ ...baseReportOptions, kpiFilter: 'pagar' });
 
@@ -377,10 +375,18 @@ function updateMfKpis(referenceDate) {
     }
   }
 
+  const count = typeof renderedCount === 'number' ? renderedCount : allRows.length;
+  const countSub = count === 1 ? '1 registro' : `${count} registros`;
+
   const actRec = currentMfKpiFilter === 'receber' ? 'active-kpi' : '';
   const actPag = currentMfKpiFilter === 'pagar' ? 'active-kpi' : '';
 
   kpiWrap.innerHTML = `
+    <div class="gbadge">
+      <span class="gbadge-label">LANÇAMENTOS</span>
+      <span class="gbadge-val" style="color:var(--text-bright);">${count}</span>
+      <span class="gbadge-sub" style="color:var(--muted);font-weight:500;">${countSub}</span>
+    </div>
     <div class="gbadge">
       <span class="gbadge-label">ENTRADAS EFETIVAS</span>
       <span class="gbadge-val tg">${fmt(totalEnt)}</span>
