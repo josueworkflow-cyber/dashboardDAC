@@ -643,7 +643,6 @@ function toggleParcelaFields(options = {}) {
   const valorPagoWrap = document.getElementById('gf-valorpago-wrap');
   const valorRestanteWrap = document.getElementById('gf-valorrestante-wrap');
   const dpagInput = document.getElementById('gf-dpag');
-  const valorPagoInput = document.getElementById('gf-valorpago');
 
   if (dvencWrap) dvencWrap.style.display = (isParcial || isParcelado) ? 'none' : 'block';
   if (dpagWrap) dpagWrap.style.display = (isPendente || isParcelado || isCancelado) ? 'none' : 'block';
@@ -657,10 +656,6 @@ function toggleParcelaFields(options = {}) {
     if (dpagInput) dpagInput.value = '';
   } else if (isPago) {
     if (!options.skipCards && dpagInput && !dpagInput.value) dpagInput.value = toIso(new Date());
-    if (!options.skipCards && valorPagoInput && (modalidadeMudou || parseVal(valorPagoInput.value) <= 0)) {
-      const valorTotal = parseVal(document.getElementById('gf-val').value) || 0;
-      valorPagoInput.value = valorTotal > 0 ? fmt(valorTotal) : '';
-    }
     calcValorRestante(false);
   }
 
@@ -851,11 +846,6 @@ function onValorTotalChange() {
   if (status === 'Parcial') calcValorRestante(true);
   else if (status === 'Parcelado') distribuirIgual();
   else if (status === 'Pago') {
-    const valorPagoInput = document.getElementById('gf-valorpago');
-    if (valorPagoInput && parseVal(valorPagoInput.value) <= 0) {
-      const valorTotal = parseVal(document.getElementById('gf-val').value) || 0;
-      valorPagoInput.value = valorTotal > 0 ? fmt(valorTotal) : '';
-    }
     calcValorRestante(false);
   }
 }

@@ -74,6 +74,13 @@ function toggleMfKpiFilter(filterKey) {
     currentMfKpiFilter = null;
   } else {
     currentMfKpiFilter = filterKey;
+
+    if (filterKey === 'receber' || filterKey === 'pagar') {
+      const dateFrom = document.getElementById('mfDateFrom');
+      const dateTo = document.getElementById('mfDateTo');
+      if (dateFrom) dateFrom.value = DacFinancialReport.todayIso(new Date());
+      if (dateTo) dateTo.value = '';
+    }
   }
   renderMovimentacoesFinanceiras();
 }
