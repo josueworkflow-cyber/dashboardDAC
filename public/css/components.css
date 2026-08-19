@@ -800,6 +800,7 @@ body.tv-mode .spark-grid {
 #thMovFinanceiras th,
 #tbMovFinanceiras td {
   text-align: center !important;
+  display: table-cell !important;
 }
 
 /* ─── Multiselect Customizado para Status de Movimentações Financeiras ─── */

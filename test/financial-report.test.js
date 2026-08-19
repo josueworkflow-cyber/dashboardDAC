@@ -353,15 +353,11 @@ test('modelos geral, receber, pagar, entradas e saídas têm títulos e colunas 
   const entriesByType = report.createModel({ ...data, filters: { type: 'entrada' } });
   const exitsByType = report.createModel({ ...data, filters: { type: 'saida' } });
 
-  assert.equal(general.columns.length, 15);
-  assert.equal(receivable.columns.length, 6);
-  assert.equal(payable.columns.length, 6);
-  assert.deepEqual(receivable.columns.map(column => column.key), [
-    'cliente', 'modo_emissao', 'parcelas', 'vencimento', 'valor', 'observacoes'
-  ]);
-  assert.deepEqual(payable.columns.map(column => column.key), [
-    'fornecedor', 'modo_emissao', 'parcelas', 'vencimento', 'valor', 'observacoes'
-  ]);
+  const compactColumnKeys = ['pessoa', 'modo_emissao', 'parcelas', 'vencimento', 'valor', 'observacoes'];
+  for (const model of [general, receivable, payable, entries, exits, entriesByType, exitsByType]) {
+    assert.equal(model.columns.length, 6);
+    assert.deepEqual(model.columns.map(column => column.key), compactColumnKeys);
+  }
   assert.equal(receivable.title, 'Relatório de Contas a Receber');
   assert.equal(payable.title, 'Relatório de Contas a Pagar');
   assert.equal(entries.title, 'Relatório de Entradas Financeiras');
@@ -399,7 +395,7 @@ test('relatórios de Entradas e Saídas usam KPIs próprios e mostram pagamento 
   });
   const entrySummary = Object.fromEntries(entries.summary.map(item => [item.label, item.value]));
   const exitSummary = Object.fromEntries(exits.summary.map(item => [item.label, item.value]));
-  const paidColumn = entries.columns.find(column => column.key === 'valor_pago');
+  const valColumn = entries.columns.find(column => column.key === 'valor');
 
   assert.deepEqual(entrySummary, {
     QUANTIDADE: '3 lançamento(s)',
@@ -413,7 +409,8 @@ test('relatórios de Entradas e Saídas usam KPIs próprios e mostram pagamento 
     'SAÍDAS EFETIVAS': 'R$ 95,00',
     'A PAGAR': 'R$ 120,00'
   });
-  assert.equal(paidColumn.value(entries.rows[0]), 'R$ 100,00');
+  assert.equal(valColumn.value(entries.rows[0]), 'R$ 100,00');
+  assert.equal(report.getEffectiveValue(entries.rows[0]), 100);
 });
 
 test('o modelo é independente de metadados de viewport mobile ou desktop', () => {
@@ -488,7 +485,7 @@ test('todas as variações executam o gerador vetorial', () => {
 
 test('valores monetários altos são preservados sem reticências', () => {
   const model = report.createModel({
-    entradas: [entry({ valor: '1.234.567.890,12', status: 'Pago' })],
+    entradas: [entry({ valor: '9.999.999.999.999,99', status: 'Pago' })],
     saidas: [],
     filters: {},
     now: FIXED_NOW
@@ -497,8 +494,8 @@ test('valores monetários altos são preservados sem reticências', () => {
   const valueColumn = model.columns.findIndex(column => column.key === 'valor');
   const cell = result.doc.lastAutoTable.body[0].cells[valueColumn];
 
-  assert.equal(cell.text.join(' '), '+ R$ 1.234.567.890,12');
-  assert.ok(cell.styles.fontSize < 5.5);
+  assert.equal(cell.text.join(' '), 'R$ 9.999.999.999.999,99');
+  assert.ok(cell.styles.fontSize <= 5.5);
   assert.ok(cell.styles.fontSize >= 4);
 });
 
@@ -637,3 +634,115 @@ test('filtro de múltiplos status permite selecionar 2 ou mais status (ex: venci
   assert.equal(model.rows.length, 2);
   assert.match(model.filterDescription, /Status: Vencido, Pendente/);
 });
+
+test('todos os relatórios emitidos contêm exatamente as 6 colunas padrão: Cliente, NF, Parcela, Vencimento, Valor e Observação', () => {
+  const entradas = [
+    entry({ cliente: 'Hospital Santa Casa', modo_emissao: 'NF 12345', parcela_ref: '1/3', data_vencimento: '15/08/2026', valor: '1.500,00', observacoes: 'Lote emergencial' })
+  ];
+  const saidas = [
+    exit({ fornecedor: 'Distribuidora Farma', modo_emissao: 'NF 99887', parcela_ref: '2/4', data_vencimento: '22/08/2026', valor: '800,00', observacoes: 'Medicamentos orais' })
+  ];
+
+  const variants = [
+    { kpi: null, expectedPersonHeader: 'CLIENTE / FORNECEDOR' },
+    { kpi: 'receber', expectedPersonHeader: 'CLIENTE' },
+    { kpi: 'pagar', expectedPersonHeader: 'FORNECEDOR' },
+    { kpi: 'entradas', expectedPersonHeader: 'CLIENTE' },
+    { kpi: 'saidas', expectedPersonHeader: 'FORNECEDOR' }
+  ];
+
+  for (const { kpi, expectedPersonHeader } of variants) {
+    const model = report.createModel({ entradas, saidas, filters: {}, kpiFilter: kpi, now: FIXED_NOW });
+    assert.equal(model.columns.length, 6, `Relatório ${kpi || 'geral'} deve ter exatamente 6 colunas`);
+    assert.deepEqual(model.columns.map(c => c.key), ['pessoa', 'modo_emissao', 'parcelas', 'vencimento', 'valor', 'observacoes']);
+    assert.equal(model.columns[0].header, expectedPersonHeader);
+    assert.equal(model.columns[1].header, 'NOTA FISCAL');
+    assert.equal(model.columns[2].header, 'PARCELA');
+    assert.equal(model.columns[3].header, 'VENCIMENTO');
+    assert.equal(model.columns[4].header, 'VALOR');
+    assert.equal(model.columns[5].header, 'OBSERVAÇÃO');
+  }
+});
+
+test('ordenação por nome / cliente reflete a seleção da tela no relatório (asc e desc)', () => {
+  const entradas = [
+    entry({ cliente: 'Zeta Laboratórios', data_vencimento: '10/08/2026' }),
+    entry({ cliente: 'Alfa Distribuição', data_vencimento: '15/08/2026' }),
+    entry({ cliente: 'Beta Hospital', data_vencimento: '20/08/2026' })
+  ];
+
+  // Ordenação ASC por cliente
+  const modelAsc = report.createModel({
+    entradas,
+    saidas: [],
+    filters: {},
+    sortColumn: 'cliente',
+    sortDirection: 'asc',
+    now: FIXED_NOW
+  });
+  assert.deepEqual(modelAsc.rows.map(r => r.cliente), ['Alfa Distribuição', 'Beta Hospital', 'Zeta Laboratórios']);
+
+  // Ordenação DESC por cliente
+  const modelDesc = report.createModel({
+    entradas,
+    saidas: [],
+    filters: {},
+    sortColumn: 'cliente',
+    sortDirection: 'desc',
+    now: FIXED_NOW
+  });
+  assert.deepEqual(modelDesc.rows.map(r => r.cliente), ['Zeta Laboratórios', 'Beta Hospital', 'Alfa Distribuição']);
+
+  // Usando alias 'nome'
+  const modelNome = report.createModel({
+    entradas,
+    saidas: [],
+    filters: {},
+    sortColumn: 'nome',
+    sortDirection: 'asc',
+    now: FIXED_NOW
+  });
+  assert.deepEqual(modelNome.rows.map(r => r.cliente), ['Alfa Distribuição', 'Beta Hospital', 'Zeta Laboratórios']);
+});
+
+test('ordenação por data / vencimento reflete a seleção da tela no relatório (asc e desc)', () => {
+  const entradas = [
+    entry({ cliente: 'Cliente Meio', data_vencimento: '15/08/2026' }),
+    entry({ cliente: 'Cliente Antigo', data_vencimento: '05/08/2026' }),
+    entry({ cliente: 'Cliente Futuro', data_vencimento: '28/08/2026' })
+  ];
+
+  // Ordenação ASC por vencimento
+  const modelAsc = report.createModel({
+    entradas,
+    saidas: [],
+    filters: {},
+    sortColumn: 'vencimento',
+    sortDirection: 'asc',
+    now: FIXED_NOW
+  });
+  assert.deepEqual(modelAsc.rows.map(r => r.cliente), ['Cliente Antigo', 'Cliente Meio', 'Cliente Futuro']);
+
+  // Ordenação DESC por vencimento
+  const modelDesc = report.createModel({
+    entradas,
+    saidas: [],
+    filters: {},
+    sortColumn: 'vencimento',
+    sortDirection: 'desc',
+    now: FIXED_NOW
+  });
+  assert.deepEqual(modelDesc.rows.map(r => r.cliente), ['Cliente Futuro', 'Cliente Meio', 'Cliente Antigo']);
+
+  // Usando alias 'data'
+  const modelData = report.createModel({
+    entradas,
+    saidas: [],
+    filters: {},
+    sortColumn: 'data',
+    sortDirection: 'asc',
+    now: FIXED_NOW
+  });
+  assert.deepEqual(modelData.rows.map(r => r.cliente), ['Cliente Antigo', 'Cliente Meio', 'Cliente Futuro']);
+});
+
