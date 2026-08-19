@@ -47,10 +47,37 @@ function renderParcelaBadge(r) {
 let currentPayId = null;
 let currentPayTipo = null;
 let currentPayWasPaid = false;
+let currentMppStatus = 'Pago';
 let currentActiveGrupoId = null;
 let currentActiveGrupoTipo = null;
 
-function abrirModalPagar(id, tipo, e) {
+function setMppStatus(status) {
+  currentMppStatus = status;
+  const btnPago = document.getElementById('mpp-btn-status-pago');
+  const btnPend = document.getElementById('mpp-btn-status-pendente');
+  const wrapValorPago = document.getElementById('mpp-wrap-valor-pago');
+  const wrapDataPag = document.getElementById('mpp-wrap-data-pag');
+  const labelValorOrig = document.getElementById('mpp-label-valor-orig');
+  const submitBtn = document.getElementById('mpp-submit');
+
+  if (status === 'Pago') {
+    if (btnPago) { btnPago.classList.add('active-pago'); }
+    if (btnPend) { btnPend.classList.remove('active-pendente'); }
+    if (wrapValorPago) wrapValorPago.style.display = 'block';
+    if (wrapDataPag) wrapDataPag.style.display = 'block';
+    if (labelValorOrig) labelValorOrig.textContent = 'Valor Nominal (R$)';
+    if (submitBtn) submitBtn.textContent = currentPayWasPaid ? 'Salvar Ajuste' : 'Confirmar Pagamento';
+  } else {
+    if (btnPago) { btnPago.classList.remove('active-pago'); }
+    if (btnPend) { btnPend.classList.add('active-pendente'); }
+    if (wrapValorPago) wrapValorPago.style.display = 'none';
+    if (wrapDataPag) wrapDataPag.style.display = 'none';
+    if (labelValorOrig) labelValorOrig.textContent = 'Valor da Parcela (R$) *';
+    if (submitBtn) submitBtn.textContent = currentPayWasPaid ? 'Desmarcar Pagamento (Voltar para Pendente)' : 'Salvar Alterações';
+  }
+}
+
+function abrirModalPagar(id, tipo, e, forceStatus) {
   if (e) e.stopPropagation();
   const rows = tipo === 'entrada' ? ENT : SAI;
   const r = rows.find(x => String(x.id) === String(id));
@@ -62,17 +89,21 @@ function abrirModalPagar(id, tipo, e) {
 
   document.getElementById('mpp-info-desc').textContent = r.categoria || 'Sem categoria';
   document.getElementById('mpp-info-ref').textContent = r.parcela_ref || 'Parcela Única';
-  document.getElementById('mpp-valor-orig').value = fmt(r.valor);
-  document.getElementById('mpp-valor-pago').value = fmt(
-    currentPayWasPaid ? getEffectiveValue(r) : r.valor
-  );
+
+  const valOrig = parseVal(r.valor) || 0;
+  const valPago = currentPayWasPaid ? (parseVal(getEffectiveValue(r)) || valOrig) : valOrig;
+
+  document.getElementById('mpp-valor-orig').value = fmt(valOrig);
+  document.getElementById('mpp-valor-pago').value = fmt(valPago);
   document.getElementById('mpp-data-pag').value = currentPayWasPaid
     ? (parseBrToIso(r.data_pagamento) || toIso(new Date()))
     : toIso(new Date());
+
   document.getElementById('mpp-recalcular').checked = false;
-  document.getElementById('mpp-recalcular-wrap').style.display = currentPayWasPaid ? 'none' : 'flex';
-  document.getElementById('mpp-title').textContent = currentPayWasPaid ? 'Editar Pagamento da Parcela' : 'Pagar Parcela';
-  document.getElementById('mpp-submit').textContent = currentPayWasPaid ? 'Salvar Ajuste' : 'Confirmar Pagamento';
+  document.getElementById('mpp-title').textContent = currentPayWasPaid ? 'Gerenciar Parcela Paga' : 'Pagar / Gerenciar Parcela';
+
+  const initialStatus = forceStatus || (currentPayWasPaid ? 'Pago' : 'Pago');
+  setMppStatus(initialStatus);
 
   document.getElementById('modalPagarParcela').style.display = 'flex';
 }
@@ -83,29 +114,47 @@ function fecharModalPagar() {
 
 async function confirmarPagamentoParcela() {
   const btn = document.getElementById('mpp-submit');
-  const valor = parseVal(document.getElementById('mpp-valor-pago').value);
-  const data = document.getElementById('mpp-data-pag').value;
+  const valorOrig = parseVal(document.getElementById('mpp-valor-orig').value);
+  const valorPago = parseVal(document.getElementById('mpp-valor-pago').value);
+  const dataPag = document.getElementById('mpp-data-pag').value;
   const recalcular = document.getElementById('mpp-recalcular').checked;
 
-  if (!data) return alert('Informe a data do pagamento.');
-  if (!(valor > 0)) return alert('Informe um valor pago maior que zero.');
+  if (currentMppStatus === 'Pago') {
+    if (!dataPag) return alert('Informe a data do pagamento.');
+    if (!(valorPago > 0)) return alert('Informe um valor pago maior que zero.');
+  } else {
+    if (!(valorOrig > 0)) return alert('Informe um valor de parcela maior que zero.');
+  }
 
   btn.disabled = true;
   btn.textContent = 'Processando...';
 
   try {
+    const payload = {
+      status: currentMppStatus,
+      valor: valorOrig,
+      recalcular: recalcular
+    };
+
+    if (currentMppStatus === 'Pago') {
+      payload.valor_pago = valorPago;
+      payload.data_pagamento = isoToBr(dataPag);
+    } else {
+      payload.valor_pago = 0;
+      payload.data_pagamento = '';
+    }
+
     const r = await fetch(`${API}/lancamento/pagar-parcela/${currentPayTipo}/${currentPayId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH_TOKEN },
-      body: JSON.stringify({
-        valor_pago: valor,
-        data_pagamento: isoToBr(data),
-        recalcular: currentPayWasPaid ? false : recalcular
-      })
+      body: JSON.stringify(payload)
     });
 
     if (r.ok) {
-      showGestaoToast(currentPayWasPaid ? '✓ Pagamento ajustado!' : '✓ Pagamento registrado!', 'ok');
+      const msg = currentMppStatus === 'Pago'
+        ? (currentPayWasPaid ? '✓ Pagamento ajustado!' : '✓ Pagamento registrado!')
+        : '✓ Parcela atualizada para Não Paga (Pendente)!';
+      showGestaoToast(msg, 'ok');
       fecharModalPagar();
       await loadData();
       if (currentActiveGrupoId && currentActiveGrupoTipo) {
@@ -119,7 +168,7 @@ async function confirmarPagamentoParcela() {
     alert('Erro de conexão.');
   } finally {
     btn.disabled = false;
-    btn.textContent = currentPayWasPaid ? 'Salvar Ajuste' : 'Confirmar Pagamento';
+    btn.textContent = 'Confirmar';
   }
 }
 

@@ -429,6 +429,43 @@ body.tv-mode .spark-grid {
   box-shadow: 0 0 12px rgba(196, 18, 48, 0.35) !important;
 }
 
+/* ─── Botões de Status no Modal de Parcela ─── */
+.mpp-status-btn {
+  flex: 1;
+  padding: 9px 14px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.mpp-status-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-bright);
+}
+
+.mpp-status-btn.active-pago {
+  background: rgba(74, 222, 128, 0.12) !important;
+  border-color: #4ADE80 !important;
+  color: #4ADE80 !important;
+  font-weight: 700;
+}
+
+.mpp-status-btn.active-pendente {
+  background: rgba(250, 204, 21, 0.12) !important;
+  border-color: #FACC15 !important;
+  color: #FACC15 !important;
+  font-weight: 700;
+}
+
 /* ─── Abas de gestão ─── */
 .gestao-tabs {
   display: flex;

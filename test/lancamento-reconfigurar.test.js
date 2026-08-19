@@ -649,3 +649,84 @@ test('pagamento rápido rejeita valor inválido antes de tocar no Sheets', async
   assert.match(response.payload.error, /maior que zero/i);
   assert.equal(calls.length, 0);
 });
+
+test('desmarca parcela paga para não paga (pendente) limpando valor_pago e data_pagamento', async () => {
+  const { calls, state } = usePaymentSheets({
+    entradas: [
+      paidEntry({ id: 1, valor: 100, valor_pago: 100, status: 'Pago', data_pagamento: '10/08/2026', parcela_ref: '1/3 [PRC-UNPAY]' }),
+      paidEntry({ id: 2, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '2/3 [PRC-UNPAY]' }),
+      paidEntry({ id: 3, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '3/3 [PRC-UNPAY]' })
+    ]
+  });
+
+  const response = await invokeRoute(payInstallment, {
+    status: 'Pendente',
+    valor: 100,
+    recalcular: false
+  }, { tipo: 'entrada', id: '1' });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.payload.status, 'Pendente');
+  assert.equal(response.payload.valor, 100);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].updates, {
+    status: 'Pendente',
+    valor: 100,
+    valor_pago: 0,
+    data_pagamento: ''
+  });
+  assert.equal(state.entradas[0].status, 'Pendente');
+  assert.equal(state.entradas[0].valor_pago, 0);
+  assert.equal(state.entradas[0].data_pagamento, '');
+  assert.equal(state.entradas[1].valor, 100);
+  assert.equal(state.entradas[2].valor, 100);
+});
+
+test('desmarca parcela paga para pendente alterando o valor e redistribuindo nas demais pendentes', async () => {
+  const { calls, state } = usePaymentSheets({
+    entradas: [
+      paidEntry({ id: 1, valor: 100, valor_pago: 100, status: 'Pago', data_pagamento: '10/08/2026', parcela_ref: '1/3 [PRC-REDIST]' }),
+      paidEntry({ id: 2, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '2/3 [PRC-REDIST]' }),
+      paidEntry({ id: 3, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '3/3 [PRC-REDIST]' })
+    ]
+  });
+
+  // Aumenta a parcela 1 de 100 para 150 (diff: +50), redistribuindo nas 2 pendentes (-25 cada)
+  const response = await invokeRoute(payInstallment, {
+    status: 'Pendente',
+    valor: '150,00',
+    recalcular: true
+  }, { tipo: 'entrada', id: '1' });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.payload.status, 'Pendente');
+  assert.equal(response.payload.valor, 150);
+  assert.equal(state.entradas[0].status, 'Pendente');
+  assert.equal(state.entradas[0].valor, 150);
+  assert.equal(state.entradas[0].valor_pago, 0);
+  assert.equal(state.entradas[0].data_pagamento, '');
+  assert.equal(state.entradas[1].valor, 75);
+  assert.equal(state.entradas[2].valor, 75);
+});
+
+test('desmarca parcela paga para pendente alterando o valor SEM redistribuir quando recalcular é falso', async () => {
+  const { calls, state } = usePaymentSheets({
+    entradas: [
+      paidEntry({ id: 1, valor: 100, valor_pago: 100, status: 'Pago', data_pagamento: '10/08/2026', parcela_ref: '1/3 [PRC-NOREDIST]' }),
+      paidEntry({ id: 2, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '2/3 [PRC-NOREDIST]' }),
+      paidEntry({ id: 3, valor: 100, valor_pago: 0, status: 'Pendente', parcela_ref: '3/3 [PRC-NOREDIST]' })
+    ]
+  });
+
+  const response = await invokeRoute(payInstallment, {
+    status: 'Pendente',
+    valor: 160,
+    recalcular: false
+  }, { tipo: 'entrada', id: '1' });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(state.entradas[0].status, 'Pendente');
+  assert.equal(state.entradas[0].valor, 160);
+  assert.equal(state.entradas[1].valor, 100);
+  assert.equal(state.entradas[2].valor, 100);
+});

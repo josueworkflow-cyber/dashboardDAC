@@ -725,7 +725,7 @@ function registerLancamentoRoutes(app) {
     }
   });
 
-  // Pagamento rápido de parcela
+  // Pagamento / edição rápida de parcela individual de um grupo
   app.put('/api/lancamento/pagar-parcela/:tipo/:id', auth, async (req, res) => {
     try {
       const tipo = normalizeTipo(req.params.tipo);
@@ -733,7 +733,7 @@ function registerLancamentoRoutes(app) {
       if (!Number.isInteger(id) || id <= 0) {
         throw httpError(400, 'ID da parcela inválido.');
       }
-      const { valor_pago, data_pagamento, recalcular } = req.body;
+      const { status: reqStatus, valor, valor_pago, data_pagamento, recalcular } = req.body;
       const sheets = getSheetsModule();
       const sheetName = tipo === 'entrada' ? 'Entradas' : 'Saídas';
       const cache = sheets.getCacheData();
@@ -741,27 +741,63 @@ function registerLancamentoRoutes(app) {
       const current = rows.find(row => String(row.id) === String(id));
       if (!current) throw httpError(404, 'Parcela não encontrada.');
 
-      const paidValue = parseMoneyToCents(valor_pago, 'valor_pago') / 100;
-      const paymentDate = normalizeDate(data_pagamento, 'data_pagamento');
       const wasPaid = normalizeComparable(current.status) === 'pago';
+      const targetStatus = reqStatus
+        ? (normalizeComparable(reqStatus) === 'pago' ? 'Pago' : 'Pendente')
+        : (valor_pago !== undefined ? 'Pago' : current.status || 'Pendente');
 
-      // 1. Atualiza a parcela atual
-      await sheets.updateRow(sheetName, id, {
-        status: 'Pago',
-        valor_pago: paidValue,
-        data_pagamento: paymentDate
-      });
+      const valorOriginal = Number(current.valor) || 0;
 
-      // Ao corrigir uma parcela já paga, altera somente o pagamento. Isso evita
-      // reescrever novamente o cronograma por causa de um erro de digitação.
-      if (recalcular && !wasPaid) {
+      let novoValor = valorOriginal;
+      if (valor !== undefined && valor !== null && String(valor).trim() !== '') {
+        novoValor = parseMoneyToCents(valor, 'valor') / 100;
+      }
+
+      let paidValue = 0;
+      let paymentDate = '';
+
+      if (targetStatus === 'Pago') {
+        paidValue = parseMoneyToCents(valor_pago !== undefined ? valor_pago : novoValor, 'valor_pago') / 100;
+        paymentDate = normalizeDate(data_pagamento, 'data_pagamento');
+
+        const updateData = {
+          status: 'Pago',
+          valor_pago: paidValue,
+          data_pagamento: paymentDate
+        };
+        if (valor !== undefined && valor !== null && String(valor).trim() !== '') {
+          updateData.valor = novoValor;
+        }
+
+        await sheets.updateRow(sheetName, id, updateData);
+      } else {
+        // Marcando como Pendente (Não paga / desfazendo pagamento)
+        const updateData = {
+          status: 'Pendente',
+          valor: novoValor,
+          valor_pago: 0,
+          data_pagamento: ''
+        };
+        await sheets.updateRow(sheetName, id, updateData);
+      }
+
+      // Ao recalcular, redistribui a diferença nas demais parcelas pendentes do mesmo grupo
+      if (recalcular) {
         if (current.parcela_ref && current.parcela_ref.includes('[PRC-')) {
           const groupMatch = current.parcela_ref.match(/\[(PRC-[^\]]+)\]/);
           if (groupMatch) {
             const grupoId = groupMatch[1];
-            const valorOriginal = Number(current.valor) || 0;
-            const pagoEfetivo = paidValue;
-            const diff = pagoEfetivo - valorOriginal;
+            let diff = 0;
+            if (targetStatus === 'Pago') {
+              if (novoValor !== valorOriginal) {
+                diff = novoValor - valorOriginal;
+              } else if (!wasPaid) {
+                diff = paidValue - valorOriginal;
+              }
+            } else {
+              // Quando volta para pendente ou edita valor nominal
+              diff = novoValor - valorOriginal;
+            }
 
             if (diff !== 0) {
               const pendentes = rows.filter(r => 
@@ -774,8 +810,8 @@ function registerLancamentoRoutes(app) {
               if (pendentes.length > 0) {
                 const ajustePorParcela = diff / pendentes.length;
                 for (const p of pendentes) {
-                  const novoValor = Math.max(0, (Number(p.valor) || 0) - ajustePorParcela);
-                  await sheets.updateRow(sheetName, p.id, { valor: novoValor });
+                  const novoPValor = Math.max(0.01, Math.round(((Number(p.valor) || 0) - ajustePorParcela) * 100) / 100);
+                  await sheets.updateRow(sheetName, p.id, { valor: novoPValor });
                 }
               }
             }
@@ -785,14 +821,18 @@ function registerLancamentoRoutes(app) {
 
       return res.json({
         success: true,
-        message: wasPaid ? 'Pagamento da parcela ajustado com sucesso!' : 'Parcela paga com sucesso!',
+        message: targetStatus === 'Pago'
+          ? (wasPaid ? 'Pagamento da parcela ajustado com sucesso!' : 'Parcela paga com sucesso!')
+          : 'Parcela atualizada para não paga com sucesso!',
+        status: targetStatus,
+        valor: novoValor,
         valor_pago: paidValue,
         data_pagamento: paymentDate,
         pagamento_ajustado: wasPaid
       });
     } catch (err) {
       const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : 500;
-      if (statusCode >= 500) console.error('❌ Erro ao pagar parcela:', err.message);
+      if (statusCode >= 500) console.error('❌ Erro ao processar parcela:', err.message);
       res.status(statusCode).json({ error: err.message });
     }
   });
