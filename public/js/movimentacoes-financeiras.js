@@ -7,6 +7,103 @@ let currentMfKpiFilter = null;
 let currentMfSortCol = null;
 let currentMfSortDir = 'asc';
 
+const STATUS_DISPLAY_LABELS = {
+  pago: 'Pago',
+  pendente: 'Pendente',
+  vencido: 'Vencido',
+  parcial: 'Parcial',
+  cancelado: 'Cancelado'
+};
+
+function toggleMfStatusDropdown(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const dropdown = document.getElementById('mfStatusDropdown');
+  const btn = document.getElementById('mfStatusBtn');
+  if (!dropdown) return;
+  const isOpen = dropdown.classList.contains('open');
+  if (isOpen) {
+    dropdown.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  } else {
+    dropdown.classList.add('open');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+function closeMfStatusDropdown() {
+  const dropdown = document.getElementById('mfStatusDropdown');
+  const btn = document.getElementById('mfStatusBtn');
+  if (dropdown && dropdown.classList.contains('open')) {
+    dropdown.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+document.addEventListener('click', function(event) {
+  const dropdown = document.getElementById('mfStatusDropdown');
+  if (dropdown && !dropdown.contains(event.target)) {
+    closeMfStatusDropdown();
+  }
+});
+
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    closeMfStatusDropdown();
+  }
+});
+
+function getSelectedMfStatuses() {
+  const checkboxes = document.querySelectorAll('input[name="mfStatusOption"]:checked');
+  const selected = [];
+  checkboxes.forEach(cb => {
+    if (cb.value) selected.push(cb.value.toLowerCase());
+  });
+  return selected;
+}
+
+function updateMfStatusLabel() {
+  const labelEl = document.getElementById('mfStatusLabel');
+  if (!labelEl) return;
+  const selected = getSelectedMfStatuses();
+  if (selected.length === 0) {
+    labelEl.textContent = 'Todos os Status';
+    labelEl.title = 'Todos os Status';
+  } else if (selected.length === 1) {
+    const label = STATUS_DISPLAY_LABELS[selected[0]] || selected[0];
+    labelEl.textContent = label;
+    labelEl.title = `Status: ${label}`;
+  } else if (selected.length === 2) {
+    const labels = selected.map(s => STATUS_DISPLAY_LABELS[s] || s);
+    labelEl.textContent = labels.join(', ');
+    labelEl.title = `Status: ${labels.join(', ')}`;
+  } else {
+    const labels = selected.map(s => STATUS_DISPLAY_LABELS[s] || s);
+    labelEl.textContent = `${labels[0]}, ${labels[1]} +${selected.length - 2}`;
+    labelEl.title = `Status: ${labels.join(', ')}`;
+  }
+}
+
+function onMfStatusItemChange() {
+  updateMfStatusLabel();
+  renderMovimentacoesFinanceiras();
+}
+
+function clearMfStatusSelection(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const checkboxes = document.querySelectorAll('input[name="mfStatusOption"]');
+  checkboxes.forEach(cb => {
+    cb.checked = false;
+  });
+  updateMfStatusLabel();
+  renderMovimentacoesFinanceiras();
+}
+
 async function initMovimentacoesFinanceiras() {
   const dFrom = document.getElementById('mfDateFrom');
   if (dFrom) dFrom.value = '';
@@ -14,8 +111,10 @@ async function initMovimentacoesFinanceiras() {
   if (dTo) dTo.value = '';
   const catEl = document.getElementById('mfCategoria');
   if (catEl) catEl.value = '';
-  const stEl = document.getElementById('mfStatus');
-  if (stEl) stEl.value = '';
+  const checkboxes = document.querySelectorAll('input[name="mfStatusOption"]');
+  checkboxes.forEach(cb => { cb.checked = false; });
+  updateMfStatusLabel();
+  closeMfStatusDropdown();
   const searchEl = document.getElementById('mfSearch');
   if (searchEl) searchEl.value = '';
   currentMfKpiFilter = null;
@@ -129,7 +228,8 @@ function setMfPeriod(p, btn) {
 function getMfFilterState() {
   const typeElement = document.getElementById('mfTipo');
   const categoryElement = document.getElementById('mfCategoria');
-  const statusElement = document.getElementById('mfStatus');
+  const selectedStatuses = getSelectedMfStatuses();
+  const selectedLabels = selectedStatuses.map(s => STATUS_DISPLAY_LABELS[s] || s);
 
   return {
     search: (document.getElementById('mfSearch')?.value || '').trim(),
@@ -137,8 +237,9 @@ function getMfFilterState() {
     typeLabel: typeElement?.selectedOptions?.[0]?.textContent?.trim() || '',
     category: categoryElement?.value || '',
     categoryLabel: categoryElement?.selectedOptions?.[0]?.textContent?.trim() || '',
-    status: statusElement?.value || '',
-    statusLabel: statusElement?.selectedOptions?.[0]?.textContent?.trim() || '',
+    status: selectedStatuses.length === 1 ? selectedStatuses[0] : (selectedStatuses.length > 1 ? selectedStatuses.join(', ') : ''),
+    statusList: selectedStatuses,
+    statusLabel: selectedLabels.length ? selectedLabels.join(', ') : '',
     dateFrom: document.getElementById('mfDateFrom')?.value || '',
     dateTo: document.getElementById('mfDateTo')?.value || ''
   };

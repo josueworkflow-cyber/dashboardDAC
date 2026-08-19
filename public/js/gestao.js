@@ -258,6 +258,136 @@ function isoToBr(iso) {
   return `${d}/${m}/${y}`;
 }
 
+
+// ─── Autocomplete e Gerenciamento de Clientes/Fornecedores ───
+
+let savedClientes = [];
+
+async function loadSavedClientes() {
+  try {
+    const r = await fetch(`${API}/clientes`, {
+      headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
+    });
+    if (r.ok) {
+      const data = await r.json();
+      savedClientes = Array.isArray(data.clientes) ? data.clientes : [];
+    }
+  } catch (err) {
+    console.error('❌ Erro ao carregar clientes:', err);
+  }
+}
+
+function renderClientesDropdown(filterText) {
+  const dropdown = document.getElementById('gf-forn-dropdown');
+  if (!dropdown) return;
+
+  const term = String(filterText || '').trim();
+  const normalizedTerm = typeof normalizeString === 'function' ? normalizeString(term) : term.toLowerCase();
+
+  const matches = savedClientes.filter(item => {
+    if (!term) return true;
+    const normalizedItem = typeof normalizeString === 'function' ? normalizeString(item) : item.toLowerCase();
+    return normalizedItem.includes(normalizedTerm);
+  });
+
+  if (matches.length === 0) {
+    if (term) {
+      dropdown.innerHTML = `
+        <div class="autocomplete-empty">
+          Nenhum cliente cadastrado com esse nome.<br>
+          <span style="color:var(--accent2); font-size:10px;">Será salvo em CAIXA ALTA ao registrar o lançamento.</span>
+        </div>
+      `;
+      dropdown.style.display = 'block';
+    } else {
+      dropdown.style.display = 'none';
+    }
+    return;
+  }
+
+  // Limita a exibição aos primeiros 30 para performance fluida
+  const displayItems = matches.slice(0, 30);
+
+  dropdown.innerHTML = displayItems.map(item => {
+    const safeItem = item.replace(/'/g, "\\'");
+    return `
+      <div class="autocomplete-item" onmousedown="selecionarClienteDropdown('${safeItem}')">
+        <span class="autocomplete-item-text" title="${item}">${item}</span>
+        <button type="button" class="autocomplete-item-delete" title="Excluir da lista de sugestões" onmousedown="removerClienteSalvo('${safeItem}', event)">🗑️</button>
+      </div>
+    `;
+  }).join('');
+
+  dropdown.style.display = 'block';
+}
+
+function fecharClientesDropdown() {
+  const dropdown = document.getElementById('gf-forn-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+}
+
+function selecionarClienteDropdown(nome) {
+  const input = document.getElementById('gf-forn');
+  if (input) {
+    input.value = nome;
+    input.focus();
+  }
+  fecharClientesDropdown();
+}
+
+async function removerClienteSalvo(nome, e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  if (!confirm(`Excluir o cliente "${nome}" da lista de sugestões?`)) {
+    return;
+  }
+
+  try {
+    const r = await fetch(`${API}/clientes/${encodeURIComponent(nome)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
+    });
+
+    if (r.ok) {
+      const data = await r.json();
+      savedClientes = Array.isArray(data.clientes) ? data.clientes : savedClientes.filter(c => c !== nome);
+      showGestaoToast(`✓ Cliente "${nome}" excluído das sugestões!`, 'ok');
+      const input = document.getElementById('gf-forn');
+      renderClientesDropdown(input ? input.value : '');
+    } else {
+      alert('Erro ao excluir cliente.');
+    }
+  } catch (err) {
+    alert('Erro de conexão ao excluir cliente.');
+  }
+}
+
+async function salvarClienteSeNovo(nome) {
+  const upper = String(nome || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  if (!upper) return;
+
+  const jaExiste = savedClientes.some(c => c.toUpperCase() === upper);
+  if (jaExiste) return;
+
+  try {
+    const r = await fetch(`${API}/clientes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH_TOKEN },
+      body: JSON.stringify({ nome: upper })
+    });
+
+    if (r.ok) {
+      const data = await r.json();
+      savedClientes = Array.isArray(data.clientes) ? data.clientes : [...savedClientes, upper];
+    }
+  } catch (err) {
+    console.error('❌ Erro ao salvar novo cliente:', err);
+  }
+}
+
 // ─── Inicialização da página ───
 
 async function initGestao() {
@@ -303,6 +433,28 @@ async function initGestao() {
 
   updateGestaoCategorias();
   populateGestaoCatFiltro();
+
+  // Inicializa lista e autocomplete de clientes/fornecedores
+  await loadSavedClientes();
+  const fornInput = document.getElementById('gf-forn');
+  if (fornInput && !fornInput._hasAutocompleteListeners) {
+    fornInput._hasAutocompleteListeners = true;
+    fornInput.addEventListener('input', function() {
+      renderClientesDropdown(this.value);
+    });
+    fornInput.addEventListener('focus', function() {
+      renderClientesDropdown(this.value);
+    });
+    fornInput.addEventListener('blur', function() {
+      this.value = (this.value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+      setTimeout(() => fecharClientesDropdown(), 200);
+    });
+    fornInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        fecharClientesDropdown();
+      }
+    });
+  }
 
   // Seleciona a categoria após popular a lista
   if (saved.cat) document.getElementById('gestaoCatFiltro').value = saved.cat;
@@ -913,11 +1065,15 @@ function dataIsoValida(valor) {
 
 function lerCamposComunsGestao() {
   const dataEmissao = document.getElementById('gf-demissao')?.value || '';
+  const fornInput = document.getElementById('gf-forn');
+  const fornUpper = (fornInput?.value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  if (fornInput) fornInput.value = fornUpper;
+
   return {
     movimentacao: document.getElementById('gf-mov').value,
     categoria: document.getElementById('gf-cat').value,
     observacoes: document.getElementById('gf-obs').value,
-    fornecedor: document.getElementById('gf-forn').value,
+    fornecedor: fornUpper,
     conta_bancaria: document.getElementById('gf-conta').value,
     forma_pagamento: document.getElementById('gf-forma').value,
     empresa: document.getElementById('gf-empresa')?.value || 'DAC',
@@ -1217,6 +1373,9 @@ async function submitGestao() {
     if (response.ok && data.success) {
       concluido = true;
       showGestaoToast('✓ ' + (data.message || 'Lançamento salvo com sucesso.'), 'ok');
+      if (camposComuns.fornecedor) {
+        salvarClienteSeNovo(camposComuns.fornecedor);
+      }
       resetGestaoForm();
       setTimeout(loadData, 500);
     } else {

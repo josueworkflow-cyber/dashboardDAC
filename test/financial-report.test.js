@@ -587,3 +587,53 @@ test('movimentações financeiras renderizam parcela por parcela e respeitam fil
   assert.equal(consolidated[0]._parcelLabel, '1/5');
   assert.equal(consolidated[0].status, 'Parcial');
 });
+
+test('filtro de múltiplos status permite selecionar 2 ou mais status (ex: vencidos + pendentes)', () => {
+  const entradas = [
+    entry({ cliente: 'Cliente Vencido', status: 'Pendente', data_vencimento: '01/08/2026' }), // Vencido
+    entry({ cliente: 'Cliente Pendente', status: 'Pendente', data_vencimento: '20/08/2026' }), // Pendente a vencer
+    entry({ cliente: 'Cliente Pago', status: 'Pago', valor_pago: '1.234,56', data_pagamento: '05/08/2026' }),
+    entry({ cliente: 'Cliente Parcial', status: 'Parcial', valor_pago: '500,00', data_vencimento: '25/08/2026' }),
+    entry({ cliente: 'Cliente Cancelado', status: 'Cancelado' })
+  ];
+
+  // 1. Filtrando com array: ['vencido', 'pendente']
+  const resArray = report.filterRows({
+    entradas,
+    saidas: [],
+    filters: { status: ['vencido', 'pendente'] },
+    now: FIXED_NOW
+  });
+  assert.equal(resArray.length, 2);
+  assert.deepEqual(resArray.map(r => r.cliente), ['Cliente Pendente', 'Cliente Vencido']);
+
+  // 2. Filtrando com string separada por vírgula: 'vencido, pendente'
+  const resStr = report.filterRows({
+    entradas,
+    saidas: [],
+    filters: { status: 'vencido, pendente' },
+    now: FIXED_NOW
+  });
+  assert.equal(resStr.length, 2);
+  assert.deepEqual(resStr.map(r => r.cliente), ['Cliente Pendente', 'Cliente Vencido']);
+
+  // 3. Filtrando com statusList explícito: ['pago', 'parcial']
+  const resPagoParcial = report.filterRows({
+    entradas,
+    saidas: [],
+    filters: { statusList: ['pago', 'parcial'] },
+    now: FIXED_NOW
+  });
+  assert.equal(resPagoParcial.length, 2);
+  assert.deepEqual(resPagoParcial.map(r => r.cliente), ['Cliente Parcial', 'Cliente Pago']);
+
+  // 4. Modelo de relatório PDF com múltiplos status inclui descrição e dados corretos
+  const model = report.createModel({
+    entradas,
+    saidas: [],
+    filters: { status: ['vencido', 'pendente'], statusLabel: 'Vencido, Pendente' },
+    now: FIXED_NOW
+  });
+  assert.equal(model.rows.length, 2);
+  assert.match(model.filterDescription, /Status: Vencido, Pendente/);
+});

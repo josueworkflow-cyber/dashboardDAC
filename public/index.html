@@ -520,9 +520,10 @@
               <label>Categoria *</label>
               <select id="gf-cat"></select>
             </div>
-            <div class="gfield">
-              <label>Fornecedor / Cliente</label>
-              <input type="text" id="gf-forn" placeholder="Nome do cliente ou fornecedor">
+            <div class="gfield autocomplete-wrap">
+              <label id="gf-forn-label">Fornecedor / Cliente</label>
+              <input type="text" id="gf-forn" placeholder="Nome do cliente ou fornecedor" autocomplete="off">
+              <div id="gf-forn-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
             <div class="gfield">
               <label>Valor (R$) *</label>
@@ -1005,14 +1006,40 @@
             <select class="fs" id="mfCategoria" onchange="renderMovimentacoesFinanceiras()">
               <option value="">Todas as Categorias</option>
             </select>
-            <select class="fs" id="mfStatus" onchange="renderMovimentacoesFinanceiras()">
-              <option value="">Todos os Status</option>
-              <option value="pago">Pago</option>
-              <option value="pendente">Pendente</option>
-              <option value="vencido">Vencido</option>
-              <option value="parcial">Parcial</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
+            <div class="mf-multiselect" id="mfStatusDropdown">
+              <button type="button" class="fs mf-multiselect-btn" id="mfStatusBtn" onclick="toggleMfStatusDropdown(event)" aria-haspopup="true" aria-expanded="false">
+                <span id="mfStatusLabel">Todos os Status</span>
+                <span class="mf-multiselect-arrow">▾</span>
+              </button>
+              <div class="mf-multiselect-panel" id="mfStatusPanel">
+                <div class="mf-multiselect-header">
+                  <span class="mf-multiselect-title">Status</span>
+                  <button type="button" class="mf-multiselect-clear" onclick="clearMfStatusSelection(event)">Limpar</button>
+                </div>
+                <div class="mf-multiselect-options">
+                  <label class="mf-multiselect-opt">
+                    <input type="checkbox" name="mfStatusOption" value="pago" onchange="onMfStatusItemChange()">
+                    <span class="stag sp" style="font-size:10px;">Pago</span>
+                  </label>
+                  <label class="mf-multiselect-opt">
+                    <input type="checkbox" name="mfStatusOption" value="pendente" onchange="onMfStatusItemChange()">
+                    <span class="stag sn" style="font-size:10px;">Pendente</span>
+                  </label>
+                  <label class="mf-multiselect-opt">
+                    <input type="checkbox" name="mfStatusOption" value="vencido" onchange="onMfStatusItemChange()">
+                    <span class="stag so" style="font-size:10px;">Vencido</span>
+                  </label>
+                  <label class="mf-multiselect-opt">
+                    <input type="checkbox" name="mfStatusOption" value="parcial" onchange="onMfStatusItemChange()">
+                    <span class="stag sy" style="font-size:10px;">Parcial</span>
+                  </label>
+                  <label class="mf-multiselect-opt">
+                    <input type="checkbox" name="mfStatusOption" value="cancelado" onchange="onMfStatusItemChange()">
+                    <span class="stag so" style="font-size:10px;background:rgba(239,68,68,0.15);color:#EF4444;">Cancelado</span>
+                  </label>
+                </div>
+              </div>
+            </div>
             <span class="mob-hide" style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
             <input type="date" id="mfDateFrom" onchange="renderMovimentacoesFinanceiras()"
               style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;">

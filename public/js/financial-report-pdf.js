@@ -413,7 +413,17 @@
     const saidas = Array.isArray(settings.saidas) ? settings.saidas : [];
     const typeFilter = normalizeType(filters.type);
     const categoryFilter = normalizeText(filters.category);
-    const statusFilter = normalizeText(filters.status).toLowerCase();
+    function parseStatusList(statusInput, statusListInput) {
+      const rawList = Array.isArray(statusListInput) && statusListInput.length > 0
+        ? statusListInput
+        : (Array.isArray(statusInput) ? statusInput : (typeof statusInput === 'string' ? statusInput.split(',') : []));
+
+      return rawList
+        .map(item => normalizeText(item).toLowerCase())
+        .filter(item => item && item !== 'todos' && item !== 'todos os status');
+    }
+
+    const statusFilterList = parseStatusList(filters.status, filters.statusList);
     const searchFilter = normalizeText(filters.search);
     const dateFrom = dateToIso(filters.dateFrom);
     const dateTo = dateToIso(filters.dateTo);
@@ -433,15 +443,17 @@
     }
 
     const filterByStatus = sourceRows => {
-      if (!statusFilter) return sourceRows;
+      if (!statusFilterList.length) return sourceRows;
       return sourceRows.filter(row => {
         const info = getStatusInfo(row, referenceIso);
-        if (statusFilter === 'pago') return info.status === 'pago';
-        if (statusFilter === 'vencido') return info.isOverdue;
-        if (statusFilter === 'pendente') return info.status === 'pendente' && !info.isOverdue;
-        if (statusFilter === 'parcial') return info.status === 'parcial';
-        if (statusFilter === 'cancelado') return info.status === 'cancelado';
-        return true;
+        return statusFilterList.some(st => {
+          if (st === 'pago') return info.status === 'pago';
+          if (st === 'vencido') return info.isOverdue;
+          if (st === 'pendente') return info.status === 'pendente' && !info.isOverdue;
+          if (st === 'parcial') return info.status === 'parcial';
+          if (st === 'cancelado') return info.status === 'cancelado';
+          return false;
+        });
       });
     };
 
@@ -480,12 +492,14 @@
       });
     }
 
+    const isOnlyVencido = statusFilterList.length === 1 && statusFilterList[0] === 'vencido';
+
     if (kpiFilter === 'receber') {
       const entryRows = rows.filter(row => row._tipo === 'entrada');
       rows = settings.consolidateAll
         ? consolidateRows(entryRows).filter(row => isOpenRow(row))
         : entryRows.filter(row => isOpenRow(row));
-      rows = statusFilter === 'vencido'
+      rows = isOnlyVencido
         ? (settings.consolidateAll ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean) : filterByStatus(rows))
         : filterByStatus(rows);
     } else if (kpiFilter === 'pagar') {
@@ -493,7 +507,7 @@
       rows = settings.consolidateAll
         ? consolidateRows(exitRows).filter(row => isOpenRow(row))
         : exitRows.filter(row => isOpenRow(row));
-      rows = statusFilter === 'vencido'
+      rows = isOnlyVencido
         ? (settings.consolidateAll ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean) : filterByStatus(rows))
         : filterByStatus(rows);
     } else if (kpiFilter === 'entradas') {
@@ -535,7 +549,23 @@
     const details = [];
     if (source.type) details.push(`Tipo: ${cleanPdfText(source.typeLabel || source.type)}`);
     if (source.category) details.push(`Categoria: ${cleanPdfText(source.categoryLabel || source.category)}`);
-    if (source.status) details.push(`Status: ${cleanPdfText(source.statusLabel || source.status)}`);
+
+    let statusText = '';
+    if (source.statusLabel) {
+      statusText = source.statusLabel;
+    } else if (Array.isArray(source.statusList) && source.statusList.length) {
+      statusText = source.statusList.map(s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '').filter(Boolean).join(', ');
+    } else if (Array.isArray(source.status) && source.status.length) {
+      statusText = source.status.map(s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '').filter(Boolean).join(', ');
+    } else if (typeof source.status === 'string' && source.status.trim()) {
+      statusText = source.status;
+    }
+
+    const cleanStatus = cleanPdfText(statusText, '');
+    if (cleanStatus && cleanStatus.toLowerCase() !== 'todos os status' && cleanStatus.toLowerCase() !== 'todos') {
+      details.push(`Status: ${cleanStatus}`);
+    }
+
     if (source.search) details.push(`Busca: ${cleanPdfText(source.search)}`);
     return details.length ? details.join(' | ') : 'Sem filtros adicionais';
   }

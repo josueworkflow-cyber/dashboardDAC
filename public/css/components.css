@@ -466,6 +466,82 @@ body.tv-mode .spark-grid {
   font-weight: 700;
 }
 
+/* ─── Dropdown Autocomplete de Clientes ─── */
+.autocomplete-wrap {
+  position: relative;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card2, #181c24);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  margin-top: 4px;
+}
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-bright);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background 0.15s ease;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover, .autocomplete-item.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.autocomplete-item-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.autocomplete-item-delete {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.autocomplete-item-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.autocomplete-empty {
+  padding: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  font-style: italic;
+}
+
 /* ─── Abas de gestão ─── */
 .gestao-tabs {
   display: flex;
@@ -726,6 +802,122 @@ body.tv-mode .spark-grid {
   text-align: center !important;
 }
 
+/* ─── Multiselect Customizado para Status de Movimentações Financeiras ─── */
+.mf-multiselect {
+  position: relative;
+  display: inline-block;
+}
+
+.mf-multiselect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 145px;
+  user-select: none;
+}
+
+.mf-multiselect-arrow {
+  font-size: 10px;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.mf-multiselect.open .mf-multiselect-arrow {
+  transform: rotate(180deg);
+}
+
+.mf-multiselect.open .mf-multiselect-btn {
+  border-color: var(--red);
+}
+
+.mf-multiselect-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 190px;
+  background: #17171E;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  padding: 8px;
+  animation: mfFadeIn 0.15s ease-out;
+}
+
+.mf-multiselect.open .mf-multiselect-panel {
+  display: block;
+}
+
+@keyframes mfFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mf-multiselect-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.mf-multiselect-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-bright);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mf-multiselect-clear {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.mf-multiselect-clear:hover {
+  color: var(--red);
+  background: rgba(196, 18, 48, 0.1);
+}
+
+.mf-multiselect-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mf-multiselect-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.mf-multiselect-opt:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mf-multiselect-opt input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--red);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
 @media (max-width: 768px) {
   .mf-filters-container {
     display: flex !important;
@@ -735,11 +927,18 @@ body.tv-mode .spark-grid {
   }
   .mf-filters-container select,
   .mf-filters-container input[type="date"],
-  .mf-filters-container button {
+  .mf-filters-container button,
+  .mf-filters-container .mf-multiselect,
+  .mf-filters-container .mf-multiselect-btn {
     width: 100% !important;
     min-width: 0 !important;
     justify-content: center !important;
     text-align: center !important;
+  }
+  .mf-filters-container .mf-multiselect-panel {
+    width: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
   }
 }
 

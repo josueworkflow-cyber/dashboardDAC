@@ -10,6 +10,7 @@ const { registerApiRoutes } = require('./src/routes/api');
 const { registerLancamentoRoutes } = require('./src/routes/lancamento');
 const { registerWhatsAppRoutes } = require('./src/routes/whatsapp');
 const { registerComercialRoutes } = require('./src/routes/comercial');
+const { registerClientesRoutes } = require('./src/routes/clientes');
 const { initScheduler } = require('./src/scheduler');
 
 const app = express();
@@ -26,6 +27,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 registerAuthRoutes(app);
 registerApiRoutes(app);
 registerLancamentoRoutes(app);
+registerClientesRoutes(app);
 registerWhatsAppRoutes(app);
 registerComercialRoutes(app);
 
