@@ -192,32 +192,20 @@ function renderMovimentacoesFinanceiras() {
     if (thead) {
       if (variant === 'receber') {
         thead.innerHTML = `<tr>
-          <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
           <th class="th-sortable ${currentMfSortCol === 'cliente' ? 'active-sort' : ''}" onclick="toggleMfSort('cliente')">Cliente ${getSortIconHtml('cliente')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor Total ${getSortIconHtml('valor')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'data_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('data_emissao')">Data da Emissão ${getSortIconHtml('data_emissao')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'aReceber' ? 'active-sort' : ''}" onclick="toggleMfSort('aReceber')">Valor a Receber ${getSortIconHtml('aReceber')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">NF / Pedido ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">Nota Fiscal ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcela ${getSortIconHtml('parcelas')}</th>
           <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma de Pagamento ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor ${getSortIconHtml('valor')}</th>
           <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
       } else if (variant === 'pagar') {
         thead.innerHTML = `<tr>
-          <th class="th-sortable ${currentMfSortCol === 'tipo' ? 'active-sort' : ''}" onclick="toggleMfSort('tipo')">Tipo ${getSortIconHtml('tipo')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'categoria' ? 'active-sort' : ''}" onclick="toggleMfSort('categoria')">Categoria ${getSortIconHtml('categoria')}</th>
           <th class="th-sortable ${currentMfSortCol === 'fornecedor' ? 'active-sort' : ''}" onclick="toggleMfSort('fornecedor')">Fornecedor ${getSortIconHtml('fornecedor')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'status' ? 'active-sort' : ''}" onclick="toggleMfSort('status')">Status ${getSortIconHtml('status')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor Total ${getSortIconHtml('valor')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'data_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('data_emissao')">Data da Emissão ${getSortIconHtml('data_emissao')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'aPagar' ? 'active-sort' : ''}" onclick="toggleMfSort('aPagar')">Valor a Pagar ${getSortIconHtml('aPagar')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">NF / Pedido ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'modo_emissao' ? 'active-sort' : ''}" onclick="toggleMfSort('modo_emissao')">Nota Fiscal ${getSortIconHtml('modo_emissao')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcela ${getSortIconHtml('parcelas')}</th>
           <th class="th-sortable ${currentMfSortCol === 'vencimento' ? 'active-sort' : ''}" onclick="toggleMfSort('vencimento')">Vencimento ${getSortIconHtml('vencimento')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'parcelas' ? 'active-sort' : ''}" onclick="toggleMfSort('parcelas')">Parcelas ${getSortIconHtml('parcelas')}</th>
-          <th class="th-sortable ${currentMfSortCol === 'forma_pagamento' ? 'active-sort' : ''}" onclick="toggleMfSort('forma_pagamento')">Forma de Pagamento ${getSortIconHtml('forma_pagamento')}</th>
+          <th class="th-sortable ${currentMfSortCol === 'valor' ? 'active-sort' : ''}" onclick="toggleMfSort('valor')">Valor ${getSortIconHtml('valor')}</th>
           <th class="th-sortable ${currentMfSortCol === 'observacoes' ? 'active-sort' : ''}" onclick="toggleMfSort('observacoes')">Observações ${getSortIconHtml('observacoes')}</th>
         </tr>`;
       } else {
@@ -262,36 +250,22 @@ function renderMovimentacoesFinanceiras() {
 
       if (variant === 'receber') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
-        const aReceber = DacFinancialReport.getRemainingValue(r);
         return `<tr>
-          <td>${movTag}</td>
-          <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
           <td style="font-size:11px; font-weight:600;">${r.cliente || r.fornecedor || '—'}</td>
-          <td>${statusBadge}</td>
-          <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
-          <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
-          <td class="mono" style="color:#4ADE80;font-weight:700;">+ ${fmt(aReceber)}</td>
           <td style="font-size:10px;color:var(--accent2);">${docModo}</td>
-          <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
-          <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
+          <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
+          <td class="mono" style="color:#4ADE80;font-weight:700;">${fmt(valTotal)}</td>
           <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
         </tr>`;
       } else if (variant === 'pagar') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
-        const aPagar = DacFinancialReport.getRemainingValue(r);
         return `<tr>
-          <td>${movTag}</td>
-          <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
           <td style="font-size:11px; font-weight:600;">${r.fornecedor || r.cliente || '—'}</td>
-          <td>${statusBadge}</td>
-          <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
-          <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
-          <td class="mono" style="color:var(--red);font-weight:700;">- ${fmt(aPagar)}</td>
           <td style="font-size:10px;color:var(--accent2);">${docModo}</td>
-          <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
-          <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
+          <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
+          <td class="mono" style="color:var(--red);font-weight:700;">${fmt(valTotal)}</td>
           <td style="font-size:10px;opacity:0.8;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.observacoes || ''}">${r.observacoes || '—'}</td>
         </tr>`;
       }

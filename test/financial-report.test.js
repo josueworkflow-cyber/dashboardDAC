@@ -354,8 +354,14 @@ test('modelos geral, receber, pagar, entradas e saídas têm títulos e colunas 
   const exitsByType = report.createModel({ ...data, filters: { type: 'saida' } });
 
   assert.equal(general.columns.length, 15);
-  assert.equal(receivable.columns.length, 12);
-  assert.equal(payable.columns.length, 12);
+  assert.equal(receivable.columns.length, 6);
+  assert.equal(payable.columns.length, 6);
+  assert.deepEqual(receivable.columns.map(column => column.key), [
+    'cliente', 'modo_emissao', 'parcelas', 'vencimento', 'valor', 'observacoes'
+  ]);
+  assert.deepEqual(payable.columns.map(column => column.key), [
+    'fornecedor', 'modo_emissao', 'parcelas', 'vencimento', 'valor', 'observacoes'
+  ]);
   assert.equal(receivable.title, 'Relatório de Contas a Receber');
   assert.equal(payable.title, 'Relatório de Contas a Pagar');
   assert.equal(entries.title, 'Relatório de Entradas Financeiras');
@@ -581,4 +587,3 @@ test('movimentações financeiras renderizam parcela por parcela e respeitam fil
   assert.equal(consolidated[0]._parcelLabel, '1/5');
   assert.equal(consolidated[0].status, 'Parcial');
 });
-
