@@ -8,12 +8,16 @@ let currentMfSortCol = null;
 let currentMfSortDir = 'asc';
 
 async function initMovimentacoesFinanceiras() {
-  document.getElementById('mfDateFrom').value = '';
-  document.getElementById('mfDateTo').value = '';
+  const dFrom = document.getElementById('mfDateFrom');
+  if (dFrom) dFrom.value = '';
+  const dTo = document.getElementById('mfDateTo');
+  if (dTo) dTo.value = '';
   const catEl = document.getElementById('mfCategoria');
   if (catEl) catEl.value = '';
   const stEl = document.getElementById('mfStatus');
   if (stEl) stEl.value = '';
+  const searchEl = document.getElementById('mfSearch');
+  if (searchEl) searchEl.value = '';
   currentMfKpiFilter = null;
   currentMfSortCol = null;
   currentMfSortDir = 'asc';
@@ -143,7 +147,7 @@ function getFilteredMfRows(filters, now) {
     saidas: Array.isArray(SAI) ? SAI : [],
     filters: filters || getMfFilterState(),
     kpiFilter: currentMfKpiFilter,
-    consolidateAll: true,
+    consolidateAll: false,
     sortColumn: currentMfSortCol,
     sortDirection: currentMfSortDir,
     now: now || new Date()
@@ -254,6 +258,7 @@ function renderMovimentacoesFinanceiras() {
       const valSign = isEnt ? '+' : '-';
       const statusBadge = renderMfStatusBadge(r, referenceNow);
       const person = isEnt ? (r.cliente || '—') : (r.fornecedor || '—');
+      const docModo = r.modo_emissao || r.nota_fiscal || r.nf || '—';
 
       if (variant === 'receber') {
         const valTotal = DacFinancialReport.parseMoney(r.valor);
@@ -266,7 +271,7 @@ function renderMovimentacoesFinanceiras() {
           <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
           <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
           <td class="mono" style="color:#4ADE80;font-weight:700;">+ ${fmt(aReceber)}</td>
-          <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
+          <td style="font-size:10px;color:var(--accent2);">${docModo}</td>
           <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
           <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
@@ -283,7 +288,7 @@ function renderMovimentacoesFinanceiras() {
           <td class="mono" style="font-weight:600;">${fmt(valTotal)}</td>
           <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
           <td class="mono" style="color:var(--red);font-weight:700;">- ${fmt(aPagar)}</td>
-          <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
+          <td style="font-size:10px;color:var(--accent2);">${docModo}</td>
           <td style="font-size:11px;">${r.data_vencimento || '—'}</td>
           <td>${typeof renderParcelaBadge === 'function' ? renderParcelaBadge(r) : (r._parcelLabel || r.parcela_ref || '—')}</td>
           <td style="font-size:11px;color:var(--muted);">${r.forma_pagamento || '—'}</td>
@@ -297,7 +302,7 @@ function renderMovimentacoesFinanceiras() {
         <td><span class="stag cby" style="font-size:10px;">${r.categoria || '—'}</span></td>
         <td style="font-size:11px; font-weight:600;">${person}</td>
         <td class="mono" style="color:${valColor};font-weight:700;">${valSign} ${fmt(r.valor)}</td>
-        <td style="font-size:10px;color:var(--accent2);">${r.modo_emissao || '—'}</td>
+        <td style="font-size:10px;color:var(--accent2);">${docModo}</td>
         <td><span class="stag" style="background:rgba(255,255,255,0.06);color:#E2E8F0;font-size:10px;font-weight:600;">${r.empresa || 'DAC'}</span></td>
         <td style="font-size:11px;color:var(--muted);">${r.data_emissao || '—'}</td>
         <td>${statusBadge}</td>
@@ -330,6 +335,7 @@ function updateMfKpis(referenceDate) {
     entradas: Array.isArray(ENT) ? ENT : [],
     saidas: Array.isArray(SAI) ? SAI : [],
     filters: getMfFilterState(),
+    consolidateAll: false,
     sortColumn: '',
     sortDirection: 'desc',
     now: referenceNow
@@ -529,6 +535,7 @@ async function gerarRelatorioPDF(clickEvent) {
       saidas: Array.isArray(SAI) ? SAI : [],
       filters,
       kpiFilter: currentMfKpiFilter,
+      consolidateAll: false,
       sortColumn: currentMfSortCol,
       sortDirection: currentMfSortDir,
       now

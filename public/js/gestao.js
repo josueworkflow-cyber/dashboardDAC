@@ -1,4 +1,5 @@
 /* ═══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    gestao.js — Página "Gestão de Dados":
    tabela, abas, formulário de lançamento,
    exportação CSV e toasts de feedback
@@ -14,15 +15,23 @@ let currentFormModalidade = 'Pago';
 // ─── Helper: gera badge de parcela para tabelas ───
 
 function renderParcelaBadge(r) {
-  const label = typeof getParcelaLabel === 'function' ? getParcelaLabel(r) : null;
-  if (!label) {
-    return '<span style="color:var(--muted);font-size:11px;">—</span>';
-  }
-
   const ref = String(r.parcela_ref || '').trim();
   const groupMatch = ref.match(/\[(PRC-[^\]]+)\]/i);
   const grupoId = r._parcelGroupId || (groupMatch ? groupMatch[1] : null);
   const tipo = r._tipo || (r.movimentacao && normalizeString(r.movimentacao).includes('ENTRADA') ? 'entrada' : 'saida');
+
+  let label = r._parcelLabel;
+  if (!label && ref) {
+    const cleanRef = ref.replace(/\[PRC-[^\]]+\]/gi, '').trim();
+    if (cleanRef) label = cleanRef;
+  }
+  if (!label && typeof getParcelaLabel === 'function') {
+    label = getParcelaLabel(r);
+  }
+
+  if (!label || label === '—' || label === '-') {
+    return '<span style="color:var(--muted);font-size:11px;">—</span>';
+  }
 
   return `
     <button onclick="${grupoId ? `abrirModalGrupo('${grupoId}', '${tipo}', event)` : ''}" 

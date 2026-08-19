@@ -371,9 +371,9 @@
       case 'data_emissao': return dateToIso(row.data_emissao);
       case 'conta_bancaria': return normalizeText(row.conta_bancaria);
       case 'forma_pagamento': return normalizeText(row.forma_pagamento);
-      case 'modo_emissao': return normalizeText(row.modo_emissao || row.nota_fiscal);
+      case 'modo_emissao': return normalizeText(row.modo_emissao || row.nota_fiscal || row.nf);
       case 'empresa': return normalizeText(row.empresa);
-      case 'parcelas': return normalizeText((typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref));
+      case 'parcelas': return normalizeText(row._parcelLabel || cleanParcelReference(row.parcela_ref));
       default: return '';
     }
   }
@@ -450,7 +450,20 @@
         row.cliente,
         row.fornecedor,
         row.observacoes,
-        row.categoria
+        row.obs,
+        row.observacao,
+        row.categoria,
+        row.modo_emissao,
+        row.nota_fiscal,
+        row.nf,
+        row.empresa,
+        row.conta_bancaria,
+        row.conta,
+        row.forma_pagamento,
+        row.forma,
+        row.status,
+        row.parcela_ref,
+        row._parcelLabel
       ].some(value => normalizeText(value).includes(searchFilter)));
     }
 
@@ -468,16 +481,20 @@
     }
 
     if (kpiFilter === 'receber') {
-      rows = consolidateRows(rows.filter(row => row._tipo === 'entrada'))
-        .filter(row => isOpenRow(row));
+      const entryRows = rows.filter(row => row._tipo === 'entrada');
+      rows = settings.consolidateAll
+        ? consolidateRows(entryRows).filter(row => isOpenRow(row))
+        : entryRows.filter(row => isOpenRow(row));
       rows = statusFilter === 'vencido'
-        ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean)
+        ? (settings.consolidateAll ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean) : filterByStatus(rows))
         : filterByStatus(rows);
     } else if (kpiFilter === 'pagar') {
-      rows = consolidateRows(rows.filter(row => row._tipo === 'saída'))
-        .filter(row => isOpenRow(row));
+      const exitRows = rows.filter(row => row._tipo === 'saída');
+      rows = settings.consolidateAll
+        ? consolidateRows(exitRows).filter(row => isOpenRow(row))
+        : exitRows.filter(row => isOpenRow(row));
       rows = statusFilter === 'vencido'
-        ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean)
+        ? (settings.consolidateAll ? rows.map(row => projectOverdueSlice(row, referenceIso)).filter(Boolean) : filterByStatus(rows))
         : filterByStatus(rows);
     } else if (kpiFilter === 'entradas') {
       const entryRows = rows.filter(row => row._tipo === 'entrada');
@@ -556,9 +573,9 @@
         { key: 'valor', header: 'VALOR TOTAL', width: 24, align: 'right', value: row => formatCurrency(row.valor) },
         { key: 'data_emissao', header: 'DATA EMISSÃO', width: 22, align: 'center', value: row => cleanPdfText(row.data_emissao) },
         { key: 'restante', header: 'A RECEBER', width: 24, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
-        { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+        { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
         { key: 'vencimento', header: 'VENCIMENTO', width: 20, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => cleanPdfText(row._parcelLabel || cleanParcelReference(row.parcela_ref)) },
         { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 30, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
         { key: 'observacoes', header: 'OBSERVAÇÕES', width: 32, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
@@ -573,9 +590,9 @@
         { key: 'valor', header: 'VALOR TOTAL', width: 24, align: 'right', value: row => formatCurrency(row.valor) },
         { key: 'data_emissao', header: 'DATA EMISSÃO', width: 22, align: 'center', value: row => cleanPdfText(row.data_emissao) },
         { key: 'restante', header: 'A PAGAR', width: 24, align: 'right', value: row => formatCurrency(getRemainingValue(row)) },
-        { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+        { key: 'modo_emissao', header: 'NF / PEDIDO', width: 18, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
         { key: 'vencimento', header: 'VENCIMENTO', width: 20, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
-        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+        { key: 'parcelas', header: 'PARCELAS', width: 16, align: 'center', value: row => cleanPdfText(row._parcelLabel || cleanParcelReference(row.parcela_ref)) },
         { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 30, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
         { key: 'observacoes', header: 'OBSERVAÇÕES', width: 32, align: 'left', value: row => cleanPdfText(row.observacoes) }
       ];
@@ -590,14 +607,14 @@
       { key: 'categoria', header: 'CATEGORIA', width: 20, align: 'center', value: row => cleanPdfText(row.categoria) },
       { key: 'pessoa', header: personHeader, width: 28, align: 'left', value: row => cleanPdfText(person(row)) },
       { key: 'valor', header: 'VALOR', width: 20, align: 'right', value: row => valueCell(row, row._tipo === 'entrada' ? '+' : '-') },
-      { key: 'modo_emissao', header: 'NF / PEDIDO', width: 16, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal) },
+      { key: 'modo_emissao', header: 'NF / PEDIDO', width: 16, align: 'center', value: row => cleanPdfText(row.modo_emissao || row.nota_fiscal || row.nf) },
       { key: 'empresa', header: 'EMPRESA', width: 15, align: 'center', value: row => cleanPdfText(row.empresa, 'DAC') },
       { key: 'data_emissao', header: 'DATA EMISSÃO', width: 18, align: 'center', value: row => cleanPdfText(row.data_emissao) },
       { key: 'status', header: 'STATUS', width: 18, align: 'center', value: row => getStatusInfo(row, referenceIso).label },
       { key: 'vencimento', header: 'VENCIMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_vencimento) },
       { key: 'conta', header: 'CONTA BANCÁRIA', width: 22, align: 'center', value: row => cleanPdfText(row.conta_bancaria) },
       { key: 'valor_pago', header: 'VALOR PAGO', width: 20, align: 'right', value: row => formatCurrency(getEffectiveValue(row)) },
-      { key: 'parcelas', header: 'PARCELAS', width: 14, align: 'center', value: row => (typeof getParcelaLabel === 'function' ? getParcelaLabel(row) : null) || row._parcelLabel || cleanParcelReference(row.parcela_ref) },
+      { key: 'parcelas', header: 'PARCELAS', width: 14, align: 'center', value: row => cleanPdfText(row._parcelLabel || cleanParcelReference(row.parcela_ref)) },
       { key: 'forma', header: 'FORMA DE PAGAMENTO', width: 24, align: 'center', value: row => cleanPdfText(row.forma_pagamento) },
       { key: 'pagamento', header: 'PAGAMENTO', width: 18, align: 'center', value: row => cleanPdfText(row.data_pagamento) },
       { key: 'observacoes', header: 'OBSERVAÇÕES', width: 26, align: 'left', value: row => cleanPdfText(row.observacoes) }

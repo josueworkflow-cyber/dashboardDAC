@@ -120,6 +120,37 @@ test('filtros de busca, tipo, categoria, período e status usam uma única regra
   assert.equal(rows[0].cliente, 'Hospital São José');
 });
 
+test('busca por nota fiscal encontra registros por modo_emissao, nota_fiscal e nf', () => {
+  const entradas = [
+    entry({ cliente: 'Hospital A', modo_emissao: 'NF 54321' }),
+    entry({ cliente: 'Hospital B', modo_emissao: 'Pedido 100' }),
+    entry({ cliente: 'Hospital C', nota_fiscal: '98765' })
+  ];
+  const saidas = [
+    exit({ fornecedor: 'Fornecedor X', modo_emissao: 'NF 54321-S' }),
+    exit({ fornecedor: 'Fornecedor Y', nf: '77889' })
+  ];
+
+  // Busca por número da NF
+  const matchNum = report.filterRows({ entradas, saidas, filters: { search: '54321' }, now: FIXED_NOW });
+  assert.equal(matchNum.length, 2);
+  assert.deepEqual(matchNum.map(r => r.cliente || r.fornecedor), ['Fornecedor X', 'Hospital A']);
+
+  // Busca por texto da nota fiscal com prefixo
+  const matchPrefix = report.filterRows({ entradas, saidas, filters: { search: 'nf 54321' }, now: FIXED_NOW });
+  assert.equal(matchPrefix.length, 2);
+
+  // Busca por campo nota_fiscal direto
+  const matchNfField = report.filterRows({ entradas, saidas, filters: { search: '98765' }, now: FIXED_NOW });
+  assert.equal(matchNfField.length, 1);
+  assert.equal(matchNfField[0].cliente, 'Hospital C');
+
+  // Busca por campo nf legado
+  const matchNfShort = report.filterRows({ entradas, saidas, filters: { search: '77889' }, now: FIXED_NOW });
+  assert.equal(matchNfShort.length, 1);
+  assert.equal(matchNfShort[0].fornecedor, 'Fornecedor Y');
+});
+
 test('vencimento usa a data de São Paulo e não marca o próprio dia como atrasado', () => {
   const overdue = report.getStatusInfo(entry({ data_vencimento: '05/08/2026' }), FIXED_NOW);
   const dueToday = report.getStatusInfo(entry({ data_vencimento: '06/08/2026' }), FIXED_NOW);
@@ -141,6 +172,7 @@ test('consolidação de parcelas respeita o período filtrado', () => {
     entradas: parcelas,
     saidas: [],
     filters: { dateFrom: '2026-08-01', dateTo: '2026-08-31' },
+    consolidateAll: true,
     kpiFilter: 'receber',
     now: FIXED_NOW
   });
@@ -164,6 +196,7 @@ test('consolidação preserva parcelas pagas do período e identifica o agrupame
     entradas: parcelas,
     saidas: [],
     filters: { dateFrom: '2026-08-01', dateTo: '2026-08-31' },
+    consolidateAll: true,
     kpiFilter: 'receber',
     now: FIXED_NOW
   });
@@ -226,7 +259,7 @@ test('contas a receber separam parcelas vencidas das parcelas futuras do mesmo g
   const model = report.createModel({ entradas: parcelas, saidas: [], filters: {}, kpiFilter: 'receber', now: FIXED_NOW });
   const summary = Object.fromEntries(model.summary.map(item => [item.label, item.value]));
 
-  assert.equal(model.rows.length, 1);
+  assert.equal(model.rows.length, 2);
   assert.equal(summary['TOTAL A RECEBER'], 'R$ 200,00');
   assert.equal(summary['VALORES ATRASADOS'], 'R$ 100,00');
   assert.equal(summary['VALORES NÃO VENCIDOS'], 'R$ 100,00');
@@ -501,3 +534,51 @@ test('relatório sem lançamentos continua sendo um PDF válido e informativo', 
   assert.equal(result.doc.getNumberOfPages(), 1);
   assert.ok(result.blob.size > 1000);
 });
+
+test('movimentações financeiras renderizam parcela por parcela e respeitam filtro de datas', () => {
+  const parcelas = [
+    entry({ cliente: 'Cliente 5x', valor: '200,00', data_vencimento: '10/08/2026', status: 'Pago', valor_pago: '200,00', parcela_ref: '1/5 [PRC-5X]' }),
+    entry({ cliente: 'Cliente 5x', valor: '200,00', data_vencimento: '10/09/2026', status: 'Pendente', valor_pago: '0', parcela_ref: '2/5 [PRC-5X]' }),
+    entry({ cliente: 'Cliente 5x', valor: '200,00', data_vencimento: '10/10/2026', status: 'Pendente', valor_pago: '0', parcela_ref: '3/5 [PRC-5X]' }),
+    entry({ cliente: 'Cliente 5x', valor: '200,00', data_vencimento: '10/11/2026', status: 'Pendente', valor_pago: '0', parcela_ref: '4/5 [PRC-5X]' }),
+    entry({ cliente: 'Cliente 5x', valor: '200,00', data_vencimento: '10/12/2026', status: 'Pendente', valor_pago: '0', parcela_ref: '5/5 [PRC-5X]' })
+  ];
+
+  // 1. Sem filtro: todas as 5 parcelas aparecem individualmente
+  const allRows = report.filterRows({
+    entradas: parcelas,
+    saidas: [],
+    filters: {},
+    consolidateAll: false,
+    now: FIXED_NOW
+  });
+  assert.equal(allRows.length, 5);
+  assert.deepEqual(allRows.map(r => r.parcela_ref), [
+    '5/5 [PRC-5X]',
+    '4/5 [PRC-5X]',
+    '3/5 [PRC-5X]',
+    '2/5 [PRC-5X]',
+    '1/5 [PRC-5X]'
+  ]);
+
+  // 2. Filtro de data cobrindo apenas setembro/2026: apenas a parcela 2/5 aparece
+  const setRows = report.filterRows({
+    entradas: parcelas,
+    saidas: [],
+    filters: { dateFrom: '2026-09-01', dateTo: '2026-09-30' },
+    consolidateAll: false,
+    now: FIXED_NOW
+  });
+  assert.equal(setRows.length, 1);
+  assert.equal(setRows[0].parcela_ref, '2/5 [PRC-5X]');
+  assert.equal(setRows[0].data_vencimento, '10/09/2026');
+
+  // 3. Gestão de dados (com consolidação): agrupa as 5 parcelas em 1 único lançamento de R$ 1.000,00
+  const consolidated = report.consolidateRows(parcelas);
+  assert.equal(consolidated.length, 1);
+  assert.equal(consolidated[0].valor, 1000);
+  assert.equal(consolidated[0].valor_pago, 200);
+  assert.equal(consolidated[0]._parcelLabel, '1/5');
+  assert.equal(consolidated[0].status, 'Parcial');
+});
+
