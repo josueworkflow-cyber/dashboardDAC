@@ -1537,61 +1537,41 @@
         </div>
       </div>
 
-      <!-- SEGUNDA LINHA: GRÁFICOS ROW -->
-      <div class="g2">
-        <!-- DESEMPENHO DE VENDAS -->
-        <div class="card fa" style="overflow: visible;">
-          <div class="ch">
-            <div class="ct" style="display:flex;align-items:center;gap:6px;">
-              DESEMPENHO FINANCEIRO
-              <div class="ind-card" style="display:inline-block;">
-                <span class="ind-info">i</span>
-                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Comparação consolidada de Entradas vs Saídas do grupo. Use os filtros ao lado para detalhar por empresa ou período.</div>
-              </div>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <select class="fs" id="monEmpresaFilterDesempenho" onchange="renderDesempenhoVendas()">
-                <option value="ambos">Ambas Empresas</option>
-                <option value="DAC">Apenas DAC</option>
-                <option value="PULSE">Apenas PULSE</option>
-              </select>
-              <select class="fs" id="monMesFilterDesempenho" onchange="renderDesempenhoVendas()">
-                <option value="">Anual</option>
-                <option value="0">Janeiro</option>
-                <option value="1">Fevereiro</option>
-                <option value="2">Março</option>
-                <option value="3">Abril</option>
-                <option value="4">Maio</option>
-                <option value="5">Junho</option>
-                <option value="6">Julho</option>
-                <option value="7">Agosto</option>
-                <option value="8">Setembro</option>
-                <option value="9">Outubro</option>
-                <option value="10">Novembro</option>
-                <option value="11">Dezembro</option>
-              </select>
-            </div>
-          </div>
-          <div class="chart-wrap" style="flex: 1; min-height: 0;"><canvas id="monDesempenhoCanvas"></canvas></div>
-        </div>
-
-        <!-- ACOMPANHAMENTO ANUAL -->
-        <div class="card fa" style="overflow: visible;">
-          <div class="ch">
+      <!-- SEGUNDA LINHA: ACOMPANHAMENTO ANUAL UNIFICADO (FULL WIDTH) -->
+      <div class="mon-bottom-row">
+        <div class="card fa" style="overflow: visible; width: 100%; display: flex; flex-direction: column;">
+          <div class="ch" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 18px 8px;">
             <div class="ct" style="display:flex;align-items:center;gap:6px;">
               ACOMPANHAMENTO ANUAL
               <div class="ind-card" style="display:inline-block;">
                 <span class="ind-info">i</span>
-                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Acompanhamento mensal do faturamento com barra de progresso em relação ao teto anual. Suporta filtro por Empresa (DAC: R$ 2.500.000 / Pulse: R$ 750.000 / Ambos: R$ 3.250.000).</div>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Evolução mensal consolidada ao longo do ano. Visualize Entradas, Saídas ou ambos com filtros por Empresa (DAC/Pulse) e Modo de Emissão (NF/Pedido).</div>
               </div>
             </div>
-            <select class="fs" id="monEmpresaFilterAnual" onchange="renderAcompanhamentoAnual()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Empresa">
-              <option value="DAC" selected>DAC</option>
-              <option value="PULSE">PULSE</option>
-              <option value="ambos">Ambos</option>
-            </select>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <!-- Filtro 1: Empresa -->
+              <select class="fs" id="monAnualEmpresaFilter" onchange="renderAcompanhamentoAnualChart()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Empresa">
+                <option value="ambos" selected>Todas Empresas</option>
+                <option value="DAC">Apenas DAC</option>
+                <option value="PULSE">Apenas PULSE</option>
+              </select>
+              <!-- Filtro 2: Tipo de Fluxo -->
+              <select class="fs" id="monAnualFluxoFilter" onchange="renderAcompanhamentoAnualChart()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Tipo de Fluxo">
+                <option value="ambos" selected>Entradas e Saídas</option>
+                <option value="entradas">Apenas Entradas</option>
+                <option value="saidas">Apenas Saídas</option>
+              </select>
+              <!-- Filtro 3: Modo de Emissão -->
+              <select class="fs" id="monAnualEmissaoFilter" onchange="renderAcompanhamentoAnualChart()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Tipo de Emissão">
+                <option value="ambos" selected>Todas Emissões</option>
+                <option value="nf">Com NF</option>
+                <option value="pd">Por Pedido (PD)</option>
+              </select>
+            </div>
           </div>
-          <div style="padding: 0 24px 24px; flex: 1; overflow-y: auto; min-height: 0;" id="monAnual">Carregando...</div>
+          <div class="chart-wrap" style="flex: 1; min-height: 0; padding: 6px 16px 12px; position: relative;">
+            <canvas id="monAcompanhamentoAnualCanvas"></canvas>
+          </div>
         </div>
       </div>
 

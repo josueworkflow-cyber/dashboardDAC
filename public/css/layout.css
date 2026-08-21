@@ -197,7 +197,8 @@
   overflow: auto;
 }
 .pg-monitoramento.allow-scroll .g3,
-.pg-monitoramento.allow-scroll .g2 {
+.pg-monitoramento.allow-scroll .g2,
+.pg-monitoramento.allow-scroll .mon-bottom-row {
   flex: none;
   height: auto;
 }
@@ -236,10 +237,12 @@
   gap: 12px;
 }
 
-.pg-monitoramento .g2 {
+.pg-monitoramento .g2,
+.pg-monitoramento .mon-bottom-row {
   flex: 0.9;
   min-height: 0;
   gap: 12px;
+  width: 100%;
 }
 
 .pg-monitoramento .card {
@@ -310,7 +313,8 @@
   }
 
   .pg-monitoramento .g3,
-  .pg-monitoramento .g2 {
+  .pg-monitoramento .g2,
+  .pg-monitoramento .mon-bottom-row {
     flex: none !important;
     height: auto !important;
   }
@@ -337,8 +341,9 @@
     max-width: none !important;
   }
 
-  .pg-monitoramento #monAnual {
-    padding: 0 14px 14px !important;
+  .pg-monitoramento .mon-bottom-row .chart-wrap {
+    height: 280px !important;
+    min-height: 250px !important;
   }
 
   .pg-monitoramento .chart-wrap {

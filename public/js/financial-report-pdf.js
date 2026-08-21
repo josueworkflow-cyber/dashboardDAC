@@ -24,9 +24,9 @@
   const TOTAL_PAGES_TOKEN = '{total_pages_count_string}';
   const MAX_REPORT_PAGES = 15;
   // Mantém a geração previsível mesmo com milhares de linhas vindas do Sheets.
-  // Com o layout atual, 360 linhas ocupam no máximo 15 páginas; há ainda uma
+  // No layout vertical compacto, 350 linhas usuais ocupam no máximo 15 páginas; há ainda uma
   // proteção final que nunca deixa o documento ultrapassar esse teto.
-  const MAX_REPORT_ROWS = 360;
+  const MAX_REPORT_ROWS = 350;
   const COLORS = {
     red: [196, 18, 48],
     darkRed: [161, 14, 39],
@@ -781,28 +781,71 @@
     const margin = 9;
     const gap = 2;
     const availableWidth = pageWidth - (margin * 2);
-    const cardWidth = (availableWidth - (gap * 3)) / 4;
+    const cardWidth = (availableWidth - gap) / 2;
     const top = 32;
     const height = 13;
 
     model.summary.forEach((item, index) => {
-      const x = margin + index * (cardWidth + gap);
+      const column = index % 2;
+      const row = Math.floor(index / 2);
+      const x = margin + column * (cardWidth + gap);
+      const y = top + row * (height + gap);
       doc.setFillColor(...COLORS.light);
       doc.setDrawColor(...COLORS.border);
       doc.setLineWidth(0.25);
-      doc.roundedRect(x, top, cardWidth, height, 1.2, 1.2, 'FD');
+      doc.roundedRect(x, y, cardWidth, height, 1.2, 1.2, 'FD');
       doc.setFillColor(...COLORS.red);
-      doc.rect(x, top, 1.3, height, 'F');
+      doc.rect(x, y, 1.3, height, 'F');
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...COLORS.muted);
-      doc.setFontSize(5.4);
-      doc.text(cleanPdfText(item.label), x + 4, top + 4.3);
+      doc.setFontSize(6.2);
+      doc.text(cleanPdfText(item.label), x + 4, y + 4.3);
 
       doc.setTextColor(...item.color);
-      doc.setFontSize(8.2);
-      doc.text(cleanPdfText(item.value), x + 4, top + 9.6, { maxWidth: cardWidth - 6 });
+      doc.setFontSize(9);
+      doc.text(cleanPdfText(item.value), x + 4, y + 9.8, { maxWidth: cardWidth - 6 });
     });
+  }
+
+  function getPortraitColumns(model) {
+    const sourceColumns = Object.fromEntries(model.columns.map(column => [column.key, column]));
+    const valueFor = (row, key) => {
+      const column = sourceColumns[key];
+      return column ? cleanPdfText(column.value(row)) : PLACEHOLDER;
+    };
+    const personHeader = sourceColumns.pessoa ? sourceColumns.pessoa.header : 'CLIENTE / FORNECEDOR';
+
+    return [
+      {
+        key: 'detalhes',
+        header: `${personHeader} / DADOS DO LANÇAMENTO`,
+        width: 108,
+        align: 'left',
+        value: row => {
+          const details = [
+            `Documento: ${valueFor(row, 'modo_emissao')}`,
+            `Parcela: ${valueFor(row, 'parcelas')}`,
+            `Venc.: ${valueFor(row, 'vencimento')}`
+          ].join(' | ');
+          return `${valueFor(row, 'pessoa')}\n${details}`;
+        }
+      },
+      {
+        key: 'valor',
+        header: 'VALOR',
+        width: 34,
+        align: 'center',
+        value: row => valueFor(row, 'valor')
+      },
+      {
+        key: 'observacoes',
+        header: 'OBSERVAÇÃO',
+        width: 50,
+        align: 'left',
+        value: row => valueFor(row, 'observacoes')
+      }
+    ];
   }
 
   function drawFooter(doc, pageNumber, reportLimit) {
@@ -830,7 +873,7 @@
     }
 
     const doc = new JsPdf({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
       compress: true,
@@ -871,11 +914,15 @@
       displayedRows: printableRows.length,
       isLimited: model.rows.length > printableRows.length
     };
-    const head = [model.columns.map(column => column.header)];
-    const body = printableRows.map(row => model.columns.map(column => cleanPdfText(column.value(row))));
+    const portraitColumns = getPortraitColumns(model);
+    const head = [portraitColumns.map(column => column.header)];
+    const body = printableRows.map(row => portraitColumns.map(column => String(column.value(row))
+      .split('\n')
+      .map(line => cleanPdfText(line))
+      .join('\n')));
     const columnStyles = {};
-    const tableFontSize = model.variant === 'geral' || model.variant === 'entradas' || model.variant === 'saidas' ? 5.5 : 6.2;
-    model.columns.forEach((column, index) => {
+    const tableFontSize = 7.5;
+    portraitColumns.forEach((column, index) => {
       columnStyles[index] = {
         cellWidth: column.width,
         halign: column.align || 'center'
@@ -885,28 +932,28 @@
     runAutoTable(doc, {
       head,
       body,
-      startY: 48.5,
+      startY: 62.5,
       margin: { top: 32, right: 9, bottom: 12, left: 9 },
-      tableWidth: 279,
+      tableWidth: 192,
       theme: 'grid',
       showHead: 'everyPage',
       rowPageBreak: 'avoid',
       styles: {
         font: 'helvetica',
         fontSize: tableFontSize,
-        cellPadding: { top: 1.8, right: 1.2, bottom: 1.8, left: 1.2 },
-        overflow: 'ellipsize',
+        cellPadding: { top: 2, right: 1.5, bottom: 2, left: 1.5 },
+        overflow: 'linebreak',
         valign: 'middle',
         textColor: COLORS.slate,
         lineColor: COLORS.border,
         lineWidth: 0.15,
-        minCellHeight: 5.5
+        minCellHeight: 9
       },
       headStyles: {
         fillColor: COLORS.red,
         textColor: COLORS.white,
         fontStyle: 'bold',
-        fontSize: model.variant === 'geral' || model.variant === 'entradas' || model.variant === 'saidas' ? 5.2 : 5.8,
+        fontSize: 6.7,
         halign: 'center',
         valign: 'middle',
         lineColor: COLORS.darkRed,
@@ -922,7 +969,7 @@
       didParseCell: data => {
         if (data.section !== 'body') return;
         const row = printableRows[data.row.index];
-        const column = model.columns[data.column.index];
+        const column = portraitColumns[data.column.index];
         if (!row || !column) return;
 
         const isMoneyColumn = column.key === 'valor'

@@ -434,7 +434,7 @@ test('o modelo é independente de metadados de viewport mobile ou desktop', () =
   assert.deepEqual(serializableModel(mobile), serializableModel(desktop));
 });
 
-test('gerador cria PDF A4 paisagem multipágina sem canvas ou DOM', () => {
+test('gerador cria PDF A4 retrato multipágina sem canvas ou DOM', () => {
   const entradas = Array.from({ length: 140 }, (_, index) => entry({
     cliente: `Hospital ${index + 1}`,
     observacoes: `Lançamento de teste ${index + 1}`,
@@ -446,8 +446,10 @@ test('gerador cria PDF A4 paisagem multipágina sem canvas ou DOM', () => {
 
   assert.ok(result.blob.size > 5000);
   assert.ok(result.doc.getNumberOfPages() > 1);
-  assert.ok(Math.abs(result.doc.internal.pageSize.getWidth() - 297) < 0.2);
-  assert.ok(Math.abs(result.doc.internal.pageSize.getHeight() - 210) < 0.2);
+  assert.ok(Math.abs(result.doc.internal.pageSize.getWidth() - 210) < 0.2);
+  assert.ok(Math.abs(result.doc.internal.pageSize.getHeight() - 297) < 0.2);
+  assert.equal(result.doc.lastAutoTable.body[0].cells[0].text.length, 2);
+  assert.match(result.doc.lastAutoTable.body[0].cells[0].text[1], /^Documento: .* \| Parcela: .* \| Venc\.: /);
   assert.match(result.filename, /^Relatorio_de_Movimentacoes_Financeiras_2026-08-06\.pdf$/);
 });
 
@@ -491,11 +493,11 @@ test('valores monetários altos são preservados sem reticências', () => {
     now: FIXED_NOW
   });
   const result = report.generatePdf(model, { jsPDF, autoTable });
-  const valueColumn = model.columns.findIndex(column => column.key === 'valor');
-  const cell = result.doc.lastAutoTable.body[0].cells[valueColumn];
+  const cell = result.doc.lastAutoTable.body[0].cells[1];
 
   assert.equal(cell.text.join(' '), 'R$ 9.999.999.999.999,99');
-  assert.ok(cell.styles.fontSize <= 5.5);
+  assert.equal(cell.styles.halign, 'center');
+  assert.ok(cell.styles.fontSize <= 7.5);
   assert.ok(cell.styles.fontSize >= 4);
 });
 
@@ -745,4 +747,3 @@ test('ordenação por data / vencimento reflete a seleção da tela no relatóri
   });
   assert.deepEqual(modelData.rows.map(r => r.cliente), ['Cliente Antigo', 'Cliente Meio', 'Cliente Futuro']);
 });
-

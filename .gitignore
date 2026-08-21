@@ -4,3 +4,4 @@ credentials.json
 npm-debug.log
 *.zip
 tmp/
+output/

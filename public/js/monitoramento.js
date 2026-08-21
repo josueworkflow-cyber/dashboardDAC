@@ -8,7 +8,7 @@
 let monitorFilter = 'DAC'; // 'DAC' ou 'PULSE'
 
 // ─── Instâncias de Chart.js ───
-let monDesempenhoChart = null;
+let monAcompanhamentoAnualChart = null;
 let monDespVarChart = null;
 let monEntradasNFChart = null;
 let monEntradasPieChart = null;
@@ -20,7 +20,7 @@ function saveOpenWeeks() {
   localStorage.setItem('mon_open_weeks', JSON.stringify([...monOpenWeeks]));
 }
 
-// ─── Plugins para Efeito 3D e Centro do Doughnut ───
+// ─── Plugins para Efeito 3D, Centro do Doughnut e Rótulos Anuais ───
 
 const monPieShadow = {
   id: 'monPieShadow',
@@ -74,6 +74,73 @@ const monCenterText = {
   }
 };
 
+const monAnualDataLabels = {
+  id: 'monAnualDataLabels',
+  afterDatasetsDraw(chart) {
+    if (!chart || !chart.chartArea) return;
+    const { ctx } = chart;
+    ctx.save();
+    
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta || meta.hidden) return;
+
+      meta.data.forEach((element, index) => {
+        const val = dataset.data[index];
+        if (val === undefined || val === null || val <= 0) return;
+
+        const { x, y } = element;
+        const color = dataset.borderColor || '#D4D4DA';
+
+        // Formatação inteligente e legível
+        let text = '';
+        if (val >= 1000000) {
+          text = (val / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + 'M';
+        } else if (val >= 10000) {
+          text = (val / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'k';
+        } else {
+          text = val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        ctx.font = 'bold 9.5px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const isSaidas = dataset.label === 'Saídas';
+        const hasBoth = chart.data.datasets.length > 1;
+        
+        // Entradas acima, Saídas abaixo se ambos estiverem no gráfico
+        const badgeY = (hasBoth && isSaidas) ? (y + 16) : (y - 16);
+
+        const metrics = ctx.measureText(text);
+        const padX = 5;
+        const padY = 2;
+        const bW = metrics.width + padX * 2;
+        const bH = 15;
+        const bX = x - bW / 2;
+        const bY = badgeY - bH / 2;
+
+        ctx.fillStyle = 'rgba(17, 19, 24, 0.92)';
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(bX, bY, bW, bH, 4);
+        } else {
+          ctx.rect(bX, bY, bW, bH);
+        }
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(text, x, badgeY);
+      });
+    });
+
+    ctx.restore();
+  }
+};
+
 // ─── Tetos anuais ───
 const TETO_DAC = 2500000;
 const TETO_PULSE = 750000;
@@ -107,12 +174,6 @@ function initMonitoramento() {
     despVarMonthSelect.setAttribute('data-init', 'true');
   }
 
-  const desempenhoMonthSelect = document.getElementById('monMesFilterDesempenho');
-  if (desempenhoMonthSelect && (desempenhoMonthSelect.value === "" || desempenhoMonthSelect.getAttribute('data-init') !== 'true')) {
-    desempenhoMonthSelect.value = currentMonth;
-    desempenhoMonthSelect.setAttribute('data-init', 'true');
-  }
-
   renderMonitoramento();
 }
 
@@ -127,10 +188,9 @@ function renderMonitoramento() {
   renderTabelaSemanalNF();
   renderEntradasNFChart();
   renderEntradasPieChart();
-  renderAcompanhamentoAnual();
-  renderDesempenhoVendas();
   renderDespesasVariaveis();
   renderTransporteTerceirizado();
+  renderAcompanhamentoAnualChart();
 }
 
 // ─── Filtro Global ───
@@ -141,9 +201,9 @@ function setMonitorFilter(tipo, btn) {
   if (empSelect) {
     empSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : 'DAC';
   }
-  const empAnualSelect = document.getElementById('monEmpresaFilterAnual');
+  const empAnualSelect = document.getElementById('monAnualEmpresaFilter');
   if (empAnualSelect) {
-    empAnualSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : 'DAC';
+    empAnualSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : (monitorFilter === 'DAC' ? 'DAC' : 'ambos');
   }
   document.querySelectorAll('.mon-filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
@@ -628,175 +688,205 @@ function renderEntradasPieChart() {
   });
 }
 
-// ─── Acompanhamento Anual ───
+// ─── Acompanhamento Anual Unificado (Gráfico em Linha com Marcadores e Rótulos) ───
 
-function renderAcompanhamentoAnual() {
-  const container = document.getElementById('monAnual');
-  if (!container) return;
-
-  const empFiltro = document.getElementById('monEmpresaFilterAnual')?.value || monitorFilter || 'DAC';
-
-  let teto = TETO_DAC;
-  let tetoLabel = 'Teto DAC';
-  if (empFiltro === 'PULSE') {
-    teto = TETO_PULSE;
-    tetoLabel = 'Teto PULSE';
-  } else if (empFiltro === 'ambos') {
-    teto = TETO_DAC + TETO_PULSE;
-    tetoLabel = 'Teto Ambos (DAC + PULSE)';
-  }
-
-  const now = new Date();
-  const anoAtual = now.getFullYear();
-
-  const filterEntry = e => {
-    if (empFiltro === 'DAC') return isDACEntry(e);
-    if (empFiltro === 'PULSE') return isPulseEntry(e);
-    return true; // 'ambos' inclui DAC e PULSE
-  };
-
-  const entradas = (typeof ENT !== 'undefined' ? ENT : []).filter(e => filterEntry(e) && isNotaFiscal(e));
-
-  const mesesData = {};
-  for (let m = 0; m < 12; m++) mesesData[m] = 0;
-
-  entradas.forEach(e => {
-    const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
-    if (!d || d.getFullYear() !== anoAtual) return;
-    mesesData[d.getMonth()] += getPaidValue(e);
-  });
-
-  let totalAnual = 0;
-  for (let m = 0; m < 12; m++) totalAnual += mesesData[m];
-  let pctAnual = teto > 0 ? Math.min((totalAnual / teto) * 100, 100) : 0;
-
-  let html = `
-    <div class="annual-summary">
-      <div class="annual-summary-left">
-        <div class="annual-summary-label">Total Anual ${anoAtual}</div>
-        <div class="annual-summary-value">${fmt(totalAnual)}</div>
-      </div>
-      <div class="annual-summary-right">
-        <div class="annual-summary-label">${tetoLabel}</div>
-        <div class="annual-summary-value" style="color:var(--muted);">${fmt(teto)}</div>
-      </div>
-    </div>
-    <div class="progress-bar annual-progress">
-      <div class="progress-fill ${pctAnual >= 100 ? 'over' : ''}" style="width:${pctAnual}%;">
-        <span>${pctAnual.toFixed(1)}%</span>
-      </div>
-    </div>
-    <div class="annual-grid">`;
-
-  for (let m = 0; m < 12; m++) {
-    const valor = mesesData[m];
-    const tetoMes = teto / 12;
-    const pctMes = tetoMes > 0 ? Math.min((valor / tetoMes) * 100, 100) : 0;
-    const isAtual = m === now.getMonth();
-
-    html += `
-      <div class="annual-card ${isAtual ? 'current' : ''}">
-        <div class="annual-card-month">${MESES_CURTOS[m]}</div>
-        <div class="annual-card-value ${valor > 0 ? 'tg' : ''}">${valor > 0 ? fmt(valor) : '—'}</div>
-        <div class="progress-bar small">
-          <div class="progress-fill ${pctMes >= 100 ? 'over' : ''}" style="width:${pctMes}%;"></div>
-        </div>
-      </div>`;
-  }
-
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-// ─── Gráfico Desempenho de Vendas ───
-
-function renderDesempenhoVendas() {
-  const canvas = document.getElementById('monDesempenhoCanvas');
+function renderAcompanhamentoAnualChart() {
+  const canvas = document.getElementById('monAcompanhamentoAnualCanvas');
   if (!canvas) return;
 
-  const mesFiltro = document.getElementById('monMesFilterDesempenho')?.value || '';
-  const empresaFiltro = document.getElementById('monEmpresaFilterDesempenho')?.value || 'ambos';
+  const empFiltro = document.getElementById('monAnualEmpresaFilter')?.value || 'ambos';
+  const fluxoFiltro = document.getElementById('monAnualFluxoFilter')?.value || 'ambos';
+  const emissaoFiltro = document.getElementById('monAnualEmissaoFilter')?.value || 'ambos';
+
   const now = new Date();
   const anoAtual = now.getFullYear();
 
-  let labels = [];
-  let entData = [];
-  let saiData = [];
+  const filterEntry = (item) => {
+    if (!item) return false;
+    // 1. Filtro Empresa
+    if (empFiltro === 'DAC' && !isDACEntry(item)) return false;
+    if (empFiltro === 'PULSE' && !isPulseEntry(item)) return false;
 
-  const filterEntry = (e) => {
-    if (empresaFiltro === 'DAC') return isDACEntry(e);
-    if (empresaFiltro === 'PULSE') return isPulseEntry(e);
-    return true; // 'ambos' inclui tudo (inclusive sem NF)
+    // 2. Filtro Emissão
+    if (emissaoFiltro === 'nf' && !isNotaFiscal(item)) return false;
+    if (emissaoFiltro === 'pd' && !isPorPD(item)) return false;
+
+    return true;
   };
 
-  if (mesFiltro === '') {
-    // Visão Anual (por meses)
-    labels = MESES_CURTOS;
-    entData = new Array(12).fill(0);
-    saiData = new Array(12).fill(0);
+  const entradasMes = new Array(12).fill(0);
+  const saidasMes = new Array(12).fill(0);
 
+  if (typeof ENT !== 'undefined' && Array.isArray(ENT)) {
     ENT.forEach(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento);
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
       if (!d || d.getFullYear() !== anoAtual) return;
-      if (filterEntry(e)) entData[d.getMonth()] += getEffectiveValue(e);
-    });
-
-    SAI.forEach(s => {
-      const d = parseDate(s.data_pagamento || s.data_vencimento);
-      if (!d || d.getFullYear() !== anoAtual) return;
-      if (filterEntry(s)) saiData[d.getMonth()] += getEffectiveValue(s);
-    });
-  } else {
-    // Visão Mensal (por semanas)
-    const targetMonth = parseInt(mesFiltro);
-    labels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5'];
-    entData = new Array(5).fill(0);
-    saiData = new Array(5).fill(0);
-
-    ENT.forEach(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento);
-      if (!d || d.getFullYear() !== anoAtual || d.getMonth() !== targetMonth) return;
-      
-      const week = getWeekOfMonth(d);
-      if (week >= 1 && week <= 5) {
-        if (filterEntry(e)) entData[week - 1] += getEffectiveValue(e);
-      }
-    });
-
-    SAI.forEach(s => {
-      const d = parseDate(s.data_pagamento || s.data_vencimento);
-      if (!d || d.getFullYear() !== anoAtual || d.getMonth() !== targetMonth) return;
-      
-      const week = getWeekOfMonth(d);
-      if (week >= 1 && week <= 5) {
-        if (filterEntry(s)) saiData[week - 1] += getEffectiveValue(s);
+      if (filterEntry(e)) {
+        entradasMes[d.getMonth()] += (typeof getEffectiveValue === 'function' ? getEffectiveValue(e) : getPaidValue(e));
       }
     });
   }
 
-  if (monDesempenhoChart) monDesempenhoChart.destroy();
-  var plugins = typeof shadow3D !== 'undefined' ? [shadow3D] : [];
+  if (typeof SAI !== 'undefined' && Array.isArray(SAI)) {
+    SAI.forEach(s => {
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao);
+      if (!d || d.getFullYear() !== anoAtual) return;
+      if (filterEntry(s)) {
+        saidasMes[d.getMonth()] += getValOrEffective(s);
+      }
+    });
+  }
 
-  monDesempenhoChart = new Chart(canvas.getContext('2d'), {
-    type: 'bar',
+  const ctx = canvas.getContext('2d');
+
+  // Gradientes sutis para as curvas
+  const gradEntradas = ctx.createLinearGradient(0, 0, 0, 260);
+  gradEntradas.addColorStop(0, 'rgba(74, 222, 128, 0.22)');
+  gradEntradas.addColorStop(1, 'rgba(74, 222, 128, 0.00)');
+
+  const gradSaidas = ctx.createLinearGradient(0, 0, 0, 260);
+  gradSaidas.addColorStop(0, 'rgba(196, 18, 48, 0.22)');
+  gradSaidas.addColorStop(1, 'rgba(196, 18, 48, 0.00)');
+
+  const datasets = [];
+
+  if (fluxoFiltro === 'ambos' || fluxoFiltro === 'entradas') {
+    datasets.push({
+      label: 'Entradas',
+      data: entradasMes,
+      borderColor: '#4ADE80',
+      backgroundColor: gradEntradas,
+      borderWidth: 3.5,
+      tension: 0.35,
+      fill: true,
+      pointStyle: 'rectRot',
+      pointRadius: 6.5,
+      pointHoverRadius: 9.5,
+      pointBackgroundColor: '#4ADE80',
+      pointBorderColor: '#0B0B10',
+      pointBorderWidth: 2,
+      order: 1
+    });
+  }
+
+  if (fluxoFiltro === 'ambos' || fluxoFiltro === 'saidas') {
+    datasets.push({
+      label: 'Saídas',
+      data: saidasMes,
+      borderColor: '#C41230',
+      backgroundColor: gradSaidas,
+      borderWidth: 3.5,
+      tension: 0.35,
+      fill: true,
+      pointStyle: 'rectRot',
+      pointRadius: 6.5,
+      pointHoverRadius: 9.5,
+      pointBackgroundColor: '#C41230',
+      pointBorderColor: '#0B0B10',
+      pointBorderWidth: 2,
+      order: 2
+    });
+  }
+
+  if (monAcompanhamentoAnualChart) {
+    monAcompanhamentoAnualChart.destroy();
+    monAcompanhamentoAnualChart = null;
+  }
+
+  monAcompanhamentoAnualChart = new Chart(ctx, {
+    type: 'line',
     data: {
-      labels: labels,
-      datasets: [
-        { label: 'Entradas', data: entData, backgroundColor: '#4ADE8099', borderColor: '#4ADE80', borderWidth: 1, borderRadius: 5, barPercentage: 0.7, categoryPercentage: 0.6 },
-        { label: 'Saídas', data: saiData, backgroundColor: '#C4123099', borderColor: '#C41230', borderWidth: 1, borderRadius: 5, barPercentage: 0.7, categoryPercentage: 0.6 }
-      ]
+      labels: MESES_NOMES,
+      datasets: datasets
     },
-    plugins: plugins,
+    plugins: [monAnualDataLabels],
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', align: 'end' },
-        tooltip: {
-          yAlign: 'top',
-          callbacks: { label: function(c) { return c.dataset.label + ': ' + fmt(c.parsed.y); } }
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      layout: {
+        padding: {
+          top: 22,
+          bottom: 4,
+          left: 10,
+          right: 14
         }
       },
-      scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { callback: function(v) { return 'R$ ' + (v / 1000).toFixed(0) + 'k'; }, font: { family: "'JetBrains Mono'" } } } }
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'rectRot',
+            boxWidth: 10,
+            boxHeight: 10,
+            padding: 14,
+            font: {
+              family: "'DM Sans', sans-serif",
+              size: 11,
+              weight: '600'
+            },
+            color: '#D4D4DA'
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(20, 20, 25, 0.95)',
+          titleFont: { family: "'DM Sans', sans-serif", size: 12, weight: '700' },
+          bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+          padding: 12,
+          cornerRadius: 8,
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          callbacks: {
+            label: function(context) {
+              return ` ${context.dataset.label}: ${fmt(context.parsed.y)}`;
+            },
+            afterBody: function(contexts) {
+              if (fluxoFiltro === 'ambos' && contexts.length >= 2) {
+                const entVal = entradasMes[contexts[0].dataIndex] || 0;
+                const saiVal = saidasMes[contexts[0].dataIndex] || 0;
+                const saldo = entVal - saiVal;
+                return `\n Saldo Líquido: ${fmt(saldo)}`;
+              }
+              return '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(255, 255, 255, 0.03)',
+            drawTicks: false
+          },
+          ticks: {
+            color: '#8A8A96',
+            font: { family: "'DM Sans', sans-serif", size: 11, weight: '500' },
+            padding: 8
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(255, 255, 255, 0.03)'
+          },
+          ticks: {
+            color: '#5A5A6A',
+            font: { family: "'JetBrains Mono', monospace", size: 10 },
+            callback: function(v) {
+              if (v >= 1000000) return 'R$ ' + (v / 1000000).toFixed(1) + 'M';
+              if (v >= 1000) return 'R$ ' + (v / 1000).toFixed(0) + 'k';
+              return 'R$ ' + v;
+            },
+            padding: 8
+          }
+        }
+      }
     }
   });
 }
