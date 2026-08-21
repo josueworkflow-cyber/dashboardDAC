@@ -686,6 +686,9 @@ function renderAcompanhamentoAnualChart() {
 
   const datasets = [];
 
+  const isMobile = window.innerWidth <= 900 || ('ontouchstart' in window && window.innerWidth <= 1024);
+  const hoverRadius = isMobile ? 7.5 : 10.5;
+
   if (fluxoFiltro === 'ambos' || fluxoFiltro === 'entradas') {
     datasets.push({
       label: 'Entradas',
@@ -697,7 +700,7 @@ function renderAcompanhamentoAnualChart() {
       fill: true,
       pointStyle: 'rectRot',
       pointRadius: 7.5,
-      pointHoverRadius: 10.5,
+      pointHoverRadius: hoverRadius,
       pointBackgroundColor: '#4ADE80',
       pointBorderColor: '#0B0B10',
       pointBorderWidth: 2,
@@ -716,7 +719,7 @@ function renderAcompanhamentoAnualChart() {
       fill: true,
       pointStyle: 'rectRot',
       pointRadius: 7.5,
-      pointHoverRadius: 10.5,
+      pointHoverRadius: hoverRadius,
       pointBackgroundColor: '#C41230',
       pointBorderColor: '#0B0B10',
       pointBorderWidth: 2,
@@ -739,7 +742,12 @@ function renderAcompanhamentoAnualChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
+      events: isMobile ? [] : ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+      interaction: isMobile ? { mode: null } : {
+        mode: 'index',
+        intersect: false
+      },
+      hover: isMobile ? { mode: null } : {
         mode: 'index',
         intersect: false
       },
@@ -771,6 +779,7 @@ function renderAcompanhamentoAnualChart() {
           }
         },
         tooltip: {
+          enabled: !isMobile,
           backgroundColor: 'rgba(20, 20, 25, 0.95)',
           titleFont: { family: "'DM Sans', sans-serif", size: 12, weight: '700' },
           bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
