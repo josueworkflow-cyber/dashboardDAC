@@ -92,48 +92,54 @@ const monAnualDataLabels = {
         const { x, y } = element;
         const color = dataset.borderColor || '#D4D4DA';
 
-        // Formatação inteligente e legível
+        // Formatação monetária expressiva e clara
         let text = '';
         if (val >= 1000000) {
-          text = (val / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + 'M';
-        } else if (val >= 10000) {
-          text = (val / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'k';
+          text = 'R$ ' + (val / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + 'M';
+        } else if (val >= 1000) {
+          text = 'R$ ' + (val / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'k';
         } else {
-          text = val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          text = 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        ctx.font = 'bold 9.5px "JetBrains Mono", monospace';
+        ctx.font = '700 13px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
         const isSaidas = dataset.label === 'Saídas';
         const hasBoth = chart.data.datasets.length > 1;
         
-        // Entradas acima, Saídas abaixo se ambos estiverem no gráfico
-        const badgeY = (hasBoth && isSaidas) ? (y + 16) : (y - 16);
+        // Entradas acima (-22px), Saídas abaixo (+22px) se ambos estiverem no gráfico
+        const badgeY = (hasBoth && isSaidas) ? (y + 22) : (y - 22);
 
         const metrics = ctx.measureText(text);
-        const padX = 5;
-        const padY = 2;
+        const padX = 8;
         const bW = metrics.width + padX * 2;
-        const bH = 15;
+        const bH = 22;
         const bX = x - bW / 2;
         const bY = badgeY - bH / 2;
 
-        ctx.fillStyle = 'rgba(17, 19, 24, 0.92)';
+        // Fundo escuro com borda e sombra sutil para destaque máximo
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+
+        ctx.fillStyle = 'rgba(14, 16, 22, 0.95)';
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(bX, bY, bW, bH, 4);
+          ctx.roundRect(bX, bY, bW, bH, 5);
         } else {
           ctx.rect(bX, bY, bW, bH);
         }
         ctx.fill();
+
+        ctx.shadowColor = 'transparent';
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.4;
         ctx.stroke();
 
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(text, x, badgeY);
+        ctx.fillText(text, x, badgeY + 0.5);
       });
     });
 
@@ -760,8 +766,8 @@ function renderAcompanhamentoAnualChart() {
       tension: 0.35,
       fill: true,
       pointStyle: 'rectRot',
-      pointRadius: 6.5,
-      pointHoverRadius: 9.5,
+      pointRadius: 7.5,
+      pointHoverRadius: 10.5,
       pointBackgroundColor: '#4ADE80',
       pointBorderColor: '#0B0B10',
       pointBorderWidth: 2,
@@ -779,8 +785,8 @@ function renderAcompanhamentoAnualChart() {
       tension: 0.35,
       fill: true,
       pointStyle: 'rectRot',
-      pointRadius: 6.5,
-      pointHoverRadius: 9.5,
+      pointRadius: 7.5,
+      pointHoverRadius: 10.5,
       pointBackgroundColor: '#C41230',
       pointBorderColor: '#0B0B10',
       pointBorderWidth: 2,
@@ -809,10 +815,10 @@ function renderAcompanhamentoAnualChart() {
       },
       layout: {
         padding: {
-          top: 22,
-          bottom: 4,
-          left: 10,
-          right: 14
+          top: 36,
+          bottom: 6,
+          left: 12,
+          right: 18
         }
       },
       plugins: {
@@ -872,6 +878,7 @@ function renderAcompanhamentoAnualChart() {
         },
         y: {
           beginAtZero: true,
+          grace: '15%',
           grid: {
             color: 'rgba(255, 255, 255, 0.03)'
           },
