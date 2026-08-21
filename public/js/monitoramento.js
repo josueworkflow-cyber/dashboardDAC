@@ -487,6 +487,46 @@ function renderAcompanhamentoSemanal() {
     });
   }
 
+  // Coleta Estoque e Pedidos Comerciais (ESTQ)
+  if (typeof ESTQ !== 'undefined' && Array.isArray(ESTQ)) {
+    ESTQ.forEach(r => {
+      if (!filterEntry(r)) return;
+      const d = parseDate(r.data || r.pagamento || r.data_vencimento);
+      if (!d) return;
+      if (mesFiltro !== '' && (d.getMonth() !== parseInt(mesFiltro, 10) || d.getFullYear() !== anoAtual)) return;
+      const week = getWeekOfMonth(d);
+      if (semanaFiltro !== 'todas' && String(week) !== String(semanaFiltro)) return;
+
+      const val = getValOrEffective(r);
+      if (val <= 0) return;
+
+      const mov = String(r.movimentacao || '').trim().toUpperCase();
+      const isVenda = r.ref_orcamento || mov.includes('SAÍDA') || mov.includes('SAIDA');
+
+      if (isVenda && (fluxoFiltro === 'ambos' || fluxoFiltro === 'entradas')) {
+        rawItems.push({
+          item: r,
+          type: 'entrada',
+          date: d,
+          week: week,
+          month: d.getMonth(),
+          year: d.getFullYear(),
+          val: val
+        });
+      } else if (!isVenda && (fluxoFiltro === 'ambos' || fluxoFiltro === 'saidas')) {
+        rawItems.push({
+          item: r,
+          type: 'saida',
+          date: d,
+          week: week,
+          month: d.getMonth(),
+          year: d.getFullYear(),
+          val: val
+        });
+      }
+    });
+  }
+
   // Agrupa por semana
   const groupsMap = {};
   rawItems.forEach(entry => {
@@ -669,6 +709,27 @@ function renderAcompanhamentoAnualChart() {
       if (!d || d.getFullYear() !== anoAtual) return;
       if (filterEntry(s)) {
         saidasMes[d.getMonth()] += getValOrEffective(s);
+      }
+    });
+  }
+
+  // 3. Estoque e Pedidos Comerciais (ESTQ)
+  if (typeof ESTQ !== 'undefined' && Array.isArray(ESTQ)) {
+    ESTQ.forEach(r => {
+      const d = parseDate(r.data || r.pagamento || r.data_vencimento);
+      if (!d || d.getFullYear() !== anoAtual) return;
+      if (!filterEntry(r)) return;
+
+      const val = getValOrEffective(r);
+      if (val <= 0) return;
+
+      const mov = String(r.movimentacao || '').trim().toUpperCase();
+      // Pedidos de venda (ref_orcamento ou saída de estoque para cliente) contam como Entradas / Faturamento
+      if (r.ref_orcamento || mov.includes('SAÍDA') || mov.includes('SAIDA')) {
+        entradasMes[d.getMonth()] += val;
+      } else if (mov.includes('ENTRADA')) {
+        // Compras de estoque contam como Saídas / Despesas
+        saidasMes[d.getMonth()] += val;
       }
     });
   }
