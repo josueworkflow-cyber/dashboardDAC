@@ -896,6 +896,16 @@ function renderAcompanhamentoAnualChart() {
       }
     }
   });
+
+  // Auto-scroll horizontal suave para centralizar o mês atual em telas menores
+  const scrollWrap = document.querySelector('.mon-chart-scroll-wrap');
+  if (scrollWrap && scrollWrap.scrollWidth > scrollWrap.clientWidth) {
+    const currentMonthIndex = new Date().getMonth();
+    const scrollTarget = Math.max(0, (scrollWrap.scrollWidth / 12) * (currentMonthIndex - 1.2));
+    setTimeout(() => {
+      scrollWrap.scrollTo({ left: scrollTarget, behavior: 'smooth' });
+    }, 150);
+  }
 }
 
 // ─── Helper de Valor Monetário ───

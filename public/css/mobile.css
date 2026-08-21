@@ -449,6 +449,25 @@
     min-height: 200px !important;
   }
 
+  /* --- Scroll Horizontal para o Acompanhamento Anual no Mobile --- */
+  .mon-chart-scroll-wrap {
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 6px !important;
+    display: block !important;
+  }
+
+  .mon-chart-scroll-inner {
+    min-width: 840px !important;
+    width: 840px !important;
+    height: 290px !important;
+    min-height: 290px !important;
+    position: relative !important;
+    padding: 8px 12px 14px !important;
+  }
+
   /* --- Annual tracking --- */
   .annual-grid {
     grid-template-columns: repeat(2, 1fr) !important;
