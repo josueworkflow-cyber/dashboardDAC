@@ -1002,28 +1002,103 @@ body.tv-mode .spark-grid {
 }
 
 /* ─── Seções Semanais ─── */
+/* ─── Acompanhamento Semanal (Monitoramento) ─── */
+.mon-semanal-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mon-total-box {
+  background: var(--card2, #141419);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mon-total-box.ent { border-left: 3px solid #4ADE80; }
+.mon-total-box.sai { border-left: 3px solid #F87171; }
+.mon-total-box.bal { border-left: 3px solid #3D8EF0; }
+
+.mon-total-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+.mon-total-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.badge-tipo-ent {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ADE80;
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-tipo-sai {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(248, 113, 113, 0.12);
+  color: #F87171;
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-emissao {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
 .week-section {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .week-section:last-child {
-  margin-bottom: 0;
+  margin-bottom: 4px;
 }
 
 .week-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 9px 14px;
   background: var(--card2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  margin-bottom: 8px;
-  font-size: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-bright);
   letter-spacing: 0.3px;
   transition: all .2s;
+  cursor: pointer;
 }
 
 .week-toggle:hover {
@@ -1033,21 +1108,25 @@ body.tv-mode .spark-grid {
 
 /* Maior destaque quando a semana está expandida */
 .week-section.is-open .week-header {
-  padding: 14px 20px;
-  font-size: 14px;
+  padding: 11px 16px;
+  font-size: 13.5px;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 .week-section.is-open .week-total {
-  font-size: 15px;
+  font-size: 13.5px;
 }
-.week-section.is-open td {
-  padding: 12px 16px;
+.week-section td {
+  padding: 7px 10px;
+  font-size: 12px;
 }
-.week-section.is-open th {
-  padding: 12px 16px;
+.week-section th {
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .week-body {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   animation: slideDown .3s ease-out;
 }
 
@@ -1058,9 +1137,11 @@ body.tv-mode .spark-grid {
 
 .week-total {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: #4ADE80;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 /* ─── Badge NF ─── */

@@ -1432,49 +1432,64 @@
 
       <!-- PRIMEIRA LINHA: 3 BLOCOS -->
       <div class="g3" style="align-items: start;">
-        <!-- BLOCO 1: ENTRADAS -->
+        <!-- BLOCO 1: ACOMPANHAMENTO SEMANAL -->
         <div class="card fa" style="overflow: hidden; min-width: 0; display: flex; flex-direction: column;">
-          <div class="ch" style="padding:10px 16px 8px; gap:6px;">
+          <div class="ch" style="padding:10px 14px 8px; gap:6px; flex-wrap: wrap;">
             <div class="ct" style="display:flex;align-items:center;gap:6px;">
-              ENTRADAS
+              ACOMPANHAMENTO SEMANAL
               <div class="ind-card" style="display:inline-block;">
                 <span class="ind-info">i</span>
-                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Tabela e resumo gráfico das entradas, organizadas por semana do mês. Suporta filtros por Empresa, Mês e Tipo de Emissão.</div>
+                <div class="ind-tip" style="text-transform:none;letter-spacing:normal;">Acompanhamento semanal detalhado de Entradas e Saídas com filtros por Mês, Semana, Empresa, Fluxo e Modo de Emissão.</div>
               </div>
             </div>
             <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
-              <select class="fs" id="monEmpresaFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Empresa">
+              <!-- Filtro: Empresa -->
+              <select class="fs" id="monSemanalEmpresaFilter" onchange="renderAcompanhamentoSemanal()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Empresa">
                 <option value="DAC" selected>DAC</option>
                 <option value="PULSE">PULSE</option>
-                <option value="ambos">Ambos</option>
+                <option value="ambos">Ambas Empresas</option>
               </select>
-              <select class="fs" id="monTipoFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Tipo de Emissão">
+              <!-- Filtro: Tipo de Fluxo -->
+              <select class="fs" id="monSemanalFluxoFilter" onchange="renderAcompanhamentoSemanal()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Fluxo">
+                <option value="ambos" selected>Entradas e Saídas</option>
+                <option value="entradas">Apenas Entradas</option>
+                <option value="saidas">Apenas Saídas</option>
+              </select>
+              <!-- Filtro: Modo de Emissão -->
+              <select class="fs" id="monSemanalEmissaoFilter" onchange="renderAcompanhamentoSemanal()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Tipo de Emissão">
+                <option value="ambos" selected>Todas Emissões</option>
                 <option value="nf">Com NF</option>
                 <option value="pd">Por PD</option>
-                <option value="ambos" selected>Ambos</option>
               </select>
-              <select class="fs" id="monMesFilterNF" onchange="updateMonitoramentoNF()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Mês">
-                <option value="">Todos</option>
-                <option value="0">Jan</option>
-                <option value="1">Fev</option>
-                <option value="2">Mar</option>
-                <option value="3">Abr</option>
-                <option value="4">Mai</option>
-                <option value="5">Jun</option>
-                <option value="6">Jul</option>
-                <option value="7">Ago</option>
-                <option value="8">Set</option>
-                <option value="9">Out</option>
-                <option value="10">Nov</option>
-                <option value="11">Dez</option>
+              <!-- Filtro: Mês -->
+              <select class="fs" id="monSemanalMesFilter" onchange="renderAcompanhamentoSemanal()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Mês">
+                <option value="">Todos os Meses</option>
+                <option value="0">Janeiro</option>
+                <option value="1">Fevereiro</option>
+                <option value="2">Março</option>
+                <option value="3">Abril</option>
+                <option value="4">Maio</option>
+                <option value="5">Junho</option>
+                <option value="6">Julho</option>
+                <option value="7">Agosto</option>
+                <option value="8">Setembro</option>
+                <option value="9">Outubro</option>
+                <option value="10">Novembro</option>
+                <option value="11">Dezembro</option>
+              </select>
+              <!-- Filtro: Semana -->
+              <select class="fs" id="monSemanalSemanaFilter" onchange="renderAcompanhamentoSemanal()" style="padding:4px 8px; font-size:11px;" title="Filtrar por Semana">
+                <option value="todas" selected>Todas Semanas</option>
+                <option value="1">Semana 1</option>
+                <option value="2">Semana 2</option>
+                <option value="3">Semana 3</option>
+                <option value="4">Semana 4</option>
+                <option value="5">Semana 5</option>
               </select>
             </div>
           </div>
-          <div style="padding: 0 14px 6px; flex: 1; overflow-y: auto; min-height: 0;" id="monTabelaNF">Carregando...</div>
-          <div style="display: flex; gap: 4px; align-items: center; padding: 0 8px 10px; overflow: hidden; flex-shrink: 0; border-top: 1px solid var(--card-border);">
-            <div class="chart-wrap" style="height:180px; flex: 1; padding: 4px;"><canvas id="monEntradasNFChart"></canvas></div>
-            <div id="monEntradasPieWrap" style="height:160px; width: 160px; padding: 0; position: relative; flex-shrink: 0;"><canvas id="monEntradasPieChart"></canvas></div>
-          </div>
+          <div style="padding: 0 14px 6px; flex: 1; overflow-y: auto; min-height: 0;" id="monTabelaSemanal">Carregando...</div>
+          <div id="monSemanalTotaisFooter" style="border-top: 1px solid var(--card-border); padding: 8px 12px; background: rgba(14, 16, 22, 0.4); flex-shrink: 0;"></div>
         </div>
 
         <!-- BLOCO 2: DESPESAS VARIÁVEIS -->

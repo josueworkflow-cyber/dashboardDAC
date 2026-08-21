@@ -410,7 +410,7 @@
   /* --- Monitoramento tables --- */
   .week-header {
     padding: 8px 12px !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
   }
 
   .week-total {
@@ -419,18 +419,18 @@
 
   .week-section.is-open .week-header {
     padding: 10px 14px !important;
-    font-size: 12px !important;
+    font-size: 13px !important;
   }
 
   .week-section.is-open td,
   .week-section.is-open th {
     padding: 8px 10px !important;
+    font-size: 11.5px !important;
   }
 
-  /* --- Monitoramento charts bottom section --- */
-  .pg-monitoramento #monTabelaNF + div {
-    flex-direction: column !important;
-    height: auto !important;
+  .mon-semanal-totals {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
   }
 
   .pg-monitoramento #monTabelaNF + div .chart-wrap {

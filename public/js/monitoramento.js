@@ -162,10 +162,10 @@ function initMonitoramento() {
 
   const currentMonth = String(new Date().getMonth());
   
-  const monthSelect = document.getElementById('monMesFilterNF');
-  if (monthSelect && (monthSelect.value === "" || monthSelect.getAttribute('data-init') !== 'true')) {
-    monthSelect.value = currentMonth;
-    monthSelect.setAttribute('data-init', 'true');
+  const semanalMonthSelect = document.getElementById('monSemanalMesFilter');
+  if (semanalMonthSelect && (semanalMonthSelect.value === "" || semanalMonthSelect.getAttribute('data-init') !== 'true')) {
+    semanalMonthSelect.value = currentMonth;
+    semanalMonthSelect.setAttribute('data-init', 'true');
   }
 
   const transportMonthSelect = document.getElementById('monMesFilterTransporte');
@@ -184,16 +184,11 @@ function initMonitoramento() {
 }
 
 function updateMonitoramentoNF() {
-  monShowAllWeeks = false; // Reseta para visão compacta ao trocar mês
-  renderTabelaSemanalNF();
-  renderEntradasNFChart();
-  renderEntradasPieChart();
+  renderAcompanhamentoSemanal();
 }
 
 function renderMonitoramento() {
-  renderTabelaSemanalNF();
-  renderEntradasNFChart();
-  renderEntradasPieChart();
+  renderAcompanhamentoSemanal();
   renderDespesasVariaveis();
   renderTransporteTerceirizado();
   renderAcompanhamentoAnualChart();
@@ -203,9 +198,9 @@ function renderMonitoramento() {
 
 function setMonitorFilter(tipo, btn) {
   monitorFilter = String(tipo).toUpperCase();
-  const empSelect = document.getElementById('monEmpresaFilterNF');
-  if (empSelect) {
-    empSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : 'DAC';
+  const empSemanalSelect = document.getElementById('monSemanalEmpresaFilter');
+  if (empSemanalSelect) {
+    empSemanalSelect.value = monitorFilter === 'PULSE' ? 'PULSE' : (monitorFilter === 'DAC' ? 'DAC' : 'ambos');
   }
   const empAnualSelect = document.getElementById('monAnualEmpresaFilter');
   if (empAnualSelect) {
@@ -364,27 +359,6 @@ function getWeekLabel(weekNum, month, year) {
   return `Semana ${weekNum} — ${MESES_NOMES[month]} ${year}`;
 }
 
-function groupByWeek(items) {
-  const groups = {};
-  items.forEach(item => {
-    const d = parseDate(item.data_pagamento || item.data_vencimento);
-    if (!d) return;
-    const month = d.getMonth();
-    const year = d.getFullYear();
-    const week = getWeekOfMonth(d);
-    const key = `${year}-${String(month).padStart(2, '0')}-W${week}`;
-    if (!groups[key]) groups[key] = { label: getWeekLabel(week, month, year), items: [], month, year, week, key };
-    groups[key].items.push(item);
-  });
-  return Object.values(groups).sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    if (a.month !== b.month) return b.month - a.month;
-    return a.week - b.week;
-  });
-}
-
-// ─── Tabela Semanal COM NF (DAC ou Pulse filtrado) ───
-
 function getWeekDateRange(weekNum, month, year) {
   let start = null;
   let end = null;
@@ -403,6 +377,7 @@ function getWeekDateRange(weekNum, month, year) {
 
 function toggleWeekSection(headerEl, key) {
   const body = headerEl.nextElementSibling;
+  if (!body) return;
   const isHidden = body.style.display === 'none';
   body.style.display = isHidden ? 'block' : 'none';
   
@@ -418,10 +393,8 @@ function toggleWeekSection(headerEl, key) {
   const icon = headerEl.querySelector('.toggle-icon');
   if (icon) icon.textContent = isHidden ? '▾' : '▸';
 
-  // Verifica se tem algum aberto para destravar o layout da página
   const pgContainer = document.getElementById('p-monitoramento');
   if (pgContainer) {
-    // Timeout curto garante que a UI já processou o display: block
     setTimeout(() => {
       const anyOpen = Array.from(document.querySelectorAll('.week-body')).some(el => el.style.display === 'block');
       if (anyOpen) {
@@ -433,278 +406,222 @@ function toggleWeekSection(headerEl, key) {
   }
 }
 
-// Estado: mostrar todas as semanas
-let monShowAllWeeks = false;
+// ─── Acompanhamento Semanal ───
 
-function toggleWeeksNF() {
-  monShowAllWeeks = !monShowAllWeeks;
-  renderTabelaSemanalNF();
-  const pg = document.getElementById('p-monitoramento');
-  if (pg) {
-    if (monShowAllWeeks) {
-      pg.classList.add('allow-scroll');
-    } else {
-      pg.classList.remove('allow-scroll');
-    }
-  }
-}
-
-function renderTabelaSemanalNF() {
-  const container = document.getElementById('monTabelaNF');
+function renderAcompanhamentoSemanal() {
+  const container = document.getElementById('monTabelaSemanal');
+  const footerContainer = document.getElementById('monSemanalTotaisFooter');
   if (!container) return;
 
-  const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
+  const empFiltro = document.getElementById('monSemanalEmpresaFilter')?.value || monitorFilter || 'DAC';
+  const fluxoFiltro = document.getElementById('monSemanalFluxoFilter')?.value || 'ambos';
+  const emissaoFiltro = document.getElementById('monSemanalEmissaoFilter')?.value || 'ambos';
+  const mesFiltro = document.getElementById('monSemanalMesFilter')?.value ?? '';
+  const semanaFiltro = document.getElementById('monSemanalSemanaFilter')?.value || 'todas';
 
-  let entradas = getFilteredEntradasBlock1();
+  const now = new Date();
+  const anoAtual = now.getFullYear();
 
-  if (mesFiltro !== '') {
-    const targetMonth = parseInt(mesFiltro, 10);
-    const anoAtual = new Date().getFullYear();
-    entradas = entradas.filter(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
-      return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
+  const filterEntry = (item) => {
+    if (!item) return false;
+    // 1. Empresa
+    if (empFiltro === 'DAC' && !isDACEntry(item)) return false;
+    if (empFiltro === 'PULSE' && !isPulseEntry(item)) return false;
+
+    // 2. Emissão
+    if (emissaoFiltro === 'nf' && !isNotaFiscal(item)) return false;
+    if (emissaoFiltro === 'pd' && !isPorPD(item)) return false;
+
+    return true;
+  };
+
+  const rawItems = [];
+
+  // Coleta Entradas
+  if ((fluxoFiltro === 'ambos' || fluxoFiltro === 'entradas') && typeof ENT !== 'undefined' && Array.isArray(ENT)) {
+    ENT.forEach(e => {
+      if (!filterEntry(e)) return;
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao || e.pagamento);
+      if (!d) return;
+      if (mesFiltro !== '' && (d.getMonth() !== parseInt(mesFiltro, 10) || d.getFullYear() !== anoAtual)) return;
+      const week = getWeekOfMonth(d);
+      if (semanaFiltro !== 'todas' && String(week) !== String(semanaFiltro)) return;
+
+      const val = getValOrEffective(e);
+      if (val > 0) {
+        rawItems.push({
+          item: e,
+          type: 'entrada',
+          date: d,
+          week: week,
+          month: d.getMonth(),
+          year: d.getFullYear(),
+          val: val
+        });
+      }
     });
   }
 
-  const weeks = groupByWeek(entradas);
+  // Coleta Saídas
+  if ((fluxoFiltro === 'ambos' || fluxoFiltro === 'saidas') && typeof SAI !== 'undefined' && Array.isArray(SAI)) {
+    SAI.forEach(s => {
+      if (!filterEntry(s)) return;
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao || s.pagamento);
+      if (!d) return;
+      if (mesFiltro !== '' && (d.getMonth() !== parseInt(mesFiltro, 10) || d.getFullYear() !== anoAtual)) return;
+      const week = getWeekOfMonth(d);
+      if (semanaFiltro !== 'todas' && String(week) !== String(semanaFiltro)) return;
 
-  if (weeks.length === 0) {
-    container.innerHTML = '<div class="mon-empty">Nenhuma entrada encontrada para os filtros selecionados</div>';
-    return;
-  }
-
-  // Determinar a semana atual
-  const now = new Date();
-  const currentWeekNum = getWeekOfMonth(now);
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}-W${currentWeekNum}`;
-
-  // Filtrar: semana atual ou todas
-  let visibleWeeks;
-  if (monShowAllWeeks) {
-    visibleWeeks = weeks;
-  } else {
-    const currentWeek = weeks.find(g => g.key === currentKey);
-    visibleWeeks = currentWeek ? [currentWeek] : [weeks[weeks.length - 1]];
-  }
-
-  let html = '';
-  visibleWeeks.forEach(group => {
-    const totalSemana = group.items.reduce((s, e) => s + getPaidValue(e), 0);
-    const dateRange = getWeekDateRange(group.week, group.month, group.year);
-    const isOpen = monOpenWeeks.has(group.key);
-    
-    html += `
-      <div class="week-section ${isOpen ? 'is-open' : ''}">
-        <div class="week-header week-toggle" onclick="toggleWeekSection(this, '${group.key}')" style="cursor:pointer; padding:7px 12px; font-size:11px; margin-bottom:4px;">
-          <span><span class="toggle-icon" style="margin-right:6px; display:inline-block; width:10px;">${isOpen ? '▾' : '▸'}</span>Sem ${group.week} (${dateRange})</span>
-          <span class="week-total" style="font-size:12px;">${fmt(totalSemana)}</span>
-        </div>
-        <div class="week-body" style="display:${isOpen ? 'block' : 'none'}; margin-bottom:4px;">
-          <div class="tw" style="max-height:none; overflow-x:auto;">
-            <table>
-              <thead>
-                <tr>
-                  <th style="padding:6px 8px;">Cliente</th>
-                  <th style="padding:6px 8px;">Valor Pago</th>
-                  <th style="padding:6px 8px;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${group.items.map(e => `
-                  <tr>
-                    <td style="font-size:10px; padding:5px 8px;">${e.cliente || '—'}</td>
-                    <td class="tg" style="padding:5px 8px; font-size:11px;">${fmt(getPaidValue(e))}</td>
-                    <td style="padding:5px 8px;"><span class="st ${(e.status || '').toLowerCase() === 'pago' ? 'sg' : 'sp'}">${e.status || '—'}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>`;
-  });
-
-  // Botão de toggle: expandir ou colapsar
-  if (weeks.length > 1) {
-    const btnLabel = monShowAllWeeks
-      ? '▲ Apenas semana atual'
-      : `▼ Todas as semanas (${weeks.length})`;
-    html += `
-      <div style="text-align:center; padding:6px 0 2px;">
-        <button onclick="toggleWeeksNF()" style="background:none; border:1px solid var(--border); color:var(--muted); font-size:10px; font-weight:600; font-family:'DM Sans',sans-serif; padding:5px 14px; border-radius:6px; cursor:pointer; transition:all .2s;"
-          onmouseover="this.style.borderColor='var(--red)'; this.style.color='var(--text)'"
-          onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--muted)'">
-          ${btnLabel}
-        </button>
-      </div>`;
-  }
-
-  container.innerHTML = html;
-}
-
-// ─── Gráfico Semanal Entradas com NF ───
-
-function renderEntradasNFChart() {
-  const canvas = document.getElementById('monEntradasNFChart');
-  if (!canvas) return;
-
-  const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
-  let entradas = getFilteredEntradasBlock1();
-  const anoAtual = new Date().getFullYear();
-
-  if (mesFiltro !== '') {
-    const targetMonth = parseInt(mesFiltro, 10);
-    entradas = entradas.filter(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
-      return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
+      const val = getValOrEffective(s);
+      if (val > 0) {
+        rawItems.push({
+          item: s,
+          type: 'saida',
+          date: d,
+          week: week,
+          month: d.getMonth(),
+          year: d.getFullYear(),
+          val: val
+        });
+      }
     });
   }
 
   // Agrupa por semana
-  const weekTotals = {};
-  entradas.forEach(e => {
-    const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
-    if (!d) return;
-    const week = getWeekOfMonth(d);
-    const val = getPaidValue(e);
-    if (val > 0) {
-      weekTotals[week] = (weekTotals[week] || 0) + val;
+  const groupsMap = {};
+  rawItems.forEach(entry => {
+    const key = `${entry.year}-${String(entry.month).padStart(2, '0')}-W${entry.week}`;
+    if (!groupsMap[key]) {
+      groupsMap[key] = {
+        label: getWeekLabel(entry.week, entry.month, entry.year),
+        week: entry.week,
+        month: entry.month,
+        year: entry.year,
+        key: key,
+        entries: [],
+        totalEntradas: 0,
+        totalSaidas: 0
+      };
+    }
+    groupsMap[key].entries.push(entry);
+    if (entry.type === 'entrada') {
+      groupsMap[key].totalEntradas += entry.val;
+    } else {
+      groupsMap[key].totalSaidas += entry.val;
     }
   });
 
-  const weekNums = Object.keys(weekTotals).map(Number).sort((a, b) => a - b);
-  const labels = weekNums.map(w => 'Sem ' + w);
-  const data = weekNums.map(w => weekTotals[w]);
-
-  if (monEntradasNFChart) monEntradasNFChart.destroy();
-
-  monEntradasNFChart = new Chart(canvas.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Entradas NF',
-        data: data,
-        backgroundColor: data.map((v, i) => {
-          if (i === 0) return '#4ADE8099';
-          return v >= data[i - 1] ? '#4ADE8099' : '#C4123099';
-        }),
-        borderColor: data.map((v, i) => {
-          if (i === 0) return '#4ADE80';
-          return v >= data[i - 1] ? '#4ADE80' : '#C41230';
-        }),
-        borderWidth: 1,
-        borderRadius: 5,
-        barPercentage: 0.6
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          yAlign: 'top',
-          callbacks: { label: function(c) { return fmt(c.parsed.y); } }
-        }
-      },
-      scales: {
-        x: { grid: { display: false } },
-        y: {
-          grid: { color: 'rgba(255,255,255,.03)' },
-          ticks: { callback: function(v) { return 'R$ ' + (v / 1000).toFixed(0) + 'k'; }, font: { family: "'JetBrains Mono'" } }
-        }
-      }
-    }
-  });
-}
-
-// ─── Gráfico Pizza Entradas (Total vs Teto) ───
-
-function renderEntradasPieChart() {
-  const canvas = document.getElementById('monEntradasPieChart');
-  if (!canvas) return;
-
-  const pieWrap = document.getElementById('monEntradasPieWrap') || canvas.parentElement;
-  const tipoFiltro = document.getElementById('monTipoFilterNF')?.value || 'ambos';
-
-  // O gráfico doughnut de teto só deve ser exibido quando o filtro de emissão for 'Com NF' ('nf')
-  if (tipoFiltro !== 'nf') {
-    if (pieWrap) pieWrap.style.display = 'none';
-    if (monEntradasPieChart) {
-      monEntradasPieChart.destroy();
-      monEntradasPieChart = null;
-    }
-    return;
-  }
-
-  if (pieWrap) pieWrap.style.display = 'block';
-
-  const ctx = canvas.getContext('2d');
-  const mesFiltro = document.getElementById('monMesFilterNF')?.value || '';
-  const empFiltro = document.getElementById('monEmpresaFilterNF')?.value || monitorFilter || 'DAC';
-  const tetoAnual = empFiltro === 'PULSE' ? TETO_PULSE : TETO_DAC;
-  const tetoMensal = tetoAnual / 12;
-
-  let entradas = getFilteredEntradasBlock1();
-  const now = new Date();
-  const anoAtual = now.getFullYear();
-  const targetMonth = mesFiltro !== '' ? parseInt(mesFiltro, 10) : now.getMonth();
-
-  entradas = entradas.filter(e => {
-    const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
-    return d && d.getMonth() === targetMonth && d.getFullYear() === anoAtual;
+  const sortedGroups = Object.values(groupsMap).sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    if (a.month !== b.month) return b.month - a.month;
+    return a.week - b.week;
   });
 
-  const totalMensal = entradas.reduce((s, e) => s + getPaidValue(e), 0);
-  const restanteTeto = Math.max(0, tetoMensal - totalMensal);
-  const overflow = Math.max(0, totalMensal - tetoMensal);
+  let totalGeralEntradas = 0;
+  let totalGeralSaidas = 0;
 
-  // Gradiante para o preenchimento
-  const grad = ctx.createLinearGradient(0, 0, 0, 200);
-  if (totalMensal > tetoMensal) {
-    grad.addColorStop(0, '#FF4D4D');
-    grad.addColorStop(1, '#C41230');
+  sortedGroups.forEach(g => {
+    totalGeralEntradas += g.totalEntradas;
+    totalGeralSaidas += g.totalSaidas;
+  });
+
+  const saldoGeral = totalGeralEntradas - totalGeralSaidas;
+
+  // Renderiza tabela / semanas
+  if (sortedGroups.length === 0) {
+    container.innerHTML = '<div class="mon-empty" style="padding: 24px 10px; font-size: 12px;">Nenhum lançamento encontrado para os filtros selecionados</div>';
   } else {
-    grad.addColorStop(0, '#4ADE80');
-    grad.addColorStop(1, '#16803C');
+    let html = '';
+    sortedGroups.forEach((group) => {
+      const dateRange = getWeekDateRange(group.week, group.month, group.year);
+      const isOpen = monOpenWeeks.has(group.key) || semanaFiltro !== 'todas' || sortedGroups.length === 1;
+
+      let subtotalHeader = '';
+      if (fluxoFiltro === 'ambos') {
+        subtotalHeader = `
+          <span style="color:#4ADE80; margin-right:8px;">Ent: ${fmt(group.totalEntradas)}</span>
+          <span style="color:#F87171;">Sai: ${fmt(group.totalSaidas)}</span>
+        `;
+      } else if (fluxoFiltro === 'entradas') {
+        subtotalHeader = `<span style="color:#4ADE80;">Total: ${fmt(group.totalEntradas)}</span>`;
+      } else {
+        subtotalHeader = `<span style="color:#F87171;">Total: ${fmt(group.totalSaidas)}</span>`;
+      }
+
+      html += `
+        <div class="week-section ${isOpen ? 'is-open' : ''}">
+          <div class="week-header week-toggle" onclick="toggleWeekSection(this, '${group.key}')" title="Clique para expandir/recolher">
+            <span style="display:flex; align-items:center; gap:6px;">
+              <span class="toggle-icon" style="display:inline-block; width:10px; color:var(--muted);">${isOpen ? '▾' : '▸'}</span>
+              <strong style="color:var(--text-bright);">Sem ${group.week}</strong>
+              <span style="color:var(--muted); font-size:11.5px; font-weight:500;">(${dateRange})</span>
+            </span>
+            <div class="week-total">${subtotalHeader}</div>
+          </div>
+          <div class="week-body" style="display:${isOpen ? 'block' : 'none'};">
+            <div class="tw" style="max-height:none; overflow-x:auto;">
+              <table style="width:100%;">
+                <thead>
+                  <tr>
+                    <th style="font-size:11px; font-weight:700;">Pessoa / Razão</th>
+                    <th style="font-size:11px; font-weight:700; width:95px; text-align:center;">Tipo & Doc</th>
+                    <th style="font-size:11px; font-weight:700; text-align:right; width:110px;">Valor</th>
+                    <th style="font-size:11px; font-weight:700; width:75px; text-align:center;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${group.entries.map(e => {
+                    const it = e.item;
+                    const isEnt = e.type === 'entrada';
+                    const docTag = isNotaFiscal(it) ? 'NF' : 'PD';
+                    const name = it.cliente || it.fornecedor || '—';
+                    const st = it.status || '—';
+                    const isPago = String(st).toLowerCase() === 'pago';
+
+                    return `
+                      <tr>
+                        <td style="font-size:12px; font-weight:500; color:var(--text);">${name}</td>
+                        <td style="text-align:center;">
+                          <span class="${isEnt ? 'badge-tipo-ent' : 'badge-tipo-sai'}">${isEnt ? '↓ Ent' : '↑ Sai'}</span>
+                          <span class="badge-emissao">${docTag}</span>
+                        </td>
+                        <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; color:${isEnt ? '#4ADE80' : '#F87171'};">
+                          ${isEnt ? '+' : '-'} ${fmt(e.val)}
+                        </td>
+                        <td style="text-align:center;">
+                          <span class="st ${isPago ? 'sg' : 'sp'}" style="font-size:10px; padding:2px 6px;">${st}</span>
+                        </td>
+                      </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
   }
 
-  if (monEntradasPieChart) monEntradasPieChart.destroy();
-
-  monEntradasPieChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Realizado', 'Disponível'],
-      datasets: [{
-        data: [totalMensal, restanteTeto],
-        backgroundColor: [grad, 'rgba(255,255,255,0.03)'],
-        borderColor: ['rgba(255,255,255,0.1)', 'transparent'],
-        borderWidth: 1,
-        hoverOffset: 4
-      }]
-    },
-    plugins: [monPieShadow, monCenterText],
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '70%',
-      layout: {
-        padding: 8
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          yAlign: 'top',
-          callbacks: {
-            label: (c) => ` ${c.label}: ${fmt(c.parsed)}`
-          }
-        },
-        monCenterText: { total: totalMensal, teto: tetoMensal }
-      }
-    }
-  });
+  // Renderiza Totais no Rodapé
+  if (footerContainer) {
+    footerContainer.innerHTML = `
+      <div class="mon-semanal-totals">
+        <div class="mon-total-box ent">
+          <div class="mon-total-label">Total Entradas</div>
+          <div class="mon-total-val" style="color:#4ADE80;">${fmt(totalGeralEntradas)}</div>
+        </div>
+        <div class="mon-total-box sai">
+          <div class="mon-total-label">Total Saídas</div>
+          <div class="mon-total-val" style="color:#F87171;">${fmt(totalGeralSaidas)}</div>
+        </div>
+        <div class="mon-total-box bal">
+          <div class="mon-total-label">Saldo do Período</div>
+          <div class="mon-total-val" style="color:${saldoGeral >= 0 ? '#4ADE80' : '#F87171'};">${fmt(saldoGeral)}</div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 // ─── Acompanhamento Anual Unificado (Gráfico em Linha com Marcadores e Rótulos) ───
