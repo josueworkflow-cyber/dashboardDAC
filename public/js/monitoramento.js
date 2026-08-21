@@ -241,21 +241,26 @@ function isNotaFiscal(entry) {
   const modo = String(entry.modo_emissao || '').trim().toUpperCase();
   const nf = String(entry.nota_fiscal || entry.nf || '').trim().toUpperCase();
   const obs = String(entry.observacoes || entry.observacao || '').trim().toUpperCase();
-  const combined = (modo + ' ' + nf + ' ' + obs).trim();
+  const cat = String(entry.categoria || '').trim().toUpperCase();
+  const combined = (modo + ' ' + nf + ' ' + obs + ' ' + cat).trim();
 
   if (!combined) return false;
 
-  // Se for explicitamente Sem NF, S/NF, Orçamento sem NF, Por PD, Pedido
+  // Se for explicitamente Sem NF, Por PD, Pedido, Recibo, Orçamento, Empréstimo
   if (
     combined.includes('SEM NF') ||
     combined.includes('S/ NF') ||
     combined.includes('S/NF') ||
     combined.includes('SEM NOTA') ||
-    combined.includes('ORÇAMENTO') ||
-    combined.includes('ORCAMENTO') ||
+    combined.includes('S/ NOTA') ||
     combined.includes('POR PD') ||
     combined.includes('POR PEDIDO') ||
     combined.includes('PEDIDO') ||
+    combined.includes('ORÇAMENTO') ||
+    combined.includes('ORCAMENTO') ||
+    combined.includes('RECIBO') ||
+    combined.includes('EMPRESTIMO') ||
+    combined.includes('EMPRÉSTIMO') ||
     /\bPD\b/.test(combined)
   ) {
     return false;
@@ -265,6 +270,7 @@ function isNotaFiscal(entry) {
   const hasNfKeyword = (
     combined.includes('NOTA FISCAL') ||
     combined.includes('COM NOTA') ||
+    combined.includes('COM NF') ||
     combined.includes('NFE') ||
     combined.includes('NFSE') ||
     combined.includes('DANFE') ||
@@ -276,7 +282,7 @@ function isNotaFiscal(entry) {
 
   if (hasNfKeyword) return true;
 
-  // Se o campo nota_fiscal contém o número da nota fiscal e não é PD puro
+  // Se o campo nota_fiscal contém apenas números (ex: "1234") e não é PD puro
   if (/^\d+$/.test(nf) && !modo.includes('PEDIDO') && modo !== 'PD' && !modo.includes('POR PD')) {
     return true;
   }
@@ -286,9 +292,8 @@ function isNotaFiscal(entry) {
 
 function isPorPD(entry) {
   if (!entry) return false;
-  // Por PD jamais exibe lançamentos com Nota Fiscal
-  if (isNotaFiscal(entry)) return false;
-  return true;
+  // Todo lançamento que não for Nota Fiscal é classificado como Por PD / Sem NF
+  return !isNotaFiscal(entry);
 }
 
 function getFilteredEntradasBlock1() {
@@ -462,11 +467,11 @@ function renderAcompanhamentoSemanal() {
     });
   }
 
-  // Coleta Saídas
+  // Coleta Saídas (aba Saídas do Google Sheets)
   if ((fluxoFiltro === 'ambos' || fluxoFiltro === 'saidas') && typeof SAI !== 'undefined' && Array.isArray(SAI)) {
     SAI.forEach(s => {
       if (!filterEntry(s)) return;
-      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao || s.pagamento);
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data_emissao || s.data || s.pagamento);
       if (!d) return;
       if (mesFiltro !== '' && (d.getMonth() !== parseInt(mesFiltro, 10) || d.getFullYear() !== anoAtual)) return;
       const week = getWeekOfMonth(d);
@@ -476,46 +481,6 @@ function renderAcompanhamentoSemanal() {
       if (val > 0) {
         rawItems.push({
           item: s,
-          type: 'saida',
-          date: d,
-          week: week,
-          month: d.getMonth(),
-          year: d.getFullYear(),
-          val: val
-        });
-      }
-    });
-  }
-
-  // Coleta Estoque e Pedidos Comerciais (ESTQ)
-  if (typeof ESTQ !== 'undefined' && Array.isArray(ESTQ)) {
-    ESTQ.forEach(r => {
-      if (!filterEntry(r)) return;
-      const d = parseDate(r.data || r.pagamento || r.data_vencimento);
-      if (!d) return;
-      if (mesFiltro !== '' && (d.getMonth() !== parseInt(mesFiltro, 10) || d.getFullYear() !== anoAtual)) return;
-      const week = getWeekOfMonth(d);
-      if (semanaFiltro !== 'todas' && String(week) !== String(semanaFiltro)) return;
-
-      const val = getValOrEffective(r);
-      if (val <= 0) return;
-
-      const mov = String(r.movimentacao || '').trim().toUpperCase();
-      const isVenda = r.ref_orcamento || mov.includes('SAÍDA') || mov.includes('SAIDA');
-
-      if (isVenda && (fluxoFiltro === 'ambos' || fluxoFiltro === 'entradas')) {
-        rawItems.push({
-          item: r,
-          type: 'entrada',
-          date: d,
-          week: week,
-          month: d.getMonth(),
-          year: d.getFullYear(),
-          val: val
-        });
-      } else if (!isVenda && (fluxoFiltro === 'ambos' || fluxoFiltro === 'saidas')) {
-        rawItems.push({
-          item: r,
           type: 'saida',
           date: d,
           week: week,
@@ -675,7 +640,25 @@ function renderAcompanhamentoAnualChart() {
   const emissaoFiltro = document.getElementById('monAnualEmissaoFilter')?.value || 'ambos';
 
   const now = new Date();
-  const anoAtual = now.getFullYear();
+  let anoAtual = now.getFullYear();
+
+  // Se não houver lançamentos em ENT ou SAI no ano corrente, verifica o ano dos lançamentos existentes
+  const allYears = [];
+  if (typeof ENT !== 'undefined' && Array.isArray(ENT)) {
+    ENT.forEach(e => {
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data_emissao || e.data || e.pagamento);
+      if (d && !isNaN(d.getTime())) allYears.push(d.getFullYear());
+    });
+  }
+  if (typeof SAI !== 'undefined' && Array.isArray(SAI)) {
+    SAI.forEach(s => {
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data_emissao || s.data || s.pagamento);
+      if (d && !isNaN(d.getTime())) allYears.push(d.getFullYear());
+    });
+  }
+  if (allYears.length > 0 && !allYears.includes(anoAtual)) {
+    anoAtual = Math.max(...allYears);
+  }
 
   const filterEntry = (item) => {
     if (!item) return false;
@@ -693,9 +676,10 @@ function renderAcompanhamentoAnualChart() {
   const entradasMes = new Array(12).fill(0);
   const saidasMes = new Array(12).fill(0);
 
+  // 1. Entradas (aba Entradas do Google Sheets)
   if (typeof ENT !== 'undefined' && Array.isArray(ENT)) {
     ENT.forEach(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao || e.pagamento);
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data_emissao || e.data || e.pagamento);
       if (!d || d.getFullYear() !== anoAtual) return;
       if (filterEntry(e)) {
         entradasMes[d.getMonth()] += getValOrEffective(e);
@@ -703,33 +687,13 @@ function renderAcompanhamentoAnualChart() {
     });
   }
 
+  // 2. Saídas (aba Saídas do Google Sheets)
   if (typeof SAI !== 'undefined' && Array.isArray(SAI)) {
     SAI.forEach(s => {
-      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao || s.pagamento);
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data_emissao || s.data || s.pagamento);
       if (!d || d.getFullYear() !== anoAtual) return;
       if (filterEntry(s)) {
         saidasMes[d.getMonth()] += getValOrEffective(s);
-      }
-    });
-  }
-
-  // 3. Estoque e Pedidos Comerciais (ESTQ)
-  if (typeof ESTQ !== 'undefined' && Array.isArray(ESTQ)) {
-    ESTQ.forEach(r => {
-      const d = parseDate(r.data || r.pagamento || r.data_vencimento);
-      if (!d || d.getFullYear() !== anoAtual) return;
-      if (!filterEntry(r)) return;
-
-      const val = getValOrEffective(r);
-      if (val <= 0) return;
-
-      const mov = String(r.movimentacao || '').trim().toUpperCase();
-      // Pedidos de venda (ref_orcamento ou saída de estoque para cliente) contam como Entradas / Faturamento
-      if (r.ref_orcamento || mov.includes('SAÍDA') || mov.includes('SAIDA')) {
-        entradasMes[d.getMonth()] += val;
-      } else if (mov.includes('ENTRADA')) {
-        // Compras de estoque contam como Saídas / Despesas
-        saidasMes[d.getMonth()] += val;
       }
     });
   }

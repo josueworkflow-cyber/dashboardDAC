@@ -14,20 +14,42 @@ function fmt(v) {
 // Converte string de data (dd/mm/yyyy ou yyyy-mm-dd) para Date
 function parseDate(str) {
   if (!str) return null;
-  // Handle "dd/mm/yyyy"
-  if (typeof str.includes === 'function' && str.includes('/')) {
-    const parts = str.split('/');
-    if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]);
-  }
-  // Try to avoid timezone shift for YYYY-MM-DD
-  if (typeof str.includes === 'function' && str.includes('-')) {
-    const p = str.split('T')[0].split('-');
-    if (p.length === 3) {
-      return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  if (str instanceof Date) return isNaN(str.getTime()) ? null : str;
+  const s = String(str).trim();
+  if (!s) return null;
+
+  // Trata "dd/mm/yyyy" ou "dd/mm/yy" ou "dd/mm/yyyy hh:mm:ss"
+  if (s.includes('/')) {
+    const clean = s.split(' ')[0].split('T')[0];
+    const parts = clean.split('/');
+    if (parts.length === 3) {
+      let day = parseInt(parts[0], 10);
+      let month = parseInt(parts[1], 10);
+      let year = parseInt(parts[2], 10);
+      if (year < 100) year += 2000;
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        return new Date(year, month - 1, day);
+      }
     }
   }
-  const d = new Date(str);
-  return isNaN(d) ? null : d;
+
+  // Trata "yyyy-mm-dd" ou "yyyy-mm-ddThh:mm:ss"
+  if (s.includes('-')) {
+    const clean = s.split('T')[0].split(' ')[0];
+    const p = clean.split('-');
+    if (p.length === 3) {
+      let year = parseInt(p[0], 10);
+      let month = parseInt(p[1], 10);
+      let day = parseInt(p[2], 10);
+      if (year < 100) year += 2000;
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        return new Date(year, month - 1, day);
+      }
+    }
+  }
+
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 // Converte Date para string no formato yyyy-mm-dd
