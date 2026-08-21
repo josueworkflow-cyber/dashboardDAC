@@ -240,59 +240,51 @@ function isNotaFiscal(entry) {
   if (!entry) return false;
   const modo = String(entry.modo_emissao || '').trim().toUpperCase();
   const nf = String(entry.nota_fiscal || entry.nf || '').trim().toUpperCase();
-  const obs = String(entry.observacoes || entry.observacao || '').trim().toUpperCase();
-  const cat = String(entry.categoria || '').trim().toUpperCase();
-  const combined = (modo + ' ' + nf + ' ' + obs + ' ' + cat).trim();
 
-  if (!combined) return false;
-
-  // Se for explicitamente Sem NF, Por PD, Pedido, Recibo, Orçamento, Empréstimo
+  // 1. Se modo_emissao ou nota_fiscal indicar explicitamente PD / Sem NF / Pedido / Orçamento / Recibo
   if (
-    combined.includes('SEM NF') ||
-    combined.includes('S/ NF') ||
-    combined.includes('S/NF') ||
-    combined.includes('SEM NOTA') ||
-    combined.includes('S/ NOTA') ||
-    combined.includes('POR PD') ||
-    combined.includes('POR PEDIDO') ||
-    combined.includes('PEDIDO') ||
-    combined.includes('ORÇAMENTO') ||
-    combined.includes('ORCAMENTO') ||
-    combined.includes('RECIBO') ||
-    combined.includes('EMPRESTIMO') ||
-    combined.includes('EMPRÉSTIMO') ||
-    /\bPD\b/.test(combined)
+    modo.includes('POR PD') ||
+    modo.includes('POR PEDIDO') ||
+    modo.includes('PEDIDO') ||
+    modo.includes('SEM NF') ||
+    modo.includes('S/ NF') ||
+    modo.includes('S/NF') ||
+    modo.includes('SEM NOTA') ||
+    modo.includes('S/ NOTA') ||
+    modo.includes('ORÇAMENTO') ||
+    modo.includes('ORCAMENTO') ||
+    modo.includes('RECIBO') ||
+    modo.includes('EMPRESTIMO') ||
+    modo.includes('EMPRÉSTIMO') ||
+    /\bPD\b/.test(modo) ||
+    /\bPD\b/.test(nf)
   ) {
     return false;
   }
 
-  // É Nota Fiscal se contiver palavras-chave de NF/Emissão
-  const hasNfKeyword = (
-    combined.includes('NOTA FISCAL') ||
-    combined.includes('COM NOTA') ||
-    combined.includes('COM NF') ||
-    combined.includes('NFE') ||
-    combined.includes('NFSE') ||
-    combined.includes('DANFE') ||
-    combined.includes('EMITIDA') ||
-    combined.includes('EMISSÃO') ||
-    combined.includes('EMISSAO') ||
-    /\bNF\b/.test(combined)
-  );
-
-  if (hasNfKeyword) return true;
-
-  // Se o campo nota_fiscal contém apenas números (ex: "1234") e não é PD puro
-  if (/^\d+$/.test(nf) && !modo.includes('PEDIDO') && modo !== 'PD' && !modo.includes('POR PD')) {
+  // 2. Se for explicitamente Nota Fiscal (Emitida pela DAC/Pulse, Com Nota Fiscal, NF, NFe, etc.)
+  if (
+    modo.includes('EMITIDA') ||
+    modo.includes('NOTA FISCAL') ||
+    modo.includes('COM NOTA') ||
+    modo.includes('COM NF') ||
+    modo.includes('NFE') ||
+    modo.includes('NFSE') ||
+    modo.includes('DANFE') ||
+    /\bNF\b/.test(modo) ||
+    /\bNF\b/.test(nf) ||
+    (/^\d+$/.test(nf) && nf.length >= 2)
+  ) {
     return true;
   }
 
+  // 3. Tudo o que não for comprovadamente Nota Fiscal é considerado Por Pedido (PD)
   return false;
 }
 
 function isPorPD(entry) {
   if (!entry) return false;
-  // Todo lançamento que não for Nota Fiscal é classificado como Por PD / Sem NF
+  // Regra direta: tudo o que não for com NF é Por PD
   return !isNotaFiscal(entry);
 }
 
