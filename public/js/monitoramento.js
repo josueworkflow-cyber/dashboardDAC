@@ -244,19 +244,32 @@ function isPulseEntry(entry) {
 function isNotaFiscal(entry) {
   if (!entry) return false;
   const modo = String(entry.modo_emissao || '').trim().toUpperCase();
-  const nf = String(entry.nota_fiscal || '').trim().toUpperCase();
-  const combined = (modo + ' ' + nf).trim();
+  const nf = String(entry.nota_fiscal || entry.nf || '').trim().toUpperCase();
+  const obs = String(entry.observacoes || entry.observacao || '').trim().toUpperCase();
+  const combined = (modo + ' ' + nf + ' ' + obs).trim();
 
   if (!combined) return false;
 
-  // Se for explicitamente Sem NF, S/NF ou Orçamento sem NF
-  if (combined.includes('SEM NF') || combined.includes('S/ NF') || combined.includes('S/NF') || combined.includes('SEM NOTA') || combined.includes('ORÇAMENTO') || combined.includes('ORCAMENTO')) {
+  // Se for explicitamente Sem NF, S/NF, Orçamento sem NF, Por PD, Pedido
+  if (
+    combined.includes('SEM NF') ||
+    combined.includes('S/ NF') ||
+    combined.includes('S/NF') ||
+    combined.includes('SEM NOTA') ||
+    combined.includes('ORÇAMENTO') ||
+    combined.includes('ORCAMENTO') ||
+    combined.includes('POR PD') ||
+    combined.includes('POR PEDIDO') ||
+    combined.includes('PEDIDO') ||
+    /\bPD\b/.test(combined)
+  ) {
     return false;
   }
 
   // É Nota Fiscal se contiver palavras-chave de NF/Emissão
   const hasNfKeyword = (
     combined.includes('NOTA FISCAL') ||
+    combined.includes('COM NOTA') ||
     combined.includes('NFE') ||
     combined.includes('NFSE') ||
     combined.includes('DANFE') ||
@@ -269,7 +282,7 @@ function isNotaFiscal(entry) {
   if (hasNfKeyword) return true;
 
   // Se o campo nota_fiscal contém o número da nota fiscal e não é PD puro
-  if (/^\d+$/.test(nf) && !modo.includes('PEDIDO') && modo !== 'PD') {
+  if (/^\d+$/.test(nf) && !modo.includes('PEDIDO') && modo !== 'PD' && !modo.includes('POR PD')) {
     return true;
   }
 
@@ -725,17 +738,17 @@ function renderAcompanhamentoAnualChart() {
 
   if (typeof ENT !== 'undefined' && Array.isArray(ENT)) {
     ENT.forEach(e => {
-      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao);
+      const d = parseDate(e.data_pagamento || e.data_vencimento || e.data || e.data_emissao || e.pagamento);
       if (!d || d.getFullYear() !== anoAtual) return;
       if (filterEntry(e)) {
-        entradasMes[d.getMonth()] += (typeof getEffectiveValue === 'function' ? getEffectiveValue(e) : getPaidValue(e));
+        entradasMes[d.getMonth()] += getValOrEffective(e);
       }
     });
   }
 
   if (typeof SAI !== 'undefined' && Array.isArray(SAI)) {
     SAI.forEach(s => {
-      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao);
+      const d = parseDate(s.data_pagamento || s.data_vencimento || s.data || s.data_emissao || s.pagamento);
       if (!d || d.getFullYear() !== anoAtual) return;
       if (filterEntry(s)) {
         saidasMes[d.getMonth()] += getValOrEffective(s);
@@ -913,12 +926,34 @@ function getValOrEffective(s) {
   if (!s) return 0;
   const status = String(s.status || '').trim().toLowerCase();
   if (status === 'cancelado') return 0;
-  if (typeof getEffectiveValue === 'function') return getEffectiveValue(s);
-  const valor = typeof parseVal === 'function' ? parseVal(s.valor) : (parseFloat(s.valor) || 0);
+
+  // 1. Linha consolidada de parcelas
+  if (s._groupItems && Array.isArray(s._groupItems) && s._groupItems.length > 0) {
+    const sumGroup = s._groupItems.reduce((acc, item) => {
+      if (!item) return acc;
+      const st = String(item.status || '').trim().toLowerCase();
+      if (st === 'cancelado') return acc;
+      const vp = typeof parseVal === 'function' ? parseVal(item.valor_pago) : (parseFloat(item.valor_pago) || 0);
+      const v = typeof parseVal === 'function' ? parseVal(item.valor) : (parseFloat(item.valor) || 0);
+      return acc + (vp > 0 ? vp : v);
+    }, 0);
+    if (sumGroup > 0) return sumGroup;
+  }
+
+  // 2. Se getEffectiveValue retornar valor positivo (status pago/parcial)
+  if (typeof getEffectiveValue === 'function') {
+    const eff = getEffectiveValue(s);
+    if (eff > 0) return eff;
+  }
+
+  // 3. Fallback: valor_pago ou valor nominal se não cancelado
   const valorPago = typeof parseVal === 'function' ? parseVal(s.valor_pago) : (parseFloat(s.valor_pago) || 0);
+  const valor = typeof parseVal === 'function' ? parseVal(s.valor) : (parseFloat(s.valor) || 0);
+
   if (status === 'pago') return valorPago > 0 ? valorPago : valor;
-  if (status === 'parcial') return valorPago;
-  return 0;
+  if (status === 'parcial') return valorPago > 0 ? valorPago : valor;
+
+  return valorPago > 0 ? valorPago : (valor > 0 ? valor : 0);
 }
 
 // ─── Helper de Categoria para Transporte Terceirizado / Logística ───
